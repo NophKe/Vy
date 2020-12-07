@@ -1,15 +1,15 @@
 from pathlib import Path
 from .descriptors import VyString, VyPath
 from .filelike import FileLike
-from .pygments import Printer
+#from .pygments import Printer
 from .motions import Motions
 
-class TextFile(Motions, FileLike, Printer):
+class TextFile(Motions, FileLike):
     string = VyString()
     path = VyPath()
 
     def __init__(self, path=None, cursor=0):
-        self._lexer = None
+        self.lexer = None
         self.tab_size = 4
         self.redo_list = list()
         self.undo_list = list()
