@@ -5,13 +5,10 @@ from pathlib import Path
 import readline
 from os import listdir
 
-import logging
-LOG_FILENAME = './completer.log'
-logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-
 class CommandModeCompleter:
     @staticmethod
     def completer(txt, state):
+        readline.redisplay()
         line = readline.get_line_buffer()
         if not line:
             rv = [k for k in dictionary][state] + ' '
@@ -29,34 +26,17 @@ class CommandModeCompleter:
         show_files = line.startswith( ('e ', 'edit ', 'vsplit ', 'w ', 'w! ', 'write ', 'write! '))
         if show_files:
             readline.set_completer(None)
-            return readline.get_completer(txt, state)
+            rv = readline.get_completer(txt, state)
+            readline.set_completer(self.completer)
+            return rv
            
-
-#            if not txt:
-#                rv = [str(k) for k in listdir('.')][state] + ' '
-#                return rv
-#
-#            if not txt.startswith(('.', '/')):
-#                rv = [k for k in listdir('.')
-#                        if isinstance(k, str) and k.startswith(txt)
-#                        ][state] + ' '
-#                return rv
-#            else:
-#                rv = [k for k in listdir(txt)
-#                        if isinstance(k, str) and k.startswith(txt)
-#                        ][state] + ' '
-#                return rv
-
-
     def __enter__(self):
         self.histfile = Path("~/.vym/command_history").expanduser()
         if not self.histfile.exists():
             self.histfile.touch()
 
         self._old_complete = readline.get_completer() 
-        readline.set_completer(None)
 
-        self._file_complete = readline.get_completer() 
         readline.set_completer(self.completer)
 
         readline.set_completer_delims(' \t')

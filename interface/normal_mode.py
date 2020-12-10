@@ -17,6 +17,11 @@ def DELETE(ed, part):
 full_cmd = {'d': DELETE}
 
 sa_cmd = {
+# Work in progress
+    k.page_up   : DO_page_up,
+    k.page_down : DO_page_down,
+
+
 # goto insert_mode
     'O'   : do( GO('0'), r"x.current_buffer.insert('\n')", GO('k'), mode='insert'),
     'o'   : do( GO('$'), r"x.current_buffer.insert('\n')", mode='insert'),

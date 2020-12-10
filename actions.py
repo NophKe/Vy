@@ -154,6 +154,19 @@ def DO_zb(editor, arg):
         curwin.shift_to_lin = curwin.number_of_lin 
     else:
         curwin.shift_to_lin = new_pos 
+
+def DO_page_down(editor, arg):
+    buff = editor.current_buffer
+    for _ in range(editor.screen.number_of_lin - 1):
+        next_line = buff[buff.cursor:].find('\n')
+        editor.current_buffer.cursor += (next_line + 1)
+
+def DO_page_up(editor, arg):
+    buff = editor.current_buffer
+    for _ in range(editor.screen.number_of_lin - 1):
+        next_line = buff[:buff.cursor].rfind('\n')
+        editor.current_buffer.cursor -= (next_line + 1)
+
 ###
 # Change Mode
 #####
