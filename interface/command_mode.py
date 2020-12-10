@@ -28,22 +28,39 @@ class CommandModeCompleter:
 
         show_files = line.startswith( ('e ', 'edit ', 'vsplit ', 'w ', 'w! ', 'write ', 'write! '))
         if show_files:
-            if not txt:
-                rv = [str(k) for k in listdir('.')][state] + ' '
-                return rv
+            readline.set_completer(None)
+            return readline.get_completer(txt, state)
+           
 
-            if not txt.startswith(('.', '/')):
-                rv = [k for k in listdir('.')
-                        if isinstance(k, str) and k.startswith(txt)
-                        ][state] + ' '
-                return rv
+#            if not txt:
+#                rv = [str(k) for k in listdir('.')][state] + ' '
+#                return rv
+#
+#            if not txt.startswith(('.', '/')):
+#                rv = [k for k in listdir('.')
+#                        if isinstance(k, str) and k.startswith(txt)
+#                        ][state] + ' '
+#                return rv
+#            else:
+#                rv = [k for k in listdir(txt)
+#                        if isinstance(k, str) and k.startswith(txt)
+#                        ][state] + ' '
+#                return rv
+
 
     def __enter__(self):
         self.histfile = Path("~/.vym/command_history").expanduser()
         if not self.histfile.exists():
             self.histfile.touch()
+
         self._old_complete = readline.get_completer() 
+        readline.set_completer(None)
+
+        self._file_complete = readline.get_completer() 
         readline.set_completer(self.completer)
+
+        readline.set_completer_delims(' \t')
+
         readline.set_history_length(1000)
         readline.read_history_file(self.histfile)
         readline.parse_and_bind('tab: complete')
