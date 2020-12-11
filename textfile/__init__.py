@@ -76,17 +76,24 @@ class TextFile(Motions, FileLike):
             return True
         return False
 
+
     @property
-    def cursor_lin_col(self):
+    def CURSOR_LIN_COL(self):
         offset = 0
         lin = 0
         col = 0
-        for line_number, line in enumerate(self.string.splitlines(True), start=1):
+        for line_number, line in enumerate(self._string.splitlines(True), start=1):
             offset += len(line)
             if offset >= self.cursor:
                 col = int(len(line) - (offset - self.cursor))
                 lin = int(line_number)
                 break
+        return (lin, col)
+
+    @property
+    def cursor_lin_col(self):
+        lin = self._string[:self.cursor].count('\n')
+        col = self.cursor - self._string[:self.cursor].rfind('\n')
         return (lin, col)
 
     @property
