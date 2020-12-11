@@ -50,11 +50,12 @@ def find_first_non_blank_char_in_line(buff):
     rv = find_next_non_blank_char(buff)
     buff.seek(pos)
     return rv
+
 def find_next_non_blank_char(buff):
     pos = buff.tell()
-    while curbuf.read(1).isspace():
+    while buff.read(1).isspace():
         pass
-    rv = curbuf.tell() - 1
+    rv = buff.tell() - 1
     buff.seek(pos)
     return rv
 
