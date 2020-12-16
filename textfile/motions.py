@@ -171,13 +171,32 @@ def find_normal_b(buff):
     else:
         return word_offset
 
-def IW(buff):
-    return range(buff[':cursor'].rfind(' ') + 1,
-                    buff.cursor + buff[':cursor'].lfind(' '))
+def inner_word(buff):
+    start = buff[:buff.cursor].rfind(' ')
+    if start == -1:
+        start = 0
+    else:
+        start += 1
+
+    stop = buff[:buff.cursor].find(' ')
+    if stop == -1:
+        stop = len(buff.string)
+    else:
+        stop += buff.cursor
+
+    return range(start, stop)
+
+def current_line(buff):
+    start = motion['0'](buff)
+    stop = motion['$'](buff)
+    if stop < len(buff):
+        stop +=1
+    return range(start, stop)
 
 motion = {
+    '.':    current_line,
     'b':    find_normal_b,
-    'iw':   IW,
+    'iw':   inner_word,
     'h':    find_normal_h,
     'j':    find_normal_j,
     'k':    find_normal_k,

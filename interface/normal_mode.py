@@ -17,10 +17,9 @@ def DELETE(ed, part):
 full_cmd = {'d': DELETE}
 
 sa_cmd = {
-# Work in progress
+# page scrolling 
     k.page_up   : DO_page_up,
     k.page_down : DO_page_down,
-
 
 # goto insert_mode
     'O'   : do( GO('0'), r"x.current_buffer.insert('\n')", GO('k'), mode='insert'),
@@ -146,6 +145,14 @@ def loop(self):
                 while (key := getchar()).isdigit():
                     MOTION_COUNT += key
             MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
+
+            if key == CMD:
+                COMMAND = resolver(full_cmd, CMD)
+                for _ in range(MOTION_COUNT * COUNT):
+                    MOTION = resolver(motion_cmd, '.')(self.current_buffer)
+                    COMMAND(self, MOTION)
+                return 'normal'
+
 
             while one_inside_dict_starts_with(motion_cmd, key):
                 if key in dictionary:
