@@ -1,7 +1,6 @@
 from pathlib import Path
 from .descriptors import VyString, VyPath
 from .filelike import FileLike
-#from .pygments import Printer
 from .motions import Motions
 
 class TextFile(Motions, FileLike):
@@ -68,7 +67,6 @@ class TextFile(Motions, FileLike):
                     raise FileExistsError('Add ! in interface or override=True in *kwargs ....')
     @property
     def unsaved(self):
-        #breakpoint()
         if self.path is None or not self.path.exists():
             if self.string != '\n':
                 return True
@@ -101,7 +99,7 @@ class TextFile(Motions, FileLike):
         return self.string.count('\n')
 
     def suppr(self):
-        self.string  = self.string[:self.cursor] + self.string[self.cursor + 1 :]
+        self.string  = self._string[:self.cursor] + self._string[self.cursor + 1 :]
 
     def backspace(self):
         if self.cursor > 0:
@@ -121,49 +119,3 @@ def print_buffer(buff):
 
     for x in buff.gen_window(1, max_col +1 , 0, max_lin - 1):
         print(x, end='\r')
-
-
-if __name__ == '__main__':
-    buff = TextFile()
-    buff.insert('''1
-2
-3
-4444|4444|4444|4444|
-5555|5555|5555|5555|
-6   5   10   15   20 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-7  x|xxxx|xxxx|xxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-8   tres longue ligne __________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
-9   |xxxx|xxxx|xxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-10
-____|____|ONZE|__ _|_ __ _  ONZE     ____ __ _ _ __
-12  is ful of trailing spaces                                                                                                                                                                                                           
-
-here is 14:  last one (13) was empty    xxxxxxxxxxx
-xxxx|xxxx|xxxx|xxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-next one (15) start with three tabs
-            xxxx|xxxx|xxxx|xxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-xxxx|xxxx|xxxx|xxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-next is only tabs
-                                                    
-xxxx|xxxx|xxxx
-
-|xxxx|xxxx
-
-xxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-xxxx|xxxx|xx
-
-xx|xxxx|xxxx
-
-xxxxxx
-
-xxxxxxxxxxxxxxxxxxxxx
-
-xxxx
-
-|xxxx|xxxx|xxx       xxxxxxxxxxxxxxxxxxx''')
-
-
-    print_buffer(buff)
-
-
