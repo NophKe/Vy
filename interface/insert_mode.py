@@ -1,3 +1,5 @@
+from multiprocessing import Process
+
 from .. import keys as k
 from ..actions import *
 from ..console import get_a_key, setraw
@@ -11,32 +13,32 @@ def GO(where):
     return func
 
 def loop(self):
-    pending = list()
-    self.screen.show(True)
-    self.screen.minibar('-- INSERT --')
-    self.screen.restore_cursor()
+    curbuf = self.current_buffer
+    screen = self.screen
+#    setraw(stdout)
+
+    screen.show(True)
+    screen.minibar('-- INSERT --')
+    
     while True:
+        show = Process(target=screen.show, args=())
+        show.start()
+        
         user_input  = get_a_key()
         if user_input == '\r':
-            pending.append('\n')
-            break
-        elif user_input.isspace():
-            pending.append(user_input)
-            break
+            curbuf.insert('\n')
         elif user_input.isprintable():
-            pending.append(user_input)
-            self.screen.insert(user_input)
+            curbuf.insert(user_input)
         else:
             while one_inside_dict_starts_with(dictionary, user_input):
                 if user_input in dictionary:
                     break
                 else:
                     user_input += get_a_key()
-            self.current_buffer.insert(''.join(pending))
             if user_input in dictionary:
                 return dictionary[user_input](self, None)
 
-    self.current_buffer.insert(''.join(pending))
+        #show.kill()
     return 'insert'
 
 

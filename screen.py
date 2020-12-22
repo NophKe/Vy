@@ -308,6 +308,7 @@ class Screen(Window):
                 self.go_line(index)
                 stdout.write(line)
                 self._old_screen[index] = line
+        stdout.flush()
 
     def recenter(self):
         curwin = self.focused
