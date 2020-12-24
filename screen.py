@@ -94,14 +94,12 @@ def gen_lexed_line(buff, max_col, min_lin):
                     token_line = token_line[:cur_pos] + '\x1b7\x1b[7;5m' + token_line[cur_pos] + '\x1b[25;27m' + token_line[cur_pos+1:]
 
             if nl_flag:
-                if on_lin  < min_lin:
-                    yield ''
-                else:
+                if on_lin > min_lin:
                     yield expandtabs(buff.tab_size, max_col, line + colorize(token_line) )
                 on_lin += 1
                 chars_to_print = 0
                 line = ''
-                offset += len_to_add + chars_to_print
+                offset += len_to_add
                 continue
             elif chars_to_print > max_col:
                 continue
@@ -117,11 +115,9 @@ def gen_window_line(buff, col_shift, max_col, lin_shift, max_lin):
     max_index = max_lin + lin_shift
     for index, item in enumerate(chain(gen_lexed_line(buff, max_col, lin_shift),
                                        repeat( '~'+(' '*(max_col-1))))):
-        if index < lin_shift:
-            continue
-        elif lin_shift <= index <= max_index:
+        if index < max_lin:
             yield item
-        elif index > max_index:
+        else:
             break
 
 

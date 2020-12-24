@@ -15,18 +15,20 @@ def GO(where):
 def loop(self):
     curbuf = self.current_buffer
     screen = self.screen
-#    setraw(stdout)
 
-    screen.show(True)
+    renew = True
     screen.minibar('-- INSERT --')
     
     while True:
-        show = Process(target=screen.show, args=())
+        show = Process(target=screen.show, args=(renew,))
         show.start()
+        renew = False
         
         user_input  = get_a_key()
         if user_input == '\r':
             curbuf.insert('\n')
+            renew = True
+            continue
         elif user_input.isprintable():
             curbuf.insert(user_input)
         else:
@@ -38,6 +40,7 @@ def loop(self):
             if user_input in dictionary:
                 return dictionary[user_input](self, None)
 
+        renew = False
         #show.kill()
     return 'insert'
 
