@@ -38,7 +38,13 @@ def loop(self):
                 else:
                     user_input += get_a_key()
             if user_input in dictionary:
-                return dictionary[user_input](self, None)
+                #show.kill()
+
+                rv = dictionary[user_input](self, None)
+                if rv != 'insert':
+                    return rv
+                renew = True
+                continue
 
         renew = False
         #show.kill()
