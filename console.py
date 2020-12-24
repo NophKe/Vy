@@ -10,6 +10,13 @@ ISPEED = 4
 OSPEED = 5
 CC = 6
 
+class stdin_no_echo:
+    def __enter__(self):
+        self.mode = tcgetattr(stdin)
+        setnoecho(stdin)
+    def __exit__(self, *args):
+        tcsetattr(stdin, TCSAFLUSH, self.mode)
+
 def setnoecho(fd, when=TCSAFLUSH):
     mode = tcgetattr(fd)
     mode[LFLAG] = mode[LFLAG] & ~ECHO

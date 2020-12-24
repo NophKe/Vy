@@ -2,7 +2,7 @@ from multiprocessing import Process
 
 from .. import keys as k
 from ..actions import *
-from ..console import get_a_key, setraw
+from ..console import get_a_key, stdin_no_echo
 from .helpers import one_inside_dict_starts_with, do
 
 
@@ -19,36 +19,37 @@ def loop(self):
     renew = True
     screen.minibar('-- INSERT --')
     
-    while True:
-        show = Process(target=screen.show, args=(renew,))
-        show.start()
-        renew = False
-        
-        user_input  = get_a_key()
-        if user_input == '\r':
-            curbuf.insert('\n')
-            renew = True
-            continue
-        elif user_input.isprintable():
-            curbuf.insert(user_input)
-        else:
-            while one_inside_dict_starts_with(dictionary, user_input):
-                if user_input in dictionary:
-                    break
-                else:
-                    user_input += get_a_key()
-            if user_input in dictionary:
-                #show.kill()
-
-                rv = dictionary[user_input](self, None)
-                if rv != 'insert':
-                    return rv
+    with stdin_no_echo():
+        while True:
+            show = Process(target=screen.show, args=(renew,))
+            show.start()
+            renew = False
+            
+            user_input  = get_a_key()
+            if user_input == '\r':
+                curbuf.insert('\n')
                 renew = True
                 continue
+            elif user_input.isprintable():
+                curbuf.insert(user_input)
+            else:
+                while one_inside_dict_starts_with(dictionary, user_input):
+                    if user_input in dictionary:
+                        break
+                    else:
+                        user_input += get_a_key()
+                if user_input in dictionary:
+                    #show.kill()
 
-        renew = False
-        #show.kill()
-    return 'insert'
+                    rv = dictionary[user_input](self, None)
+                    if rv != 'insert':
+                        return rv
+                    renew = True
+                    continue
+
+            renew = False
+            #show.kill()
+        return 'insert'
 
 
 dictionary = {}
