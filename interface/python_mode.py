@@ -1,5 +1,3 @@
-from ..actions import DO_normal_mode
-
 import readline
 import rlcompleter
 import code

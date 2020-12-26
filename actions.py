@@ -171,22 +171,6 @@ def DO_page_up(editor, arg):
             return
         buff.cursor = prev_line
 
-##
-# Change Mode
-#####
-
-def DO_normal_mode(editor, arg):
-    return editor.interface.stack.clear()
-
-def DO_insert_mode(editor, arg):
-    return editor.interface.push('insert')
-
-def DO_command_mode(editor, arg):
-    return editor.interface.push('command')
-
-def DO_python_mode(editor, arg):
-    return editor.interface.push('python')
-
 ###
 # Normal Mode sub-loops
 #####
