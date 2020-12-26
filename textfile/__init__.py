@@ -90,8 +90,12 @@ class TextFile(Motions, FileLike):
 
     @property
     def cursor_lin_col(self):
-        lin = self._string[:self.cursor].count('\n')
-        col = self.cursor - self._string[:self.cursor].rfind('\n')
+        string = self._string
+        cursor = self.cursor
+        lin = string[:cursor].count('\n')
+        col = cursor - string[:cursor].rfind('\n')
+        if col == -1:
+            col = len(self._string)
         return (lin, col)
 
     @property
@@ -99,7 +103,9 @@ class TextFile(Motions, FileLike):
         return self.string.count('\n')
 
     def suppr(self):
-        self.string  = self._string[:self.cursor] + self._string[self.cursor + 1 :]
+        string = self._string
+        cursor = self.cursor
+        self.string  = string[:cursor] + string[cursor + 1 :]
 
     def backspace(self):
         if self.cursor > 0:
@@ -107,7 +113,7 @@ class TextFile(Motions, FileLike):
             self.suppr() 
 
     def insert(self, text):
-        string = self.string
+        string = self._string
         cur = self.cursor
         self.string = f'{string[:cur]}{text}{string[cur:]}'
         self.cursor += len(text)
@@ -116,6 +122,5 @@ class TextFile(Motions, FileLike):
 def print_buffer(buff):
     from os import get_terminal_size
     max_col, max_lin = get_terminal_size()
-
     for x in buff.gen_window(1, max_col +1 , 0, max_lin - 1):
         print(x, end='\r')

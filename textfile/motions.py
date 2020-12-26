@@ -267,7 +267,7 @@ class Motions():
             return self.__delitem__(key)
 
     def __setitem__(self, key, value):
-        self.string = self.string[:key] + value + self.string[key+1:]
+        self.string = self._string[:key] + value + self._string[key+1:]
 
     def insert(self, text):
         self.string = self.string[:self.cursor] + text + self.string[self.cursor:]
