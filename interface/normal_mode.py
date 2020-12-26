@@ -1,3 +1,4 @@
+from multiprocessing import Process
 from collections import ChainMap
 
 from .helpers import one_inside_dict_starts_with, resolver, do
@@ -103,8 +104,10 @@ def loop(self):
         return rv
 
     while True:
-        self.screen.show(True)
         self.screen.minibar('-- NORMAL -- \t\t\t')
+        show = Process(target=self.screen.show, args=(True,))
+        show.start()
+        #self.screen.show(True)
         REG = ''
         COUNT = ''
         CMD = ''
