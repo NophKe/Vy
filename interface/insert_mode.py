@@ -39,7 +39,7 @@ def loop(self):
                     else:
                         user_input += get_a_key()
                 if user_input in dictionary:
-                    #show.kill()
+                    show.kill()
 
                     rv = dictionary[user_input](self, None)
                     if rv != 'insert':
@@ -47,9 +47,9 @@ def loop(self):
                     renew = True
                     continue
 
-            renew = False
-            #show.kill()
-        return 'insert'
+       #     renew = False
+       #     show.kill()
+       # return 'insert'
 
 
 dictionary = {}

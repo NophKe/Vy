@@ -175,6 +175,25 @@ def DO_page_up(editor, arg):
 # Normal Mode sub-loops
 #####
  
+def DO_find(editor,arg):
+    editor.screen.minibar('/')
+    
+    curbuf = editor.current_buffer
+    try:
+        needle = input()
+    except KeyboardInterrupt:
+        return 'normal'
+
+    if not needle:
+        return 'normal'
+
+    offset = curbuf._string[curbuf.cursor:].find(needle)
+    if offset == -1:
+        editor.warning('string not found')
+        return 'normal'
+
+    curbuf.cursor += offset
+
 def DO_r(editor, arg):
     from .console import get_a_key
     editor.current_buffer.write(get_a_key())

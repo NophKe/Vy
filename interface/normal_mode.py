@@ -42,7 +42,7 @@ sa_cmd = {
 # misc
     k.C_R   : lambda ed, cmd: ed.current_buffer.redo(),
     'u'     : lambda ed, cmd: ed.current_buffer.undo(),
-    '?'     : lambda x, arg: (x.screen.minibar(str(x.current_buffer.cursor_lin_col)), input()),
+    '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
 
 # recenter
     'zz'    : DO_zz,
@@ -56,6 +56,7 @@ sa_cmd = {
 
 # sub-modes
     'r' : DO_r,
+    '/' : DO_find,
 
 # window manipulation
     k.C_W + k.left : DO_focus_right_window,
@@ -98,11 +99,6 @@ valid_registers = 'abcdef'
 
     
 def loop(self):
-    def getchar():
-        rv = get_a_key()
-        self.screen.insert(rv)
-        return rv
-
     while True:
         self.screen.minibar('-- NORMAL -- \t\t\t')
         show = Process(target=self.screen.show, args=(True,))
@@ -114,39 +110,33 @@ def loop(self):
         RANGE = ''
         MOTION_COUNT = ''
 
-        key = getchar()
+        key = get_a_key()
 
         if key == '"':
-            REG = getchar()
-            if REG not in valid_registers:
-                continue
-            key = getchar()
+            REG = get_a_key()
+            if REG not in valid_registers: continue
+            key = get_a_key()
 
         if key.isdigit():
             COUNT += key
-            while (key := getchar()).isdigit():
-                COUNT += key
+            while (key := get_a_key()).isdigit(): COUNT += key
         COUNT = int(COUNT) if COUNT else 1
 
         while one_inside_dict_starts_with(dictionary, key):
-            if key in dictionary:
-                break
-            else:
-                key += getchar()
-        else:
-            continue
+            if key in dictionary: break
+            else: key += get_a_key()
+        else: continue
 
         if key in sa_cmd:
             return resolver(sa_cmd, key)(self, None)
 
         elif key in full_cmd:
             CMD = key
-            key = getchar()
+            key = get_a_key()
 
             if key.isdigit():
                 MOTION_COUNT += key
-                while (key := getchar()).isdigit():
-                    MOTION_COUNT += key
+                while (key := get_a_key()).isdigit(): MOTION_COUNT += key
             MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
 
             if key == CMD:
@@ -158,15 +148,11 @@ def loop(self):
 
 
             while one_inside_dict_starts_with(motion_cmd, key):
-                if key in dictionary:
-                    break
-                else:
-                    key += getchar()
-            else:
-                continue
+                if key in dictionary: break
+                else: key += get_a_key()
+            else: continue
 
-            if key not in motion_cmd:
-                continue
+            if key not in motion_cmd: continue
             
             if key.startswith('i'):
                 self.current_buffer.seek(
@@ -193,6 +179,7 @@ resolver(motion_cmd,key)(self.current_buffer)
 
         elif key in motion_cmd:
             func = resolver(motion_cmd, key)
+            show.join(0.1)
             for _ in range(COUNT):
                 self.current_buffer.seek(func(self.current_buffer))
-            return 'normal'
+            continue
