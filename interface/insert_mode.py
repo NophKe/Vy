@@ -17,39 +17,41 @@ def loop(self):
     screen = self.screen
 
     renew = True
+    show = None
+    screen_miss = 0
+
     screen.minibar('-- INSERT --')
     
     with stdin_no_echo():
         while True:
-            show = Process(target=screen.show, args=(renew,))
-            show.start()
-            renew = False
+            if not show:
+                screen.show(True)
+                show = Process(target=screen.show, args=())
+                show.start()
+            else:
+                show = Process(target=screen.show, args=())
+                show.start()
             
             user_input  = get_a_key()
             if user_input == '\r':
                 curbuf.insert('\n')
-                renew = True
-                continue
+                #show.kill()
+                show = None
             elif user_input.isprintable():
                 curbuf.insert(user_input)
+                show.kill()
             else:
                 while one_inside_dict_starts_with(dictionary, user_input):
-                    if user_input in dictionary:
-                        break
-                    else:
-                        user_input += get_a_key()
-                if user_input in dictionary:
-                    show.kill()
+                    if user_input in dictionary: break
+                    else: user_input += get_a_key()
 
+                if user_input in dictionary:
                     rv = dictionary[user_input](self, None)
                     if rv != 'insert':
                         return rv
-                    renew = True
+                    show = None
                     continue
 
-       #     renew = False
-       #     show.kill()
-       # return 'insert'
 
 
 dictionary = {}
