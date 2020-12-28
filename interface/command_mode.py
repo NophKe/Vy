@@ -62,6 +62,12 @@ def loop(self):
         except EOFError:
             return 'normal'
 
+        if user_input.isdigit():
+            line = int(user_input)
+            self.current_buffer.seek(0)
+            for _ in range(line):
+                self.current_buffer.move_cursor('j')
+
         if ' ' in user_input:
             cmd, args = user_input.split(' ', maxsplit=1)
             key = cmd
