@@ -184,14 +184,14 @@ def inner_word(buff):
     else:
         stop += buff.cursor
 
-    return range(start, stop)
+    return slice(start, stop)
 
 def current_line(buff):
     start = motion['0'](buff)
     stop = motion['$'](buff)
     if stop < len(buff):
         stop +=1
-    return range(start, stop)
+    return slice(start, stop)
 
 motion = {
     '.':    current_line,
@@ -251,7 +251,7 @@ class Motions():
             else:
                 raise IndexError('string index out of range')
 
-        elif isinstance(key, (slice,range)):
+        elif isinstance(key, slice):
             if not key.start:
                 start = 0
             else:
@@ -267,7 +267,16 @@ class Motions():
             return self.__delitem__(key)
 
     def __setitem__(self, key, value):
-        self.string = self._string[:key] + value + self._string[key+1:]
+        if isinstance(key, str):
+            key = self._get_range(key)
+        if isinstance(key, slice):
+            start = key.start
+            stop = key.stop
+        if isinstance(key, int):
+            start = key
+            stop = start + 1
+        self.string = self._string[:start] + value + self._string[stop:]
+
 
     def insert(self, text):
         self.string = self.string[:self.cursor] + text + self.string[self.cursor:]

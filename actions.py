@@ -229,6 +229,14 @@ def DO_f(editor, arg):
         else:
             continue
 
+###
+# Edition
+#
+
 DO_suppr  = lambda x, arg: x.current_buffer.suppr()
 DO_backspace =  lambda x, arg: x.current_buffer.backspace()
 
+def DO_normal_tilde(editor, arg):
+    curbuf = editor.current_buffer
+    curbuf[curbuf.cursor] = curbuf[curbuf.cursor].swapcase()
+    curbuf.move_cursor('l')

@@ -13,9 +13,16 @@ GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 def DELETE(ed, part):
     return ed.current_buffer.__delitem__(part)
 
+def SWAP_CASE(ed, part):
+    new_txt = ed.current_buffer[part].swapcase()
+    ed.current_buffer[part] = new_txt
+    ed.current_buffer.cursor += len(new_txt)
 
 
-full_cmd = {'d': DELETE}
+
+full_cmd = {'d' : DELETE,
+            'g~'    : SWAP_CASE,
+}
 
 sa_cmd = {
 # page scrolling 
@@ -54,6 +61,7 @@ sa_cmd = {
     k.suppr : 'x',
     'x' : DO_suppr,
     'X' : lambda ed, cmd: ed.current_buffer.backspace(),
+    '~' : DO_normal_tilde, 
 
 # sub-modes
     'r' : DO_r,
@@ -105,19 +113,15 @@ def loop(self):
         show = Process(target=self.screen.show, args=(True,))
         show.start()
         #self.screen.show(True)
-        REG = ''
-        COUNT = ''
-        CMD = ''
-        RANGE = ''
-        MOTION_COUNT = ''
+        REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
 
         key = get_a_key()
-
+        
         if key == '"':
             REG = get_a_key()
             if REG not in valid_registers: continue
             key = get_a_key()
-
+        
         if key.isdigit():
             COUNT += key
             while (key := get_a_key()).isdigit(): COUNT += key
@@ -128,8 +132,7 @@ def loop(self):
             else: key += get_a_key()
         else: continue
 
-        if key in sa_cmd:
-            return resolver(sa_cmd, key)(self, None)
+        if key in sa_cmd: return resolver(sa_cmd, key)(self, None)
 
         elif key in full_cmd:
             CMD = key
@@ -140,7 +143,9 @@ def loop(self):
                 while (key := get_a_key()).isdigit(): MOTION_COUNT += key
             MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
 
-            if key == CMD:
+            if key == CMD or (len(CMD) > 1 
+                                and CMD.startswith('g')
+                                and key == 'g'):
                 COMMAND = resolver(full_cmd, CMD)
                 for _ in range(MOTION_COUNT * COUNT):
                     MOTION = resolver(motion_cmd, '.')(self.current_buffer)
@@ -156,26 +161,25 @@ def loop(self):
             if key not in motion_cmd: continue
             
             if key.startswith('i'):
-                self.current_buffer.seek(
-resolver(motion_cmd,key)(self.current_buffer)
-)
+                func = resolver(motion_cmd,key)
+                self.current_buffer.seek(func(self.current_buffer))
                 func = resolver(motion_cmd,key[1:])
             else:
                 func = resolver(motion_cmd,key)
 
-            for _ in range(COUNT):
-                old_pos = self.current_buffer.tell()
-                for _ in range(MOTION_COUNT):
-                    self.current_buffer.seek(func(self.current_buffer))
-                new_pos = self.current_buffer.tell()
-                if old_pos < new_pos:
-                    RANGE = range(old_pos, new_pos)
-                    self.current_buffer.seek(old_pos)
-                else:
-                    RANGE = range(new_pos, old_pos)
-                    self.current_buffer.seek(new_pos)
+            old_pos = self.current_buffer.tell()
+            for _ in range(COUNT * MOTION_COUNT):
+                self.current_buffer.seek(func(self.current_buffer))
+            new_pos = self.current_buffer.tell()
 
-                resolver(full_cmd, CMD)(self, RANGE)
+            if old_pos < new_pos:
+                RANGE = slice(old_pos, new_pos)
+                self.current_buffer.seek(old_pos)
+            else:
+                RANGE = slice(new_pos, old_pos)
+                self.current_buffer.seek(new_pos)
+
+            resolver(full_cmd, CMD)(self, RANGE)
             return 'normal'
 
         elif key in motion_cmd:
@@ -184,3 +188,4 @@ resolver(motion_cmd,key)(self.current_buffer)
             for _ in range(COUNT):
                 self.current_buffer.seek(func(self.current_buffer))
             continue
+
