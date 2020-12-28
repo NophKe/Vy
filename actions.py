@@ -255,3 +255,12 @@ def DO_paste(editor, arg):
     except KeyError:
         return
     editor.current_buffer.insert(editor.register['"']),
+
+def DO_insert_expandtabs(editor, arg):
+    curbuf = editor.current_buffer
+    curbuf.insert('\t')
+    orig = curbuf['.']
+    after = orig.expandtabs(tabsize=curbuf.tab_size)
+    curbuf['.'] = after
+    curbuf.cursor += len(after) - len(orig)
+

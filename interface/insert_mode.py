@@ -78,4 +78,7 @@ dictionary.update( {
     '\x1b'  : do(mode='normal') ,
     '²'     : do(mode='normal') ,
     k.C_C*7 : lambda ed, cmd: ed.warning('^C pressed seven times'),
+
+# inserter
+    '\t'    : DO_insert_expandtabs,
     })
