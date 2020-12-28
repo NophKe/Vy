@@ -13,10 +13,11 @@ def _make_key(key):
 
 class Cache():
     _dic = dict()
-    _counter = 1 #start one for all the keys to be True
-                # zero is special case
+    _counter = 1
+
     def pop(self, key):
         return self._dic.pop(_make_key(key))
+
     def __repr__(self):
         rv = str()
         for buff in self._dic.values():
@@ -26,6 +27,7 @@ class Cache():
     def __iter__(self):
         for value in self._dic.values():
             yield value
+    
     def __contains__(self, key):
         if key in self._dic:
             return True

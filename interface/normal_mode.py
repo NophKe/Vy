@@ -43,6 +43,7 @@ sa_cmd = {
     k.C_R   : lambda ed, cmd: ed.current_buffer.redo(),
     'u'     : lambda ed, cmd: ed.current_buffer.undo(),
     '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
+    'n' : DO_normal_n,
 
 # recenter
     'zz'    : DO_zz,

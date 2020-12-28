@@ -174,6 +174,18 @@ def DO_page_up(editor, arg):
 ###
 # Normal Mode sub-loops
 #####
+def DO_normal_n(editor,arg):
+    needle = editor.register['/']
+    if not needle:
+        return
+    curbuf = editor.current_buffer
+
+    offset = curbuf._string[curbuf.cursor+1:].find(needle)
+    if offset == -1:
+        editor.warning('string not found')
+        return 'normal'
+    curbuf.cursor += offset + 1
+
  
 def DO_find(editor,arg):
     editor.screen.minibar('/')
@@ -187,12 +199,13 @@ def DO_find(editor,arg):
     if not needle:
         return 'normal'
 
-    offset = curbuf._string[curbuf.cursor:].find(needle)
+    editor.register['/'] = needle
+
+    offset = curbuf._string[curbuf.cursor+1:].find(needle)
     if offset == -1:
         editor.warning('string not found')
         return 'normal'
-
-    curbuf.cursor += offset
+    curbuf.cursor += offset + 1
 
 def DO_r(editor, arg):
     from .console import get_a_key

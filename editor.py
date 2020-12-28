@@ -5,6 +5,7 @@ from .console import get_a_key
 
 class Editor:
     cache = Cache()
+    register = dict()
     
     def __init__(self, *buffers):
         if buffers:
