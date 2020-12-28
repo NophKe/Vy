@@ -110,6 +110,8 @@ valid_registers = 'abcdef'
 def loop(self):
     while True:
         self.screen.minibar('-- NORMAL -- \t\t\t')
+        self.screen.recenter()
+
         show = Process(target=self.screen.show, args=(True,))
         show.start()
         #self.screen.show(True)
@@ -150,6 +152,8 @@ def loop(self):
                 for _ in range(MOTION_COUNT * COUNT):
                     MOTION = resolver(motion_cmd, '.')(self.current_buffer)
                     COMMAND(self, MOTION)
+                show.join(1)
+                show.kill()
                 return 'normal'
 
 
@@ -184,8 +188,9 @@ def loop(self):
 
         elif key in motion_cmd:
             func = resolver(motion_cmd, key)
-            show.join(0.1)
+            show.join(1)
             for _ in range(COUNT):
                 self.current_buffer.seek(func(self.current_buffer))
+            show.kill()
             continue
 

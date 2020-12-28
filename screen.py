@@ -296,8 +296,8 @@ class Screen(Window):
         else:
             super().vsplit().set_focus()
 
-    def show(self, renew=False):
-        self.top_left()
+    def show(self, renew=False, queue=None):
+        #self.top_left()
         self.recenter()
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
@@ -305,6 +305,10 @@ class Screen(Window):
                 stdout.write(line)
                 self._old_screen[index] = line
         stdout.flush()
+        if queue:
+            queue.send(self._old_screen)
+            #queue.close()
+
 
     def recenter(self):
         curwin = self.focused

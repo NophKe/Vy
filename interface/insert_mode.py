@@ -15,17 +15,14 @@ def GO(where):
 def loop(self):
     curbuf = self.current_buffer
     screen = self.screen
-
-    renew = True
     show = None
-    screen_miss = 0
 
-    screen.minibar('-- INSERT --')
     
     with stdin_no_echo():
         while True:
             if not show:
                 screen.show(True)
+                screen.minibar('-- INSERT --')
                 show = Process(target=screen.show, args=())
                 show.start()
             else:

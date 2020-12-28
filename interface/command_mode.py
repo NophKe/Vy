@@ -50,7 +50,6 @@ class CommandModeCompleter:
         readline.set_completer(self._old_complete)
         
 def loop(self):
-    self.screen.show()
     self.screen.minibar('')
     self.screen.bottom()
 
