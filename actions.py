@@ -175,7 +175,11 @@ def DO_page_up(editor, arg):
 # Normal Mode sub-loops
 #####
 def DO_normal_n(editor,arg):
-    needle = editor.register['/']
+    try:
+        needle = editor.register['/']
+    except KeyError:
+        return
+
     if not needle:
         return
     curbuf = editor.current_buffer
@@ -240,3 +244,14 @@ def DO_normal_tilde(editor, arg):
     curbuf = editor.current_buffer
     curbuf[curbuf.cursor] = curbuf[curbuf.cursor].swapcase()
     curbuf.move_cursor('l')
+
+###
+# Paste/yank
+#
+
+def DO_paste(editor, arg):
+    try:
+        txt = editor.register['"']
+    except KeyError:
+        return
+    editor.current_buffer.insert(editor.register['"']),

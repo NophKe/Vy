@@ -11,7 +11,9 @@ from ..textfile.motions import motion
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 
 def DELETE(ed, part):
-    return ed.current_buffer.__delitem__(part)
+    curbuf = ed.current_buffer
+    ed.register['"'] = curbuf[part]
+    return curbuf.__delitem__(part)
 
 def SWAP_CASE(ed, part):
     new_txt = ed.current_buffer[part].swapcase()
@@ -25,6 +27,7 @@ full_cmd = {'d' : DELETE,
 }
 
 sa_cmd = {
+    'p' : DO_paste,
 # page scrolling 
     k.page_up   : DO_page_up,
     k.page_down : DO_page_down,
@@ -114,7 +117,6 @@ def loop(self):
 
         show = Process(target=self.screen.show, args=(True,))
         show.start()
-        #self.screen.show(True)
         REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
 
         key = get_a_key()
