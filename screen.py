@@ -129,7 +129,9 @@ class Window():
             self.parent._focused = self
         self.parent.set_focus()
 
-    def get_left_buffer(self):
+    def get_left_buffer(self, caller=None):
+        if caller is self:
+            return self
         if self.parent._focused is self.parent.right_panel:
             if self.parent.right_panel.vertical_split:
                 return self.parent.right_panel._get_left()
@@ -137,11 +139,13 @@ class Window():
                 return self.parent.left_panel
         elif self.parent._focused is self.parent.left_panel:
             if self.parent.parent is not self.parent:
-                return self.parent.parent.get_left_panel()
+                return self.parent.parent.get_left_panel(caller=self)
             else:
-                return self.get_left_buffer()
+                return self.get_left_buffer(caller=self)
 
-    def get_right_buffer(self):
+    def get_right_buffer(self, caller=None):
+        if caller is self:
+            return self
         if self.parent._focused is self.parent.left_panel:
             if self.parent.right_panel.vertical_split:
                 return self.parent.right_panel._get_right()
@@ -149,9 +153,9 @@ class Window():
                 return self.parent.right_panel
         elif self.parent._focused is self.parent.right_panel:
             if self.parent.parent is not self.parent:
-                return self.parent.parent.get_right_panel()
+                return self.parent.parent.get_right_panel(caller=self)
             else:
-                return self.get_right_buffer()
+                return self.get_right_buffer(caller=self)
 
     def _get_right(self):
         """Do not use this. will only work with inside get_right_window()"""
