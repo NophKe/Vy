@@ -2,119 +2,29 @@ from os import get_terminal_size
 from sys import stdout
 from itertools import chain, repeat
 
-from pygments.token import Keyword, Name, Comment, String, Error, Number, Operator, Generic, Token, Whitespace
-from pygments.console import ansiformat
-from pygments.lexers import guess_lexer_for_filename
-from pygments.util import  ClassNotFound
+try:
+    from .syntax import gen_lexed_line
 
+except ImportError:
+    def gen_lexed_line(buff, max_col, lin_shift, wrap):
+        lin, col = buff.cursor_lin_col
+        for index, line in enumerate(buff._string.splitlines()):
+            if lin == index:
+                if col < len(line):
+                    line = line[:col] + '\x1b7\x1b[7;5m' + line[col] + '\x1b[25;27m' + line[col+1:]
+                else:
+                    line = line[:col] + '\x1b7\x1b[7;5m \x1b[25;27m'
 
-colorscheme = {
-    Token:              '',
-    Whitespace:         'gray',         Comment:            'gray',
-    Comment.Preproc:    'cyan',         Keyword:            '*blue*',
-    Keyword.Type:       'cyan',         Operator.Word:      'magenta',
-    Name.Builtin:       'cyan',         Name.Function:      'green',
-    Name.Namespace:     '_cyan_',       Name.Class:         '_green_',
-    Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
-    Name.Variable:      'red',          Name.Constant:      'red',
-    Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
-    String:             'yellow',       Number:             'blue',
-    Generic.Deleted:    'brightred',
-    Generic.Inserted:   'green',        Generic.Heading:    '**',
-    Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
-    Generic.Error:      'brightred',    Error:              '_brightred_',
-}
+            if index > lin_shift:
+                yield line.expandtabs(tabsize=buff.tab_size).ljust(max_col, ' ')
 
-def _colorize(ttype):
-    def func(text):
-        return ansiformat(color, text)
-    for token_class in reversed(ttype.split()):
-        if ttype in colorscheme:
-            color = colorscheme[ttype]
-        else:
-            ttype = ttype.parent
-    return func
-
-def expandtabs(tab_size, max_col, text):
-    rv = list()
-    on_col = 0
-    esc_flag = False
-
-    for char in text:
-        if on_col ==  max_col :
-            rv.append('\x1b[0m')
-            return ''.join(rv)
-            
-        if char == '\x1b':
-            esc_flag = True
-            rv.append(char)
-            continue
-        elif esc_flag  and char == 'm': 
-            esc_flag = False
-            rv.append(char)
-            continue
-        elif char == '\t':
-            nb_of_tabs =  tab_size - (on_col % tab_size)
-            rv.append(' ' * nb_of_tabs)
-            on_col += nb_of_tabs
-        else:
-            if not esc_flag:
-                on_col += 1
-            rv.append(char)
-
-    return ''.join(rv) + (' ' * (max_col - on_col))
-
-def gen_lexed_line(buff, max_col, min_lin):
-    if not buff.lexer:
-        filename = buff.path if buff.path else ''
-        try:
-            buff.lexer = guess_lexer_for_filename(filename, buff.getvalue(), tabsize = buff.tab_size, encoding='utf-8')
-        except ClassNotFound:
-            buff.lexer = guess_lexer_for_filename('text.txt', buff.getvalue(), tabsize = buff.tab_size, encoding='utf-8')
-
-    chars_to_print = 0
-    line = ''
-    on_lin = 0
-    
-    for offset, tok, val in buff.lexer.get_tokens_unprocessed(buff._string):
-        colorize = _colorize(tok)
-
-        for token_line in val.splitlines(True):
-            nl_flag = token_line.endswith('\n')
-            if nl_flag:
-                token_line = token_line[:-1] + ' '
-
-            len_to_add = len(token_line)
-            
-            if (offset + len_to_add) >= buff.cursor >= offset:
-                cur_pos = (buff.cursor - offset)
-                if cur_pos > len_to_add :
-                    token_line = token_line[:cur_pos] + '\x1b7\x1b[7;5m \x1b[25;27m'
-                elif cur_pos < len_to_add:
-                    token_line = token_line[:cur_pos] + '\x1b7\x1b[7;5m' + token_line[cur_pos] + '\x1b[25;27m' + token_line[cur_pos+1:]
-
-            if nl_flag:
-                if on_lin > min_lin:
-                    yield expandtabs(buff.tab_size, max_col, line + colorize(token_line) )
-                on_lin += 1
-                chars_to_print = 0
-                line = ''
-                offset += len_to_add
-                continue
-            elif chars_to_print > max_col:
-                continue
-            else:
-                line += colorize(token_line)
-                chars_to_print += len_to_add
-                continue
-    else:
-        if line:
-            yield expandtabs(tab_size, max_col, line )
 
 def gen_window_line(buff, col_shift, max_col, lin_shift, max_lin):
     max_index = max_lin + lin_shift
-    for index, item in enumerate(chain(gen_lexed_line(buff, max_col, lin_shift),
-                                       repeat( '~'+(' '*(max_col-1))))):
+    generator = gen_lexed_line(buff, max_col, lin_shift, wrap=False)
+    default = repeat( '~'+(' '*(max_col-1)))
+
+    for index, item in enumerate(chain(generator,default)):
         if index < max_lin:
             yield item
         else:
