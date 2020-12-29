@@ -2,13 +2,13 @@ import readline
 import rlcompleter
 import code
 import __main__
-import atexit
 import os
 
 class Console(code.InteractiveConsole):
     """ taken from Python official docs """
     def __init__(self, locals=None, filename="<console>",
         histfile=os.path.expanduser("~/.vym/python_history")):
+        self.histfile = histfile
         code.InteractiveConsole.__init__(self, locals, filename)
         self.init_history(histfile)
 
@@ -17,14 +17,13 @@ class Console(code.InteractiveConsole):
         if hasattr(readline, "read_history_file"):
             try:
                 readline.read_history_file(histfile)
-                atexit.register(self.save_history, histfile)
             except FileNotFoundError:
                 pass
 
-    def save_history(self, histfile):
+    def save_history(self):
         try:
             readline.set_history_length(1000)
-            readline.write_history_file(histfile)
+            readline.write_history_file(self.histfile)
         except FileNotFoundError:
             pass
 
@@ -58,6 +57,9 @@ def loop(editor):
         console.interact()
     except SystemExit:
         pass
+    finally:
+        console.save_history()
+        
 
     del __main__.exit
 
