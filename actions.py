@@ -1,5 +1,36 @@
 TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved for buffer in editor.cache] ) else True
 
+# Editor
+####
+def DO_set(editor, arg):
+    toggle = object()
+    if not arg: return
+    
+    arg = arg.strip()
+    if ' ' in arg:
+        arg, value = arg.split(' ', maxsplit=1)
+        value = int(value)
+    elif arg.lower().startswith('no'):
+        arg = arg[2:]
+        value = False
+    elif arg.endswith('!'):
+        arg = arg[:-1]
+        value = toggle
+    else:
+        value = True
+    
+    try:
+        option = getattr(editor.current_buffer, 'set_' + arg)
+    except AttributeError:
+        editor.warning(f"invalid option {arg}")
+        return
+
+    if isinstance(option, type(value)):
+        setattr(editor.current_buffer, 'set_' + arg, value)
+    if value is toggle:
+        setattr(editor.current_buffer, 'set_' + arg, not option)
+
+
 def DO_edit(editor, arg):
     try:
         editor.edit(arg)

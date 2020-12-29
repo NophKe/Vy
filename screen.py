@@ -21,7 +21,7 @@ except ImportError:
 
 def gen_window_line(buff, col_shift, max_col, lin_shift, max_lin):
     max_index = max_lin + lin_shift
-    generator = gen_lexed_line(buff, max_col, lin_shift, wrap=False)
+    generator = gen_lexed_line(buff, max_col, lin_shift, buff.set_wrap)
     default = repeat( '~'+(' '*(max_col-1)))
 
     for index, item in enumerate(chain(generator,default)):

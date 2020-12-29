@@ -78,6 +78,7 @@ def loop(self):
                 or 'normal')
 
 dictionary = {
+    'set'   : DO_set,
 # change mode
     'visual': 'vi',
     'vi'    : DO_nothing,

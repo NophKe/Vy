@@ -8,6 +8,7 @@ class TextFile(Motions, FileLike):
     path = VyPath()
 
     def __init__(self, path=None, cursor=0):
+        self.set_wrap = False
         self.lexer = None
         self.tab_size = 4
         self.redo_list = list()
