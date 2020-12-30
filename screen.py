@@ -216,6 +216,7 @@ class Screen(Window):
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
+                self.clear_line()
                 stdout.write(line)
                 self._old_screen[index] = line
         self.bottom()

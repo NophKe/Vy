@@ -55,7 +55,7 @@ def expandtabs(tab_size, max_col, text, on_lin):
     number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
     rv = list()
     retval = list()
-    rv.append('\x1b[90;40m' + number)
+    rv.append('\x1b[90;40m' + number + '\x1b[0m')
 
     on_col = len(number) - 1
     esc_flag = False
@@ -65,7 +65,7 @@ def expandtabs(tab_size, max_col, text, on_lin):
             rv.append('\x1b[0m')
             retval.append(''.join(rv))
             rv = list()
-            rv.append('\x1b[90;40m' + ' ' * len(number) )
+            rv.append('\x1b[90;40m' + ' ' * len(number)+ '\x1b[0m')
             on_col = len(number) -1
             esc_flag = False
             

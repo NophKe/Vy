@@ -112,7 +112,7 @@ valid_registers = 'abcdef'
     
 def loop(self):
 
-    with stdin_no_echo():
+    #with stdin_no_echo():
         parent_conn, child_conn = Pipe()
         while True:
             self.screen.minibar(' -- NORMAL -- ')

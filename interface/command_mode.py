@@ -78,6 +78,8 @@ def loop(self):
                 or 'normal')
 
 dictionary = {
+# Meta commands
+    '!'     : DO_system,
     'set'   : DO_set,
 # change mode
     'visual': 'vi',

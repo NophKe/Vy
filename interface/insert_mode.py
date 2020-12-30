@@ -22,7 +22,7 @@ def loop(self):
         while True:
             if not show:
                 screen.show(True)
-                screen.minibar('-- INSERT --')
+                screen.minibar(' -- INSERT --')
                 show = Process(target=screen.show, args=())
                 show.start()
             else:

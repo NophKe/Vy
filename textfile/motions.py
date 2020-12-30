@@ -64,7 +64,7 @@ def find_normal_k(buff):
     cursor = buff.tell()
     on_col=1
     line_start = buff.tell()
-    while (line_start := cursor - on_col ) != 0:
+    while (line_start := cursor - on_col ) >= 0:
         if buff[line_start] == '\n':
             break
         else:

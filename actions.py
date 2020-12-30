@@ -1,4 +1,13 @@
 TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved for buffer in editor.cache] ) else True
+#
+# Meta Commands
+#
+
+def DO_system(editor, arg):
+    import os
+    if arg:
+        os.system(arg)
+        input('Command Finished, press <CR>')
 
 # Editor
 ####
@@ -291,7 +300,7 @@ def DO_insert_expandtabs(editor, arg):
     curbuf = editor.current_buffer
     curbuf.insert('\t')
     orig = curbuf['.']
-    after = orig.expandtabs(tabsize=curbuf.set_tab_size)
+    after = orig.expandtabs(tabsize=curbuf.set_tabsize)
     curbuf['.'] = after
     curbuf.cursor += len(after) - len(orig)
 
