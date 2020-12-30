@@ -10,7 +10,7 @@ class TextFile(Motions, FileLike):
     def __init__(self, path=None, cursor=0):
         self.set_wrap = False
         self.lexer = None
-        self.tab_size = 4
+        self.set_tabsize = 4
         self.redo_list = list()
         self.undo_list = list()
         self.cursor = cursor

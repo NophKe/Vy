@@ -1,4 +1,9 @@
-from pygments.token import Keyword, Name, Comment, String, Error, Number, Operator, Generic, Token, Whitespace
+from pygments.token import (Keyword, Name, Comment, 
+                            String, Error, Number, 
+                            Operator, Generic, Token, 
+                            Whitespace, Text)
+
+import pygments.console
 from pygments.console import ansiformat
 from pygments.lexers import guess_lexer_for_filename
 from pygments.util import  ClassNotFound
@@ -15,14 +20,16 @@ colorscheme = {
     Name.Variable:      'red',          Name.Constant:      'red',
     Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
     String:             'yellow',       Number:             'blue',
-    Generic.Deleted:    'brightred',
+    Generic.Deleted:    'brightred',    Text:               'white', 
     Generic.Inserted:   'green',        Generic.Heading:    '**',
     Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
     Generic.Error:      'brightred',    Error:              '_brightred_',
 }
 
 
+@lru_cache(16)
 def _colorize(ttype):
+    @lru_cache(16)
     def func(text):
         return ansiformat(color, text)
     for token_class in reversed(ttype.split()):
@@ -44,13 +51,12 @@ def get_rows_needed(number):
     else:
         return 10
 
-@lru_cache(50)
 def expandtabs(tab_size, max_col, text, on_lin):
     number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
-    number = number
     rv = list()
     retval = list()
-    rv.append(number)
+    rv.append('\x1b[90;40m' + number)
+
     on_col = len(number) - 1
     esc_flag = False
     
@@ -59,7 +65,7 @@ def expandtabs(tab_size, max_col, text, on_lin):
             rv.append('\x1b[0m')
             retval.append(''.join(rv))
             rv = list()
-            rv.append(' ' * len(number))
+            rv.append('\x1b[90;40m' + ' ' * len(number) )
             on_col = len(number) -1
             esc_flag = False
             
@@ -80,16 +86,16 @@ def expandtabs(tab_size, max_col, text, on_lin):
             if not esc_flag:
                 on_col += 1
             rv.append(char)
-    retval.append(''.join(rv) + (' ' * (max_col - on_col)))
+    retval.append(''.join(rv) + (' ' * (max_col - on_col - 1)))
     return retval 
 
 def gen_lexed_line(buff, max_col, min_lin, wrap):
     if not buff.lexer:
         filename = buff.path if buff.path else ''
         try:
-            buff.lexer = guess_lexer_for_filename(filename, buff.getvalue(), tabsize = buff.tab_size, encoding='utf-8')
+            buff.lexer = guess_lexer_for_filename(filename, buff.getvalue(), tabsize = buff.set_tabsize, encoding='utf-8')
         except ClassNotFound:
-            buff.lexer = guess_lexer_for_filename('text.txt', buff.getvalue(), tabsize = buff.tab_size, encoding='utf-8')
+            buff.lexer = guess_lexer_for_filename('text.txt', buff.getvalue(), tabsize = buff.set_tabsize, encoding='utf-8')
 
     line = ''
     on_lin = 0
@@ -113,7 +119,7 @@ def gen_lexed_line(buff, max_col, min_lin, wrap):
 
             if nl_flag:
                 if on_lin > min_lin:
-                    to_print = expandtabs(buff.tab_size, max_col, line + colorize(token_line), on_lin )
+                    to_print = expandtabs(buff.set_tabsize, max_col, line + colorize(token_line), on_lin )
                     if wrap:
                         yield from to_print
                     else:

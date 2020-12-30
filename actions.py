@@ -291,7 +291,7 @@ def DO_insert_expandtabs(editor, arg):
     curbuf = editor.current_buffer
     curbuf.insert('\t')
     orig = curbuf['.']
-    after = orig.expandtabs(tabsize=curbuf.tab_size)
+    after = orig.expandtabs(tabsize=curbuf.set_tab_size)
     curbuf['.'] = after
     curbuf.cursor += len(after) - len(orig)
 

@@ -1,4 +1,4 @@
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 from collections import ChainMap
 
 from .helpers import one_inside_dict_starts_with, resolver, do
@@ -111,13 +111,21 @@ valid_registers = 'abcdef'
 
     
 def loop(self):
-    with stdin_no_echo():
-        while True:
-            self.screen.minibar('-- NORMAL -- \t\t\t')
-            self.screen.recenter()
 
-            show = Process(target=self.screen.show, args=(True,))
+    with stdin_no_echo():
+        parent_conn, child_conn = Pipe()
+        while True:
+            self.screen.minibar(' -- NORMAL -- ')
+            self.screen.recenter()
+            if parent_conn.poll():
+                self.screen._old_screen = parent_conn.recv()
+                renew = False
+            else:
+                renew = True
+            show = Process(target=self.screen.show, args=(renew, child_conn))
             show.start()
+
+
             REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
 
             key = get_a_key()

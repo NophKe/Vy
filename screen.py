@@ -210,7 +210,7 @@ class Screen(Window):
         else:
             super().vsplit().set_focus()
 
-    def show(self, renew=False, queue=None):
+    def show(self, renew=False, pipe=None):
         #self.top_left()
         self.recenter()
         for index, line in enumerate(self.gen_window(), start=1):
@@ -218,9 +218,10 @@ class Screen(Window):
                 self.go_line(index)
                 stdout.write(line)
                 self._old_screen[index] = line
+        self.bottom()
         stdout.flush()
-        if queue:
-            queue.send(self._old_screen)
+        if pipe:
+            pipe.send(self._old_screen)
             #queue.close()
 
 
