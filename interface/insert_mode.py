@@ -26,28 +26,30 @@ def loop(self):
                 show = Process(target=screen.show, args=())
                 show.start()
             else:
-                show = Process(target=screen.show, args=())
+                show.join(0.5)
+                show = Process(target=screen.show, args=(True,))
                 show.start()
             
             user_input  = get_a_key()
+            show.kill()
+
             if user_input == '\r':
                 curbuf.insert('\n')
-                #show.kill()
-                show = None
+                #show = None
             elif user_input.isprintable():
                 curbuf.insert(user_input)
-                show.kill()
+                #show.kill()
             else:
                 while one_inside_dict_starts_with(dictionary, user_input):
-                    if user_input in dictionary: break
-                    else: user_input += get_a_key()
+                    if user_input in dictionary:
+                        rv = dictionary[user_input](self, None)
+                        if rv and rv != 'insert':
+                            return rv
+                        #show = None
+                        break
+                    else:
+                        user_input += get_a_key()
 
-                if user_input in dictionary:
-                    rv = dictionary[user_input](self, None)
-                    if rv != 'insert':
-                        return rv
-                    show = None
-                    continue
 
 
 
