@@ -39,3 +39,27 @@ def get_a_key():
             rv += esc_seq
     tcsetattr(stdin, TCSAFLUSH, mode)
     return rv
+
+def visit_stdin(vtime=0):
+        old_mode = tcgetattr(stdin)
+        mode = old_mode[:]
+        mode[IFLAG] = mode[IFLAG] & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON)
+        mode[OFLAG] = mode[OFLAG] & ~(OPOST)
+        mode[CFLAG] = mode[CFLAG] & ~(CSIZE | PARENB)
+        mode[CFLAG] = mode[CFLAG] | CS8
+        mode[LFLAG] = mode[LFLAG] & ~(ECHO | ICANON | IEXTEN | ISIG)
+        mode[LFLAG] = mode[LFLAG] & ECHO
+        mode[CC][VMIN] = 0
+        mode[CC][VTIME] = 1
+        tcsetattr(stdin, TCSAFLUSH, mode)
+        rv = stdin.read(1)
+        if not rv:
+            return
+        if rv == '\x1b':
+            mode[CC][VTIME] = 0
+            tcsetattr(stdin, TCSAFLUSH, mode)
+            esc_seq = stdin.read()
+            if esc_seq:
+                rv += esc_seq
+        tcsetattr(stdin, TCSAFLUSH, old_mode)
+        return rv
