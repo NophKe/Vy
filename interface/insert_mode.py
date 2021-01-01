@@ -20,6 +20,7 @@ def loop(self):
     
     with stdin_no_echo():
         while True:
+            curbuf.stop_undo_record()
             if not show:
                 screen.show(True)
                 screen.minibar(' -- INSERT --')
@@ -35,11 +36,21 @@ def loop(self):
 
             if user_input == '\r':
                 curbuf.insert('\n')
+                curbuf.set_undo_point()
+                continue
+
+            if user_input == ' ':
+                curbuf.insert(' ')
+                curbuf.set_undo_point()
+                continue
+
                 #show = None
+            
             elif user_input.isprintable():
                 curbuf.insert(user_input)
                 #show.kill()
             else:
+                curbuf.start_undo_record()
                 while one_inside_dict_starts_with(dictionary, user_input):
                     if user_input in dictionary:
                         rv = dictionary[user_input](self, None)

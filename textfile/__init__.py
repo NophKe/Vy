@@ -8,9 +8,10 @@ class TextFile(Motions, FileLike):
     path = VyPath()
 
     def __init__(self, path=None, cursor=0):
+        self._no_undoing = False
         self.set_wrap = False
-        self.lexer = None
         self.set_tabsize = 4
+        self.lexer = None
         self.redo_list = list()
         self.undo_list = list()
         self.cursor = cursor
@@ -25,6 +26,25 @@ class TextFile(Motions, FileLike):
             # this ensures the file ends with new_line (standard)
             # and avoids problem of where to draw a cursor on an
             # empty text.
+    def start_undo_record(self):
+        self._no_undoing = False
+        self.set_undo_point()
+    
+    def stop_undo_record(self):
+        if self._no_undoing:
+            return
+        self.set_undo_point()
+        self._no_undoing = True
+
+    def set_undo_point(self):
+            actual = (self._string, self.cursor)
+            if not self.undo_list:
+                self.undo_list.append(actual)
+                return
+            last = self.undo_list[-1]
+            if actual != last:
+                self.undo_list.append(actual)
+
     def undo(self):
         if not self.undo_list:
             return

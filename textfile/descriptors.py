@@ -13,11 +13,13 @@ class VyPath:
             inst._path = value.resolve()
 
 class VyString:
+    
     def __get__(self, inst, objtype=None):
         return inst._string
     def __set__(self, inst, value):
         assert isinstance(value, str)
-        inst.undo_list.append((inst._string, inst.cursor))
+        if not inst._no_undoing:
+            inst.undo_list.append((inst._string, inst.cursor))
         inst._string = value
         if inst.redo_list:
             inst.redo_list = list()
