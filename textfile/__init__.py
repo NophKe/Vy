@@ -37,13 +37,13 @@ class TextFile(Motions, FileLike):
         self._no_undoing = True
 
     def set_undo_point(self):
-            actual = (self._string, self.cursor)
+            actual_txt, actual_cur = self._string, self.cursor
             if not self.undo_list:
-                self.undo_list.append(actual)
+                self.undo_list.append((actual_txt, actual_cur))
                 return
-            last = self.undo_list[-1]
-            if actual != last:
-                self.undo_list.append(actual)
+            last_txt, last_cur = self.undo_list[-1]
+            if actual_txt != last_txt:
+                self.undo_list.append((actual_txt, actual_cur))
 
     def undo(self):
         if not self.undo_list:

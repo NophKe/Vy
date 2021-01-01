@@ -163,9 +163,15 @@ def loop(self):
                                     and CMD.startswith('g')
                                     and key == 'g'):
                     COMMAND = resolver(full_cmd, CMD)
+
+
+                    self.current_buffer.stop_undo_record()
+                    self.current_buffer.set_undo_point()
                     for _ in range(MOTION_COUNT * COUNT):
                         MOTION = resolver(motion_cmd, '.')(self.current_buffer)
                         COMMAND(self, MOTION)
+                    self.current_buffer.start_undo_record()
+                    
                     #show.join(1)
                     #show.kill()
                     return 'normal'
