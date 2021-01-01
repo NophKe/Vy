@@ -205,11 +205,13 @@ def DO_page_down(editor, arg):
 
 def DO_page_up(editor, arg):
     buff = editor.current_buffer
-    for _ in range(editor.screen.number_of_lin - 1):
+    for _ in range(editor.screen.number_of_lin):
         prev_line = buff[:buff.cursor].rfind('\n')
         if prev_line == -1:
             return
         buff.cursor = prev_line
+    if buff.cursor > 0:
+        buff.cursor += 1
 
 ###
 # Normal Mode sub-loops
