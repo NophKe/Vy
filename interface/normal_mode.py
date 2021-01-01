@@ -112,18 +112,21 @@ valid_registers = 'abcdef'
     
 def loop(self):
 
-    #with stdin_no_echo():
+    with stdin_no_echo():
         parent_conn, child_conn = Pipe()
+        renew = True
+        show = Process(target=self.screen.show, args=(renew, child_conn))
+        show.start()
+
         while True:
             self.screen.minibar(' -- NORMAL -- ')
             self.screen.recenter()
-            if parent_conn.poll():
+            while parent_conn.poll():
                 self.screen._old_screen = parent_conn.recv()
-                renew = False
             else:
-                renew = True
-            show = Process(target=self.screen.show, args=(renew, child_conn))
-            show.start()
+                show.kill()
+                show = Process(target=self.screen.show, args=(renew, child_conn))
+                show.start()
 
 
             REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
@@ -163,8 +166,8 @@ def loop(self):
                     for _ in range(MOTION_COUNT * COUNT):
                         MOTION = resolver(motion_cmd, '.')(self.current_buffer)
                         COMMAND(self, MOTION)
-                    show.join(1)
-                    show.kill()
+                    #show.join(1)
+                    #show.kill()
                     return 'normal'
 
 
@@ -199,9 +202,9 @@ def loop(self):
 
             elif key in motion_cmd:
                 func = resolver(motion_cmd, key)
-                show.join(1)
+                #show.join(1)
                 for _ in range(COUNT):
                     self.current_buffer.seek(func(self.current_buffer))
-                show.kill()
+                #show.kill()
                 continue
 
