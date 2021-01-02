@@ -7,8 +7,8 @@ import pygments.console
 from pygments.console import ansiformat
 from pygments.lexers import guess_lexer_for_filename
 from pygments.util import  ClassNotFound
-
 from functools import lru_cache
+
 colorscheme = {
     Token:              '',
     Whitespace:         'gray',         Comment:            'gray',
@@ -26,10 +26,9 @@ colorscheme = {
     Generic.Error:      'brightred',    Error:              '_brightred_',
 }
 
-
-@lru_cache(16)
+@lru_cache(32)
 def _colorize(ttype):
-    @lru_cache(16)
+    @lru_cache(64)
     def func(text):
         return ansiformat(color, text)
     for token_class in reversed(ttype.split()):
@@ -51,6 +50,7 @@ def get_rows_needed(number):
     else:
         return 10
 
+@lru_cache(128)
 def expandtabs(tab_size, max_col, text, on_lin):
     number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
     rv = list()

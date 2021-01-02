@@ -19,18 +19,6 @@ except ImportError:
                 yield line.expandtabs(tabsize=buff.tab_size).ljust(max_col, ' ')
 
 
-def gen_window_line(buff, col_shift, max_col, lin_shift, max_lin):
-    max_index = max_lin + lin_shift
-    generator = gen_lexed_line(buff, max_col, lin_shift, buff.set_wrap)
-    default = repeat( '~'+(' '*(max_col-1)))
-
-    for index, item in enumerate(chain(generator,default)):
-        if index < max_lin:
-            yield item
-        else:
-            break
-
-
 class Window():
     def set_focus(self):
         if self.parent is self:
@@ -187,11 +175,19 @@ class Window():
                 yield next(left_panel) + '|' + next(right_panel)
 
         else:
-            yield from gen_window_line(self.buff,
-                                        self.shift_to_col,
-                                        self.number_of_col,
-                                        self.shift_to_lin,
-                                        self.number_of_lin)
+            generator = gen_lexed_line(self.buff,
+                                        self.number_of_col, 
+                                        self.shift_to_lin, 
+                                        self.buff.set_wrap)
+            default = repeat( '~'+(' '*(self.number_of_col-1)))
+            max_index = self.number_of_lin + self.shift_to_lin
+            
+            for index, item in enumerate(chain(generator,default)):
+                if index < self.number_of_lin:
+                    yield item
+                else:
+                    break
+
 class Screen(Window):
     def __init__(self, buff, minibar=1):
         self._minibar_flag = minibar
