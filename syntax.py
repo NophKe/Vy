@@ -89,7 +89,7 @@ def expandtabs(tab_size, max_col, text, on_lin):
     retval.append(''.join(rv) + (' ' * (max_col - on_col - 1)))
     return retval 
 
-def gen_lexed_line(buff, max_col, min_lin, wrap):
+def gen_lexed_line(buff, max_col, min_lin, max_lin, wrap):
     if not buff.lexer:
         filename = buff.path if buff.path else ''
         try:

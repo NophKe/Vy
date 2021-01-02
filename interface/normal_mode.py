@@ -124,7 +124,7 @@ def loop(self):
             while parent_conn.poll():
                 self.screen._old_screen = parent_conn.recv()
             else:
-                show.kill()
+                show.join(0.3)
                 show = Process(target=self.screen.show, args=(renew, child_conn))
                 show.start()
 

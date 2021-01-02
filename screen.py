@@ -6,7 +6,7 @@ try:
     from .syntax import gen_lexed_line
 
 except ImportError:
-    def gen_lexed_line(buff, max_col, lin_shift, wrap):
+    def gen_lexed_line(buff, max_col, lin_shift, max_lin, wrap):
         lin, col = buff.cursor_lin_col
         for index, line in enumerate(buff._string.splitlines()):
             if lin == index:
@@ -178,15 +178,15 @@ class Window():
             generator = gen_lexed_line(self.buff,
                                         self.number_of_col, 
                                         self.shift_to_lin, 
+                                        self.number_of_lin + self.shift_to_lin, 
                                         self.buff.set_wrap)
             default = repeat( '~'+(' '*(self.number_of_col-1)))
             max_index = self.number_of_lin + self.shift_to_lin
-            
-            for index, item in enumerate(chain(generator,default)):
-                if index < self.number_of_lin:
-                    yield item
-                else:
-                    break
+
+            renderer =  chain(generator,default)
+
+            for _ in range(self.number_of_lin):
+                yield next(renderer)
 
 class Screen(Window):
     def __init__(self, buff, minibar=1):
