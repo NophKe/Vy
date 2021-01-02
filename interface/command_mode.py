@@ -81,6 +81,7 @@ dictionary = {
 # Meta commands
     '!'     : DO_system,
     'set'   : DO_set,
+    'help'  : DO_help,
 # change mode
     'visual': 'vi',
     'vi'    : DO_nothing,

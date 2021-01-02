@@ -2,6 +2,8 @@ TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved f
 #
 # Meta Commands
 #
+def DO_help(editor, arg):
+    return help(arg)
 
 def DO_system(editor, arg):
     import os
@@ -15,11 +17,11 @@ def DO_set(editor, arg):
     toggle = object()
     if not arg: return
     
-    arg = arg.strip()
+    arg = arg.strip().lower()
     if ' ' in arg:
         arg, value = arg.split(' ', maxsplit=1)
         value = int(value)
-    elif arg.lower().startswith('no'):
+    elif arg.startswith('no'):
         arg = arg[2:]
         value = False
     elif arg.endswith('!'):
