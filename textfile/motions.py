@@ -14,6 +14,7 @@ def find_end_of_line(buff):
         rv = buff.tell() - 1
         buff.seek(pos)
         return rv
+
 def find_end_of_word(buff):
     pos = buff.tell()
     buff.read(1)
@@ -25,6 +26,7 @@ def find_end_of_word(buff):
     rv = buff.tell() - 2
     buff.seek(pos)
     return rv
+
 def find_begining_of_line(buff):
     char = ''
     pos = buff.tell()
@@ -44,6 +46,7 @@ def find_begining_of_line(buff):
             return 0
         else:
             buff.seek(next_pos)
+
 def find_first_non_blank_char_in_line(buff):
     pos = buff.tell()
     buff.seek(find_begining_of_line(buff))
@@ -58,7 +61,6 @@ def find_next_non_blank_char(buff):
     rv = buff.tell() - 1
     buff.seek(pos)
     return rv
-
 
 def find_normal_k(buff):
     cursor = buff.tell()
@@ -89,33 +91,16 @@ def find_normal_k(buff):
             new_cursor += 1
     return new_cursor
 
+
 def find_normal_j(buff):
-    if len(buff) == 0:
-        return 0
-    cursor = buff.tell()
-    on_col=0
-    new_lin = 0
-    offset = buff.tell()
-
-    while (offset := cursor - on_col ) != 0:
-        if buff[offset] == '\n':
-            break
-        else:
-            on_col += 1
-    
-    while (offset := cursor + new_lin) < len(buff):
-        if buff[offset] == '\n':
-            break
-        else:
-            new_lin += 1
-
-    offset +=1
-    while (offset) < (cursor + new_lin + on_col):
-        if buff[offset] == '\n':
-            return offset
-        else:
-            offset += 1
-    return offset
+    next_line = find_end_of_line(buff) + 1
+    on_col = buff.cursor - find_begining_of_line(buff)
+    for idx in range(next_line, len(buff)):
+        if idx == next_line + on_col:
+            return idx
+        if buff[idx] == '\n':
+            return idx
+    return len(buff)
 
 def find_normal_l(buff):
     pos = buff.tell()
@@ -123,6 +108,7 @@ def find_normal_l(buff):
         buff.seek(pos)
         return pos
     return buff.tell()
+
 def find_normal_h(buff):
     old_pos = buff.tell()
     pos = old_pos - 1
@@ -133,6 +119,7 @@ def find_normal_h(buff):
         return old_pos
     else:
         return pos
+
 def find_next_word(buff):
     pos = buff.tell()
     next_char = buff.read(1)
@@ -150,7 +137,6 @@ def find_next_word(buff):
         rv = find_next_word(buff)
         buff.seek(pos)
         return rv
-
 
 def find_first_char_of_word(buff):
     if buff.cursor == 0:
@@ -187,8 +173,8 @@ def inner_word(buff):
     return slice(start, stop)
 
 def current_line(buff):
-    start = motion['0'](buff)
-    stop = motion['$'](buff)
+    start = find_begining_of_line(buff)
+    stop = find_end_of_word(buff)
     if stop < len(buff):
         stop +=1
     return slice(start, stop)
