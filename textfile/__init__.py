@@ -20,12 +20,20 @@ class TextFile(Motions, FileLike):
             try:
                 self._string = self.path.read_text()
             except FileNotFoundError:
-                self._string = '\n'
+                self._string = ''
         else:
-            self._string = '\n'
-            # this ensures the file ends with new_line (standard)
-            # and avoids problem of where to draw a cursor on an
-            # empty text.
+            self._string = ''
+
+        filename = self.path if self.path else ''
+        try:
+            from pygments.lexers import guess_lexer_for_filename
+            from pygments.util import  ClassNotFound
+            self.lexer = guess_lexer_for_filename(filename, self.getvalue(), tabsize = self.set_tabsize, encoding='utf-8')
+        except ClassNotFound:
+            self.lexer = guess_lexer_for_filename('text.txt', self.getvalue(), tabsize = self.set_tabsize, encoding='utf-8')
+        except ImportError:
+            self.lexer = None
+
     def start_undo_record(self):
         self._no_undoing = False
         self.set_undo_point()
@@ -89,12 +97,11 @@ class TextFile(Motions, FileLike):
     @property
     def unsaved(self):
         if self.path is None or not self.path.exists():
-            if self.string != '\n':
+            if self.string:
                 return True
         elif self.path.read_text() != self.string:
             return True
         return False
-
 
     @property
     def CURSOR_LIN_COL(self):

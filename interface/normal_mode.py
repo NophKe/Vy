@@ -21,6 +21,19 @@ def SWAP_CASE(ed, part):
     ed.current_buffer.cursor += len(new_txt)
 
 
+def show_forever(pipe):
+    import time
+    while True:
+        start = time.time()
+        if pipe.poll():
+            screen = pipe.recv()
+            if pipe.poll():
+                continue
+            screen.show()
+        if (delay := time.time() - start) < 0.1:
+            time.sleep(0.1)
+
+
 
 full_cmd = {'d' : DELETE,
             'g~'    : SWAP_CASE,
@@ -102,6 +115,7 @@ motion_cmd = {
 # other
     ' '     : 'l',
     '\r'    : 'j',
+
 }
 motion_cmd = ChainMap(motion, motion_cmd)
 
@@ -109,61 +123,81 @@ dictionary =  ChainMap(sa_cmd, full_cmd, motion_cmd)
 
 valid_registers = 'abcdef'
 
-    
+
+
 def loop(self):
+    def render_screen():
+        def show_screen(i_screen, i_renew, i_child_conn):
+            i_screen.show(i_renew, i_child_conn )
+            i_screen.infobar()
+            i_screen.minibar(' -- NORMAL -- ')
+        return Process(target=show_screen,
+                        args=(self.screen,renew, child_conn))
+
+    def get_char():
+        self.screen.minibar(f' -- NORMAL -- {REG=} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
+        return get_a_key()
 
     with stdin_no_echo():
         parent_conn, child_conn = Pipe()
         renew = True
-        show = Process(target=self.screen.show, args=(renew, child_conn))
+        show = render_screen()
         show.start()
+        timeout = 1
 
         while True:
-            self.screen.minibar(' -- NORMAL -- ')
             self.screen.recenter()
-            while parent_conn.poll():
-                self.screen._old_screen = parent_conn.recv()
-            else:
-                show.join(0.3)
-                show = Process(target=self.screen.show, args=(renew, child_conn))
+            if parent_conn.poll():
+                while parent_conn.poll():
+                    self.screen._old_screen = parent_conn.recv()
+                show = render_screen()
                 show.start()
-
-
+            else:
+                self.screen.infobar(f'(screen not fully rendered) {timeout=}')
+                if parent_conn.poll(timeout / 20):
+                    continue
+                else:
+                    timeout += 1
+                    
+            # those values are magic...
             REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
-
-            key = get_a_key()
+            
+            key = get_char()
             
             if key == '"':
-                REG = get_a_key()
+                REG = get_char()
                 if REG not in valid_registers: continue
-                key = get_a_key()
+                key = get_char()
             
             if key.isdigit():
                 COUNT += key
-                while (key := get_a_key()).isdigit(): COUNT += key
+                while (key := get_char()).isdigit(): COUNT += key
             COUNT = int(COUNT) if COUNT else 1
 
             while one_inside_dict_starts_with(dictionary, key):
                 if key in dictionary: break
-                else: key += get_a_key()
+                else: key += get_char()
             else: continue
 
-            if key in sa_cmd: return resolver(sa_cmd, key)(self, None)
+            if key in sa_cmd: 
+                rv = resolver(sa_cmd, key)(self, None)
+                if rv and rv != 'normal':
+                    return rv
+                continue
 
             elif key in full_cmd:
                 CMD = key
-                key = get_a_key()
+                key = get_char()
 
                 if key.isdigit():
                     MOTION_COUNT += key
-                    while (key := get_a_key()).isdigit(): MOTION_COUNT += key
+                    while (key := get_char()).isdigit(): MOTION_COUNT += key
                 MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
 
                 if key == CMD or (len(CMD) > 1 
                                     and CMD.startswith('g')
                                     and key == 'g'):
                     COMMAND = resolver(full_cmd, CMD)
-
 
                     self.current_buffer.stop_undo_record()
                     self.current_buffer.set_undo_point()
@@ -172,45 +206,38 @@ def loop(self):
                         COMMAND(self, MOTION)
                     self.current_buffer.start_undo_record()
                     
-                    #show.join(1)
-                    #show.kill()
                     return 'normal'
 
 
                 while one_inside_dict_starts_with(motion_cmd, key):
                     if key in dictionary: break
-                    else: key += get_a_key()
+                    else: key += get_char()
                 else: continue
 
                 if key not in motion_cmd: continue
                 
-                if key.startswith('i'):
-                    func = resolver(motion_cmd,key)
-                    self.current_buffer.seek(func(self.current_buffer))
-                    func = resolver(motion_cmd,key[1:])
+                func = resolver(motion_cmd,key)
+                RANGE = func(self.current_buffer)
+                
+                if isinstance(RANGE, slice):
+                    old_pos, new_pos = RANGE.start, RANGE.stop
                 else:
-                    func = resolver(motion_cmd,key)
-
-                old_pos = self.current_buffer.tell()
-                for _ in range(COUNT * MOTION_COUNT):
-                    self.current_buffer.seek(func(self.current_buffer))
-                new_pos = self.current_buffer.tell()
-
-                if old_pos < new_pos:
-                    RANGE = slice(old_pos, new_pos)
-                    self.current_buffer.seek(old_pos)
-                else:
-                    RANGE = slice(new_pos, old_pos)
-                    self.current_buffer.seek(new_pos)
+                    old_pos = self.current_buffer.tell()
+                    for _ in range(COUNT * MOTION_COUNT):
+                        self.current_buffer.seek(func(self.current_buffer))
+                    new_pos = self.current_buffer.tell()
+                
+                if old_pos > new_pos:
+                    old_pos, new_pos = new_pos, old_pos
+                RANGE = slice(old_pos, new_pos)
 
                 resolver(full_cmd, CMD)(self, RANGE)
                 return 'normal'
 
             elif key in motion_cmd:
                 func = resolver(motion_cmd, key)
-                #show.join(1)
-                for _ in range(COUNT):
-                    self.current_buffer.seek(func(self.current_buffer))
-                #show.kill()
-                continue
+                if not isinstance(func(self.current_buffer), slice):
+                    for _ in range(COUNT):
+                        self.current_buffer.seek(func(self.current_buffer))
+                    continue
 

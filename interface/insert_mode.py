@@ -20,6 +20,7 @@ def loop(self):
     
     with stdin_no_echo():
         while True:
+
             curbuf.stop_undo_record()
             if not show:
                 screen.show(True)
@@ -27,12 +28,13 @@ def loop(self):
                 show = Process(target=screen.show, args=())
                 show.start()
             else:
-                show.join(0.5)
+                show.join(0.2)
                 show = Process(target=screen.show, args=(True,))
                 show.start()
             
             user_input  = get_a_key()
-            show.kill()
+            if show.is_alive():
+                show.kill()
 
             if user_input == '\r':
                 curbuf.insert('\n')

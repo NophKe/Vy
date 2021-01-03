@@ -174,7 +174,7 @@ def inner_word(buff):
 
 def current_line(buff):
     start = find_begining_of_line(buff)
-    stop = find_end_of_word(buff)
+    stop = find_end_of_line(buff)
     if stop < len(buff):
         stop +=1
     return slice(start, stop)

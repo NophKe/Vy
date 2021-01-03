@@ -3,7 +3,11 @@ from pygments.token import (Keyword, Name, Comment,
                             Operator, Generic, Token, 
                             Whitespace, Text)
 
-import pygments.console
+# import pygments.console
+# set_def = '\x1b[30;100;22;23;24m'
+# pygments.console.codes['reset'] = set_def
+set_def = '\x1b[0m'
+
 from pygments.console import ansiformat
 from pygments.lexers import guess_lexer_for_filename
 from pygments.util import  ClassNotFound
@@ -20,7 +24,7 @@ colorscheme = {
     Name.Variable:      'red',          Name.Constant:      'red',
     Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
     String:             'yellow',       Number:             'blue',
-    Generic.Deleted:    'brightred',    Text:               'white', 
+    Generic.Deleted:    'brightred',    Text:               '', 
     Generic.Inserted:   'green',        Generic.Heading:    '**',
     Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
     Generic.Error:      'brightred',    Error:              '_brightred_',
@@ -55,17 +59,17 @@ def expandtabs(tab_size, max_col, text, on_lin):
     number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
     rv = list()
     retval = list()
-    rv.append('\x1b[90;40m' + number + '\x1b[0m')
+    rv.append('\x1b[90;40m' + number + set_def )
 
     on_col = len(number) - 1
     esc_flag = False
     
     for char in text:
         if on_col ==  max_col -1:
-            rv.append('\x1b[0m')
+            #rv.append('\x1b[0m')
             retval.append(''.join(rv))
             rv = list()
-            rv.append('\x1b[90;40m' + ' ' * len(number)+ '\x1b[0m')
+            rv.append('\x1b[90;40m' + ' ' * len(number)+ set_def)
             on_col = len(number) -1
             esc_flag = False
             
@@ -134,4 +138,4 @@ def gen_lexed_line(buff, max_col, min_lin, max_lin, wrap):
                 line += colorize(token_line)
     else:
         if line:
-            yield expandtabs(tab_size, max_col, line, on_lin )
+            yield expandtabs(buff.set_tabsize, max_col, line, on_lin )

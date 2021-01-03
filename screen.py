@@ -189,8 +189,8 @@ class Window():
                 yield next(renderer)
 
 class Screen(Window):
-    def __init__(self, buff, minibar=1):
-        self._minibar_flag = minibar
+    def __init__(self, buff):
+        self._minibar_flag = 2
         self.buff = buff
         self._v_split_flag = False
         self.v_split_shift = 0
@@ -205,6 +205,7 @@ class Screen(Window):
             self.focused.vsplit()
         else:
             super().vsplit().set_focus()
+                
 
     def show(self, renew=False, pipe=None):
         #self.top_left()
@@ -212,7 +213,7 @@ class Screen(Window):
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
-                self.clear_line()
+                #self.clear_line()
                 stdout.write(line)
                 self._old_screen[index] = line
         self.bottom()
@@ -235,10 +236,25 @@ class Screen(Window):
         self.bottom()
         self.clear_line()
         if txt.endswith('\n'):
+            stdout.write('\x1b[0m\r' + txt[:-1] + '\r' )
+        else:
+            stdout.write('\x1b[0m\r' + txt + '\r')
+        #self.restore_cursor()
+
+    def infobar(self, txt=''):
+        assert '\n' not in txt
+        if not txt:
+            txt = '-' * self.number_of_col
+        else:
+            txt = txt.center(self.number_of_col, '#')
+
+        self.go_line(self.number_of_lin + 1)
+        if txt.endswith('\n'):
             stdout.write('\x1b[0m\r' + txt[:-1])
         else:
             stdout.write('\x1b[0m\r' + txt)
         #self.restore_cursor()
+        self.bottom()
 
     @staticmethod
     def insert(text):
