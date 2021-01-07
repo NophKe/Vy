@@ -2,23 +2,6 @@ from os import get_terminal_size
 from sys import stdout
 from itertools import chain, repeat
 
-try:
-    from .syntax import gen_lexed_line
-
-except ImportError:
-    def gen_lexed_line(buff, max_col, lin_shift, max_lin, wrap):
-        lin, col = buff.cursor_lin_col
-        for index, line in enumerate(buff._string.splitlines()):
-            if lin == index:
-                if col < len(line):
-                    line = line[:col] + '\x1b7\x1b[7;5m' + line[col] + '\x1b[25;27m' + line[col+1:]
-                else:
-                    line = line[:col] + '\x1b7\x1b[7;5m \x1b[25;27m'
-
-            if index > lin_shift:
-                yield line.expandtabs(tabsize=buff.tab_size).ljust(max_col, ' ')
-
-
 class Window():
     def set_focus(self):
         if self.parent is self:
@@ -175,11 +158,9 @@ class Window():
                 yield next(left_panel) + '|' + next(right_panel)
 
         else:
-            generator = gen_lexed_line(self.buff,
-                                        self.number_of_col, 
-                                        self.shift_to_lin, 
-                                        self.number_of_lin + self.shift_to_lin, 
-                                        self.buff.set_wrap)
+            generator = self.buff.gen_window( self.number_of_col, 
+                                                self.shift_to_lin, 
+                                                self.number_of_lin + self.shift_to_lin)
             default = repeat( '~'+(' '*(self.number_of_col-1)))
             max_index = self.number_of_lin + self.shift_to_lin
 
@@ -209,6 +190,7 @@ class Screen(Window):
 
     def show(self, renew=False, pipe=None):
         #self.top_left()
+        self.infobar('__screen is rendering__')
         self.recenter()
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
@@ -218,6 +200,7 @@ class Screen(Window):
                 self._old_screen[index] = line
         self.bottom()
         stdout.flush()
+        self.infobar()
         if pipe:
             pipe.send(self._old_screen)
             #queue.close()
@@ -244,9 +227,9 @@ class Screen(Window):
     def infobar(self, txt=''):
         assert '\n' not in txt
         if not txt:
-            txt = '-' * self.number_of_col
+            txt = '_' * self.number_of_col
         else:
-            txt = txt.center(self.number_of_col, '#')
+            txt = txt.center(self.number_of_col, '\u2026')
 
         self.go_line(self.number_of_lin + 1)
         if txt.endswith('\n'):

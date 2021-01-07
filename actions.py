@@ -1,4 +1,16 @@
 TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved for buffer in editor.cache] ) else True
+GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
+
+def DELETE(ed, part):
+    curbuf = ed.current_buffer
+    ed.register['"'] = curbuf[part]
+    return curbuf.__delitem__(part)
+
+def SWAP_CASE(ed, part):
+    new_txt = ed.current_buffer[part].swapcase()
+    ed.current_buffer[part] = new_txt
+    ed.current_buffer.cursor += len(new_txt)
+
 #
 # Meta Commands
 #

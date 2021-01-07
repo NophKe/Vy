@@ -5,9 +5,9 @@ import __main__
 import os
 
 class Console(code.InteractiveConsole):
-    """ taken from Python official docs """
-    def __init__(self, locals=None, filename="<console>",
-        histfile=os.path.expanduser("~/.vym/python_history")):
+    def __init__(self, locals=None, filename="<console>", screen=object):
+        self.screen = screen
+        histfile=os.path.expanduser("~/.vy/python_history")
         self.histfile = histfile
         code.InteractiveConsole.__init__(self, locals, filename)
         self.init_history(histfile)
@@ -26,9 +26,18 @@ class Console(code.InteractiveConsole):
             readline.write_history_file(self.histfile)
         except FileNotFoundError:
             pass
+        
+    def push(self, line):
+        rv = super().push(line)
+        if not rv:
+            self.screen.show(True)
+            self.screen.infobar()
+        return rv
+         
+
 
 def loop(editor):
-    readline.parse_and_bind("tab: complete")
+    #readline.parse_and_bind("tab: complete")
     
     print('\tYou are now in a python repl.')
     print('\tYou can access Vy by the «Editor» variable')
@@ -37,7 +46,7 @@ def loop(editor):
     print('\tnote that you are back in __main__ no matter what this means!')
     print()
 
-    console = Console(locals=__main__.__dict__)
+    console = Console(locals= __main__.__dict__, screen= editor.screen)
 
     def DO_not_try():
         print('\tyou cannot interract with the editor stacking call to the Editor')
@@ -49,10 +58,14 @@ def loop(editor):
 
     old_interface = editor.interface
     old_cmdloop = editor.cmdloop
+    old_screen_minibar_ = editor.screen._minibar_flag
+
     editor.interface = DO_not_try
     editor.cmdloop = DO_not_try
-    __main__.exit = new_exit
+    editor.screen._minibar_flag = editor.screen.number_of_lin // 2
 
+
+    __main__.exit = new_exit
     try:
         console.interact()
     except SystemExit:
@@ -62,7 +75,8 @@ def loop(editor):
         
 
     del __main__.exit
-
     editor.cmdloop = old_cmdloop
     editor.interface = old_interface
+    editor.screen._minibar_flag = old_screen_minibar_
+
     return 'normal'

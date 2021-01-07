@@ -1,5 +1,5 @@
 from pathlib import Path
-from .textfile import TextFile
+from .filetypes import TextFile
 
 def _make_key(key):
     if isinstance(key, int):

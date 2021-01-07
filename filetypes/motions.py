@@ -103,11 +103,10 @@ def find_normal_j(buff):
     return len(buff)
 
 def find_normal_l(buff):
-    pos = buff.tell()
-    if buff.read(1) == '\n':
-        buff.seek(pos)
-        return pos
-    return buff.tell()
+    if buff[buff.cursor] == '\n':
+        return buff.cursor
+    elif buff.cursor < len(buff):
+        return buff.cursor + 1
 
 def find_normal_h(buff):
     old_pos = buff.tell()

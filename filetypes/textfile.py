@@ -1,17 +1,18 @@
 from pathlib import Path
+from .base_file import BaseFile
 from .descriptors import VyString, VyPath
 from .filelike import FileLike
 from .motions import Motions
+from .syntax import view
+from ..behaviour import WritableText
 
-class TextFile(Motions, FileLike):
+
+class TextFile(Motions, FileLike, view, WritableText):
     string = VyString()
     path = VyPath()
 
     def __init__(self, path=None, cursor=0):
         self._no_undoing = False
-        self.set_wrap = False
-        self.set_tabsize = 4
-        self.lexer = None
         self.redo_list = list()
         self.undo_list = list()
         self.cursor = cursor
@@ -20,19 +21,10 @@ class TextFile(Motions, FileLike):
             try:
                 self._string = self.path.read_text()
             except FileNotFoundError:
-                self._string = ''
+                self._string = '\n'
         else:
-            self._string = ''
-
-        filename = self.path if self.path else ''
-        try:
-            from pygments.lexers import guess_lexer_for_filename
-            from pygments.util import  ClassNotFound
-            self.lexer = guess_lexer_for_filename(filename, self.getvalue(), tabsize = self.set_tabsize, encoding='utf-8')
-        except ClassNotFound:
-            self.lexer = guess_lexer_for_filename('text.txt', self.getvalue(), tabsize = self.set_tabsize, encoding='utf-8')
-        except ImportError:
-            self.lexer = None
+            self._string = '\n'
+        super().__init__()
 
     def start_undo_record(self):
         self._no_undoing = False
@@ -74,7 +66,7 @@ class TextFile(Motions, FileLike):
         self.path.write_text(self.getvalue())
 
 
-    def save_as(self, new_path, override=False):
+    def save_as(self, new_path=None, override=False):
         assert isinstance(new_path, (str, Path))
         new_path = Path(new_path).resolve()
                 
@@ -90,34 +82,21 @@ class TextFile(Motions, FileLike):
                     raise IsADirectoryError('cannot write text onto a directory!')
             else:
                 if override: 
-                    self.path = new_path.resolve()
+                    self.path = new_path
                     self.save()
                 else:
                     raise FileExistsError('Add ! in interface or override=True in *kwargs ....')
     @property
     def unsaved(self):
         if self.path is None or not self.path.exists():
-            if self.string:
+            if self.string and self._string != '\n':
                 return True
         elif self.path.read_text() != self.string:
             return True
         return False
 
     @property
-    def CURSOR_LIN_COL(self):
-        offset = 0
-        lin = 0
-        col = 0
-        for line_number, line in enumerate(self._string.splitlines(True), start=1):
-            offset += len(line)
-            if offset >= self.cursor:
-                col = int(len(line) - (offset - self.cursor))
-                lin = int(line_number)
-                break
-        return (lin, col)
-
-    @property
-    def cursor_lin_col(self):
+    def CURSOR_lin_col(self):
         string = self._string
         cursor = self.cursor
         lin = string[:cursor].count('\n')
@@ -125,6 +104,37 @@ class TextFile(Motions, FileLike):
         if col == -1:
             col = len(self._string)
         return (lin, col)
+    
+    @property
+    def cursor_lin_col(self):
+        lin, off = self.cursor_lin_off
+        col = self.cursor - off + 1
+        return lin, col
+
+    @property
+    def cursor_lin_off(self):
+        cursor = self.cursor
+        offset = lin = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin, offset
+            if offset > cursor:
+                return lin - 1, self.lines_offsets[lin - 1 ]
+        else:
+            return lin, offset
+
+    @property
+    def lines_offsets(self):
+        if not hasattr(self, '_lines_offsets') or \
+                        self._lines_offsets_hash != hash(self._string):
+            offset = 0
+            linesOffsets = list()
+            for line in self._string.splitlines(True):
+                linesOffsets.append(offset)
+                offset += len(line)
+            self._lines_offsets_hash = hash(self._string)
+            self._lines_offsets = linesOffsets
+        return self._lines_offsets
 
     @property
     def number_of_lin(self):
@@ -132,8 +142,8 @@ class TextFile(Motions, FileLike):
 
     def suppr(self):
         string = self._string
-        cursor = self.cursor
-        self.string  = string[:cursor] + string[cursor + 1 :]
+        cur = self.cursor
+        self.string  = f'{string[:cur]}{string[cur + 1:]}'
 
     def backspace(self):
         if self.cursor > 0:
@@ -147,8 +157,8 @@ class TextFile(Motions, FileLike):
         self.cursor += len(text)
 
 
-def print_buffer(buff):
-    from os import get_terminal_size
-    max_col, max_lin = get_terminal_size()
-    for x in buff.gen_window(1, max_col +1 , 0, max_lin - 1):
-        print(x, end='\r')
+    def print_yourself(buff):
+        from os import get_terminal_size
+        max_col, max_lin = get_terminal_size()
+        for x in buff.gen_window(1, max_col +1 , 0, max_lin - 1):
+            print(x, end='\r')
