@@ -232,7 +232,7 @@ class Motions():
     def __delitem__(self, key):
         if isinstance(key, int):
             if key >=0 and key < len(self.string):
-                self.string = self.string[0:key] + self.string[key+1:]
+                self.string = self._string[0:key] + self._string[key+1:]
             else:
                 raise IndexError('string index out of range')
 
@@ -242,10 +242,10 @@ class Motions():
             else:
                 start = key.start
             if not key.stop:
-                stop = len(self.string)
+                stop = len(self._string)
             else:
                 stop = key.stop
-            self.string = self.string[:start] + self.string[stop:]
+            self.string = f'{self._string[:start]}{self._string[stop:]}'
 
         elif isinstance(key, str):
             key = self._get_range(key)
@@ -260,9 +260,9 @@ class Motions():
         if isinstance(key, int):
             start = key
             stop = start + 1
-        self.string = self._string[:start] + value + self._string[stop:]
+        self.string = f'{self._string[:start]}{value}{self._string[stop:]}'
 
 
     def insert(self, text):
-        self.string = self.string[:self.cursor] + text + self.string[self.cursor:]
+        self.string = f'{self._string[:self.cursor]}{text}{self._string[self.cursor:]}'
         self.cursor += len(text)
