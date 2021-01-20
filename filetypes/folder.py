@@ -1,6 +1,6 @@
 from pathlib import Path
 from ..behaviour import BaseBehaviour
-from .base_file import BaseFile
+from .basefile import BaseFile
 from .. import keys as k
 #from ..behaviour import FolderBehaviour
 

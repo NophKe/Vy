@@ -13,7 +13,6 @@ class VyPath:
             inst._path = value.resolve()
 
 class VyString:
-    
     def __get__(self, inst, objtype=None):
         return inst._string
     def __set__(self, inst, value):

@@ -73,7 +73,12 @@ class Editor:
     def current_buffer(self):
         return self.current_window.buff
 
-    def cmdloop(self):
+    def __call__(self,buff=None):
+        if (buff is not None) or self.current_buffer is None:
+            self.edit(buff)
+            self.screen = Screen(self.current_buffer)
+        #return self.cmdloop()
+
         self.screen.alternative_screen()
         self.screen.clear_screen()
         self.screen.show(True)
@@ -83,10 +88,4 @@ class Editor:
                 mode = self.interface(mode)
         finally:
             self.screen.original_screen()
-
-    def __call__(self,buff=None):
-        if (buff is not None) or self.current_buffer is None:
-            self.edit(buff)
-            self.screen = Screen(self.current_buffer)
-        return self.cmdloop()
 

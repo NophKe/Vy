@@ -1,24 +1,24 @@
 from pygments.token import (Keyword, Name, Comment, String, Error, Number, Operator, 
                                                     Generic, Token, Whitespace, Text)
+from .ansiformat import ansiformat
+set_def = '\x1b[0m'
 
-import pygments.console
-set_def = '\x1b' + pygments.console.codes['reset']
-from pygments.console import ansiformat
+#from pygments.console import ansiformat
 
 from pygments.lexers import guess_lexer_for_filename
 from pygments.util import  ClassNotFound
 from functools import lru_cache, cache
 from itertools import chain, repeat
-from multiprocessing import Process, Pipe
+#from multiprocessing import Process, Pipe
 
 
-def proc_away(func, arg_tup):
-    child, parent = Pipe()
-    def inner():
-        child.send(func(*arg_tup))
-    proc = Process(target=inner, args=arg_tup)
-    proc.start()
-    return parent
+#def proc_away(func, arg_tup):
+#    child, parent = Pipe()
+#    def inner():
+#        child.send(func(*arg_tup))
+#    proc = Process(target=inner, args=arg_tup)
+#    proc.start()
+#    return parent
 
 colorscheme = {
     Token:              '',

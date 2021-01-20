@@ -3,7 +3,6 @@ from .helpers import resolver, do
 
 from pathlib import Path
 import readline
-from os import listdir
 
 class CommandModeCompleter:
     @staticmethod

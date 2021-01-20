@@ -3,7 +3,7 @@ from .filelike import FileLike
 from .motions import Motions
 from .syntax import view
 from ..behaviour import ReadOnlyText 
-from .base_file import BaseFile
+from .basefile import BaseFile
 
 class ReadOnlyTextFile(BaseFile,Motions, view, ReadOnlyText):
     
