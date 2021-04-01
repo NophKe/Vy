@@ -129,7 +129,8 @@ class WritableText(ReadOnlyText):
        }
        
     full_commands = {
-        'd' : DELETE,
-        'g~'    : SWAP_CASE
+        'y' : yank,
+        'd' : delete,
+        'g~'    : swap_case
     }
 

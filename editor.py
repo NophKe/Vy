@@ -11,6 +11,7 @@ class Editor:
     register = dict()
     
     def __init__(self, *buffers):
+        self._running_flag = False
         if buffers:
             for buff in buffers:
                 self.cache.get(buff)
@@ -24,42 +25,8 @@ class Editor:
             print('\nyou are now in debugger. use \'cont\' to resume\n')
             breakpoint()
 
-    def open_file(self, location):
-        if (location is None) or (location in self.cache):
-            return self.cache.get(location)
-
-        if isinstance(location, (Path, str)):
-            location = Path(location).resolve()
-            if location.is_dir():
-                #self.warning('directories!: Not Implemented')
-                return Folder(location)
-            
-            if location.is_file() and location.exists():
-                if location.lstat().st_size > 1_000_000_000:
-                    return HugeFile(location)
-
-                try: open(location, 'r')
-                except PermissionError as exc:
-                    self.warning(str(exc.__cause__))
-                    return self.current_buffer
-
-                try: open(location, 'a')
-                except PermissionError as exc:
-                    #self.warning('read-only file: Not Implemented')
-                    return ReadOnlyTextFile(location)
-
-            if not location.exists():
-                try: open(location, 'w')
-                except PermissionError as exc:
-                    self.warning('you do not seem to have the rights to write in here.')
-                    return self.current_buffer
-            # fallback with cache
-            return self.cache.get(location)
-        else:
-            raise ValueError
-                
     def edit(self, buff):
-        return self.current_window.change_buffer(self.open_file(buff))
+        return self.current_window.change_buffer(self.cache.get(buff))
     
     @property
     def current_mode(self):

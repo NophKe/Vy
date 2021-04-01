@@ -1,5 +1,5 @@
+from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
 from pathlib import Path
-from .filetypes import TextFile
 
 def _make_key(key):
     if isinstance(key, int):
@@ -58,7 +58,46 @@ class Cache():
             if name in self:
                 raise ValueError('Allready in cache')
             else:
-                self._dic[name] = TextFile(name, **kwargs)
+                self._dic[name] = self._open_path(name, **kwargs)
                 rv = self._dic[name]
                 rv.cache_id = name
                 return rv
+
+    def _open_path(self, location):
+        if (location in self):
+            return self.cache.get(location)
+        if (location is None):
+            return TextFile(location)
+
+        if isinstance(location, (Path, str)):
+            location = Path(location).resolve()
+            if location.is_dir():
+                #self.warning('directories!: Not Implemented')
+                return Folder(location)
+            
+            if location.exists() and location.is_file():
+                if location.lstat().st_size > 1_000_000_000:
+                    return HugeFile(location)
+
+                try:
+                    open(location, 'r')
+                except PermissionError as exc:
+                    self.warning(str(exc.__cause__))
+                    return self.current_buffer
+
+                try:
+                    open(location, 'a')
+                except PermissionError as exc:
+                    #self.warning('read-only file: Not Implemented')
+                    return ReadOnlyTextFile(location)
+                
+                return TextFile(location)
+
+            if not location.exists():
+                try:
+                    open(location, 'w')
+                except PermissionError as exc:
+                    self.warning('you do not seem to have the rights to write in here.')
+                    return self.current_buffer
+                return TextFile(location)
+        breakpoint()

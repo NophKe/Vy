@@ -7,15 +7,18 @@ class Interface():
         self.last = None
         self.inst = inst
         self.mode_dict = {}
-        self._set_base_modes()
-
-    def _set_base_modes(self):
         self.add_mode('normal', normal_mode)   
         self.add_mode('command', command_mode)   
         self.add_mode('insert', insert_mode)   
         self.add_mode('python', python_mode)   
     
     def __call__(self, name):
+        if self.inst._running_flag:
+            print('\tyou cannot interract with the editor stacking call to:')
+            print('\tEditor()')
+            print('\tEditor.interface()')
+            print('\tand such...')
+            raise
         assert (name in self.mode_dict) or self.last
         if name: 
             self.last = name
