@@ -81,6 +81,7 @@ dictionary = {
     '!'     : DO_system,
     'set'   : DO_set,
     'help'  : DO_help,
+    'cd'    : DO_chdir,
 # change mode
     'visual': 'vi',
     'vi'    : DO_nothing,

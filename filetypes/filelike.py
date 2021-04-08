@@ -22,7 +22,7 @@ class FileLike:
     def seek(self,offset=0, flag=0):
         assert isinstance(offset, int)
         assert isinstance(flag, int)
-        if len(self.string) == 0:
+        if len(self._string) == 0:
             return 0
         max_offset = len(self.string) -1
         if (offset == 0 and flag == 2) or (offset > max_offset):

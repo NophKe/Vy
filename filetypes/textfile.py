@@ -17,11 +17,8 @@ class TextFile(Motions, FileLike, view, WritableText):
         self.undo_list = list()
         self.cursor = cursor
         self.path = path
-        if self.path:
-            try:
-                self._string = self.path.read_text()
-            except FileNotFoundError:
-                self._string = '\n'
+        if self.path and self.path.exists():
+            self._string = self.path.read_text()
         else:
             self._string = '\n'
         super().__init__()

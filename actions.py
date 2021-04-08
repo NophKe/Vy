@@ -28,6 +28,10 @@ def DO_system(editor, arg):
         os.system(arg)
         input('Command Finished, press <CR>')
 
+def DO_chdir(ed, arg):
+    import os
+    os.chdir(arg)
+
 # Editor
 ####
 def DO_set(editor, arg):
@@ -60,7 +64,10 @@ def DO_set(editor, arg):
 
 
 def DO_edit(editor, arg):
-    editor.edit(arg)
+    try:
+        editor.edit(arg)
+    except UnicodeDecodeError:
+        editor.warning("Vy ne gère pas l'encodage de ce fichier")
 
 ###
 # Saving
@@ -156,9 +163,10 @@ def DO_eval_buffer(editor,arg):
     #import __main__
     #return exec(editor.current_buffer.getvalue(), __main__.__dict__)
     try:
-        return exec(editor.current_buffer.getvalue(), {})
+        ret = exec(editor.current_buffer.getvalue(), {})
     except Exception as Err:
         editor.warning(f'buggy progrm: {Err}')
+    input(f'eval returned {ret}')
 
 def DO_nothing(editor, arg):
     return None
