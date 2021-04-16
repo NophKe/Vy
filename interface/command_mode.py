@@ -22,12 +22,13 @@ class CommandModeCompleter:
         if line in dictionary:
             readline.insert_text(' ')
 
-        show_files = line.startswith( ('e ', 'edit ', 'vsplit ', 'w ', 'w! ', 'write ', 'write! '))
-        if show_files:
+        if line.startswith( ('r ', 'e ', 'edit ', 'vsplit ', 
+                        'w ', 'w! ', 'write ', 'write! ')):
             readline.set_completer(None)
             rv = readline.get_completer(txt, state)
             readline.set_completer(self.completer)
             return rv
+
            
     def __enter__(self):
         self.histfile = Path("~/.vym/command_history").expanduser()
@@ -94,6 +95,8 @@ dictionary = {
     'buffers'   : lambda ed, cmd: ed.warning(str(ed.cache)),
 
 # misc
+    'read'  : 'r',
+    'r'     : read_file,
     'on'    : 'only',
     'only'  : DO_keep_only_current_window,
     'vsplit': DO_vsplit,
@@ -133,4 +136,5 @@ dictionary = {
 
     'write!'    : 'w!',
     'w!'    : DO_force_to_save,
+
 }

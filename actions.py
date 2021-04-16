@@ -4,17 +4,25 @@ GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 def yank(ed, part):
     curbuf = ed.current_buffer
     ed.register['"'] = curbuf[part]
-    return 'normal'
     
 def delete(ed, part):
     curbuf = ed.current_buffer
-    ed.register['"'] = curbuf[part]
-    return curbuf.__delitem__(part)
+    to_be_del = curbuf[part]
+    ed.register['"'] = to_be_del
+    curbuf.__delitem__(part)
+    curbuf.cursor -= len(to_be_del)
 
 def swap_case(ed, part):
     new_txt = ed.current_buffer[part].swapcase()
     ed.current_buffer[part] = new_txt
     ed.current_buffer.cursor += len(new_txt)
+
+def read_file(editor, arg):
+    from pathlib import Path
+    if not arg:
+        editor.warning(':r needs an argument')
+        return
+    editor.current_buffer.insert(Path(arg).read_text())
 
 #
 # Meta Commands
@@ -25,18 +33,24 @@ def DO_help(editor, arg):
 def DO_system(editor, arg):
     import os
     if arg:
-        os.system(arg)
-        input('Command Finished, press <CR>')
+        err = os.system(arg)
+        editor.warning(f'Command Finished with status: {err}')
 
-def DO_chdir(ed, arg):
+def DO_chdir(editor, arg):
+    if not arg:
+        return
     import os
-    os.chdir(arg)
+    try:
+        os.chdir(arg)
+    except FileNotFoundError:
+        editor.warning(f'File not found: {arg}')
 
 # Editor
 ####
 def DO_set(editor, arg):
+    if not arg:
+        return
     toggle = object()
-    if not arg: return
     
     arg = arg.strip().lower()
     if ' ' in arg:
@@ -319,7 +333,7 @@ def DO_paste(editor, arg):
     try:
         txt = editor.register['"']
     except KeyError:
-        return
+        editor.warning('nothing to paste')
     editor.current_buffer.insert(editor.register['"']),
 
 def DO_insert_expandtabs(editor, arg):

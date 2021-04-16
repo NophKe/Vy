@@ -72,7 +72,6 @@ class Cache():
         if isinstance(location, (Path, str)):
             location = Path(location).resolve()
             if location.is_dir():
-                #self.warning('directories!: Not Implemented')
                 return Folder(location)
             
             if location.exists() and location.is_file():
@@ -82,13 +81,11 @@ class Cache():
                 try:
                     open(location, 'r')
                 except PermissionError as exc:
-                    self.warning(str(exc.__cause__))
                     return self.current_buffer
 
                 try:
                     open(location, 'a')
                 except PermissionError as exc:
-                    #self.warning('read-only file: Not Implemented')
                     return ReadOnlyTextFile(location)
                 
                 return TextFile(location)
@@ -97,7 +94,7 @@ class Cache():
                 try:
                     open(location, 'w')
                 except PermissionError as exc:
-                    self.warning('you do not seem to have the rights to write in here.')
+                    # TODO # replace that input func by call to ed.warning
+                    input('you do not seem to have the rights to write in here.')
                     return self.current_buffer
                 return TextFile(location)
-        breakpoint()

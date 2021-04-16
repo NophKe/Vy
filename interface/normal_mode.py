@@ -1,3 +1,4 @@
+from time import time
 from multiprocessing import Process, Pipe
 from collections import ChainMap
 
@@ -26,35 +27,39 @@ def loop(self):
 
     with stdin_no_echo():
         parent_conn, child_conn = Pipe()
-        first = True
         renew = True
-#       timeout = 1
-#        self.screen.show()
+        stamp = time()
         self.screen.show(True)
+
         while True:
             if curbuf_hash != hash(self.current_buffer):
                 return
 #           assert self.current_buffer is not None
             self.screen.recenter()
-            if first:
+            if renew:
                 show = render_screen()
                 show.start()
-                first = False
+                renew = False
             elif parent_conn.poll(0.2):
                 self.screen.infobar()
                 self.screen._old_screen = parent_conn.recv()
                 show = render_screen()
                 show.start()
             else:
-                self.screen.infobar(f'__screen is slow to render__')
-                self.screen._old_screen = parent_conn.recv()
-                self.screen.show(True)
-                self.screen.infobar(f'__screen is being optimized__')
-                first = True
+                if time() - stamp > 10:
+                    self.screen.infobar(f'__screen speed being optimized__')
+                    show.kill()
+                    stamp = time()
+                    renew = True
+                    self.screen.show(True)
+                    continue
+                else:
+                    self.screen.infobar(f'__screen is slow to render__')
+                    first = True
 
             # those values are magic...
             REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
-            
+
             key = get_char()
             
             if key == '"':
