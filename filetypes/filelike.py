@@ -1,7 +1,8 @@
 class FileLike:
     def write(self, text):
+        assert isinstance(text, str)
         if text:
-            self.string = self.string[:self.cursor] + text + self.string[self.cursor + len(text):]
+            self.string = self._string[:self.cursor] + text + self._string[self.cursor + len(text):]
             self.cursor = self.cursor + len(text)
 
     def getvalue(self):
@@ -9,10 +10,10 @@ class FileLike:
 
     def read(self, nchar= -1):
         if nchar == -1:
-            rv = self.string[self.cursor:]
+            rv = self._string[self.cursor:]
             self.cursor = len(self.string)
         else:
-            rv = self.string[self.cursor:(self.cursor + nchar)]
+            rv = self._string[self.cursor:(self.cursor + nchar)]
             self.cursor = self.cursor + nchar
         return rv
 
