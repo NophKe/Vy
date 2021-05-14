@@ -160,13 +160,6 @@ class view:
 
 
     def gen_window(self, max_col, min_lin, max_lin):
-        #if hasattr(self, '_pipe_to_lexed_lines') and self._pipe_to_lexed_lines.poll():
-            #self._lexed_hash, self._lexed_lines = self._pipe_to_lexed_lines.recv() 
-
-        #if not hasattr(self,'_lexed_hash')  or self._lexed_hash != self._string.__hash__():
-            #provider = self.gen_fast_lexed_line
-            #self._pipe_to_lexed_lines = proc_away(lambda: (hash(self._string), self.lexed_lines), ())
-
         provider = self.gen_lexed_line
 
         max_index = max_lin + min_lin
@@ -178,47 +171,6 @@ class view:
                 yield item
             else:
                 break
-
-    def gen_fast_lexed_line(self, max_col, min_lin, max_lin, set_wrap):
-        chars_to_print = 0
-        line = ''
-        on_lin = 0
-        tab_size = self.set_tabsize
-        
-        for offset, tok, val in self.lexer.get_tokens_unprocessed(self._string):
-            colorize = _colorize(tok)
-
-            for token_line in val.splitlines(True):
-                nl_flag = token_line.endswith('\n')
-                if nl_flag:
-                    token_line = token_line[:-1] + ' '
-
-                len_to_add = len(token_line)
-                
-                if (offset + len_to_add) >= self.cursor >= offset:
-                    cur_pos = (self.cursor - offset)
-                    if cur_pos > len_to_add :
-                        token_line = token_line[:cur_pos] + '\x1b7\x1b[7;5m \x1b[25;27m'
-                    elif cur_pos < len_to_add:
-                        token_line = token_line[:cur_pos] + '\x1b7\x1b[7;5m' + token_line[cur_pos] + '\x1b[25;27m' + token_line[cur_pos+1:]
-
-                if nl_flag:
-                    if on_lin  > min_lin:
-                        yield fast_expandtabs(tab_size, max_col, line + colorize(token_line) )
-                    on_lin += 1
-                    chars_to_print = 0
-                    line = ''
-                    offset += len_to_add + chars_to_print
-                    continue
-                elif chars_to_print > max_col:
-                    continue
-                else:
-                    line += colorize(token_line)
-                    chars_to_print += len_to_add
-                    continue
-        else:
-            if line:
-                yield fast_expandtabs(tab_size, max_col, line )
 
     @property
     def lexed_lines(self):
