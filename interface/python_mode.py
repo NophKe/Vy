@@ -1,5 +1,4 @@
 import readline
-import rlcompleter
 import code
 import __main__
 import os

@@ -8,18 +8,21 @@ def do(*arg_list, mode=None):
         return mode
     return func
 
-def resolver(mapping, key, default=None):
-    tried = 0
+def resolver(mapping, key=None, default=None):
+    assert key
+    tried = set()
     while True:
         try:
             rv = mapping[key]
         except KeyError:
             return default
-        if callable(rv) or tried > 42:
+        if rv in tried:
+            raise RecursionError
+        if callable(rv):
             return rv
         else:
+            tried.add(rv)
             key = rv
-            tried += 1
 
 def one_inside_dict_starts_with(dictio, pattern):
     maybe = False

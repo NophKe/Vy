@@ -1,19 +1,8 @@
 def find_end_of_line(buff):
-    char = ''
-    pos = buff.tell()
-    if pos == 0:
-        char = buff.read(1)
-    else:
-        buff.seek(pos - 1)
-        char = buff.read(1)
-        if char == '\n':
-            char = ' '
-    while char not in ('','\n'):
-        char = buff.read(1)
-    else:
-        rv = buff.tell() - 1
-        buff.seek(pos)
-        return rv
+    offset = buff[buff.cursor:].find('\n')
+    if offset == -1:
+        return len(buff)
+    return buff.cursor + offset
 
 def find_end_of_word(buff):
     pos = buff.tell()
@@ -261,7 +250,6 @@ class Motions():
             start = key
             stop = start + 1
         self.string = f'{self._string[:start]}{value}{self._string[stop:]}'
-
 
     def insert(self, text):
         self.string = f'{self._string[:self.cursor]}{text}{self._string[self.cursor:]}'

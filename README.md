@@ -36,6 +36,20 @@ For now quite limited...
 (`CommandMode['save_it_all'] = 'wall'` will create a new valid command mode command )
 * incomplete list...
 
+Python Mode
+-----------
+The repl inside the editor.
+
+    :python
+            You are now in a python repl.
+            tYou can access Vy by the «Editor» variable
+            trisk and profit...
+            
+            note that you are back in __main__ no matter what this means!
+    >>> _
+
+Once in python mode you can interract with the editor with the «editor» variable!
+
 
 from vy.textfile import TextFile
 ---------------------------------

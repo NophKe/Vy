@@ -18,7 +18,7 @@ def delete(ed, part):
     to_be_del = curbuf[part]
     ed.register['"'] = to_be_del
     curbuf.__delitem__(part)
-    curbuf.cursor -= len(to_be_del)
+#    curbuf.cursor -= len(to_be_del)
 
 def swap_case(ed, part):
     new_txt = ed.current_buffer[part].swapcase()
