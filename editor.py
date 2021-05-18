@@ -33,7 +33,7 @@ class Editor:
         """Changes the current buffer to edit location and set the interface
         accordingly.
         """
-        return self.current_window.change_buffer(self.cache.get(buff))
+        return self.current_window.change_buffer(self.cache.get(location))
     
     @property
     def current_window(self):
