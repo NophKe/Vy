@@ -1,6 +1,7 @@
 from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
 from pathlib import Path
 
+# helper function
 def _make_key(key):
     if isinstance(key, int):
         return key
@@ -12,6 +13,9 @@ def _make_key(key):
         raise ValueError
 
 class Cache():
+    """Simple wrapper around a dict that lets you index a buffer by its
+    internal id, or any relative or absolute version of its path.
+    """
     _dic = dict()
     _counter = 1
 
@@ -37,6 +41,16 @@ class Cache():
             return False
 
     def get(self, item):
+            """This is the main api of this class.
+            It takes an only argument that can be a string, a path object,
+            an int, or None. 
+            If the argument is a string or a path object, it will be resolved 
+            to an absolute path, and if this path has allready been cached,
+            the correponding buffer will be returned. If not, a new buffer
+            will be created from reading the path content or from scratch.
+            Pas it an int for buffers unrelated to file system.
+            Pass it None to create a new unnamed buffer.
+            """
             if item is None:
                 return self._add(item)
             elif item in self._dic.values():

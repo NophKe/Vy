@@ -1,5 +1,11 @@
-page_up = '\x1b\x5b\x35\x7e'
-page_down = '\x1b\x5b\x36\x7e'
+"""
+This file can be used as a module, defining escape sequences that ansi
+vt100 and «de facto» standard uses for most common special keys.
+
+You may also use this file to check the escape sequence your computer uses
+by calling it from command line ('python keys.py'). In this case it will
+produce valid python statements as below.
+"""
 
 # Shift + Arrow
 S_right = '\x1b\x5b\x31\x3b\x32\x43'

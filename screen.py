@@ -1,3 +1,4 @@
+"""This module is a mess that handles screen rendering"""
 from os import get_terminal_size
 from sys import stdout
 from itertools import chain, repeat

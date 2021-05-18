@@ -1,3 +1,5 @@
+"""Helper function to deal with the linux console.
+"""
 from termios import *
 from tty import *
 from sys import stdin, stdout, stderr
@@ -11,6 +13,10 @@ OSPEED = 5
 CC = 6
 
 class stdin_no_echo:
+    """use like:
+    with stdin_no_echo():
+        uifunction()
+    """
     def __enter__(self):
         self.mode = tcgetattr(stdin)
         setnoecho(stdin)
@@ -29,6 +35,10 @@ def setnonblocking(fd, when=TCSAFLUSH):
     tcsetattr(fd, when, mode)
 
 def get_a_key():
+    """This function reads an only one key from the keyboard and returns it.
+    if this key is the <ESCAPE> key however, it checks if there are things
+    left to read in the stdin buffer. This way we read one char at a time,
+    but we steal collapse escape sequences."""
     mode = tcgetattr(stdin)
     setraw(stdin)
     rv = stdin.read(1)

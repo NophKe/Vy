@@ -1,16 +1,25 @@
+"""
+This module contains classes that are meant to be inherited 
+by the final implementations of «filetypes».
+"""
 from .interface.helpers import do
 from .actions import *
 from . import keys as k
 from .filetypes.motions import motion as motion_dict
 from collections import ChainMap
 
-###############################################################
 class Behaviour:
+    """Abstract Behaviour class"""
+    __slots__ = ('stand_alone_commands', 'full_commands', 'motion_commands')
+
     stand_alone_commands = {}
     full_commands = {}
     motion_commands = {}
 
     def __init_subclass__(cls):
+        """The is of this function is to let any implementation override
+        the three dicts, but joining them anyway in the final class.
+        """
         for klass in cls.mro():
             if hasattr(klass, 'stand_alone_commands'):
                 cls.stand_alone_commands.update(klass.stand_alone_commands)
@@ -19,7 +28,6 @@ class Behaviour:
             if hasattr(klass, 'motion_commands'):
                 cls.motion_commands.update( klass.motion_commands)
 
-###############################################################
 class BaseBehaviour(Behaviour):          
     stand_alone_commands = {
 # windows manipulation
@@ -50,7 +58,7 @@ class BaseBehaviour(Behaviour):
 # misc
         '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
     }
-###############################################################
+
 class ChoiceList(BaseBehaviour):
     stand_alone_commands = {
     # page scrolling 
@@ -69,7 +77,7 @@ class ChoiceList(BaseBehaviour):
         k.down  : 'j',
         'j' : lambda ed, cmd: ed.current_buffer.go_down(),
     }
-###############################################################
+
 class ReadOnlyText(BaseBehaviour):
     stand_alone_commands = {
     # page scrolling 
@@ -97,12 +105,11 @@ class ReadOnlyText(BaseBehaviour):
         ' '     : 'l',
         '\r'    : 'j', })
 
-
-###############################################################
-
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 
 class WritableText(ReadOnlyText):
+    """The behaviour of a «standard» text file buffer."""
+
     stand_alone_commands = {
         'p' : DO_paste,
     # goto insert_mode

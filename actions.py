@@ -1,3 +1,11 @@
+"""
+This module contains basic «actions» upon the Vy editor.
+An action is a function that accepts an editor as first
+argument, and a possibly null, arg string, or slice as
+second argument.
+"""
+
+# lambda helpers
 TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved for buffer in editor.cache] ) else True
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 

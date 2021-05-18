@@ -1,3 +1,6 @@
+"""This module contains the implementation of the «editor» class.
+This class is the data structure representing the state of the Vym editor.
+"""
 from pathlib import Path
 
 from .cache import Cache
@@ -7,6 +10,7 @@ from .console import get_a_key
 from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
 
 class Editor:
+    
     cache = Cache()
     register = dict()
     
@@ -25,13 +29,12 @@ class Editor:
             print('\nyou are now in debugger. use \'cont\' to resume\n')
             breakpoint()
 
-    def edit(self, buff):
+    def edit(self, location):
+        """Changes the current buffer to edit location and set the interface
+        accordingly.
+        """
         return self.current_window.change_buffer(self.cache.get(buff))
     
-    @property
-    def current_mode(self):
-        return {}
-
     @property
     def current_window(self):
         return self.screen.focused
@@ -41,6 +44,7 @@ class Editor:
         return self.current_window.buff
 
     def __call__(self,buff=None):
+        """Calling the editor launches the command loop interraction."""
         if (buff is not None) or self.current_buffer is None:
             self.edit(buff)
             self.screen = Screen(self.current_buffer)
