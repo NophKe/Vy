@@ -10,8 +10,6 @@ from collections import ChainMap
 
 class Behaviour:
     """Abstract Behaviour class"""
-    __slots__ = ('stand_alone_commands', 'full_commands', 'motion_commands')
-
     stand_alone_commands = {}
     full_commands = {}
     motion_commands = {}
