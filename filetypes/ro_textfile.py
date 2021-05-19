@@ -26,6 +26,9 @@ class ReadOnlyTextFile(Motions, view, ReadOnlyText):
         self._old_lin_col = None
         super().__init__()
 
+    def __repr__(self):
+        return f"read-only buffer: {self.path.name if self.path else 'undound to file system'}"
+
     @property
     def cursor_lin_col(self):
         string = self._string

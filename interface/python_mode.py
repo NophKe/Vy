@@ -1,15 +1,17 @@
+import rlcompleter  # Even if this module does not seem to be used in
+                    # the module, its import hooks readline functions.
 import readline
-import code
 import __main__
 import os
 from pathlib import Path
+from code import InteractiveConsole
 
-class Console(code.InteractiveConsole):
+class Console(InteractiveConsole):
     def __init__(self, locals=None, filename="<console>", screen=object):
         self.screen = screen
         histfile=Path("~/.vy/python_history").expanduser()
         self.histfile = histfile
-        code.InteractiveConsole.__init__(self, locals, filename)
+        InteractiveConsole.__init__(self, locals, filename)
         self.init_history(histfile)
 
     def init_history(self, histfile):

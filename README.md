@@ -4,9 +4,10 @@ Vy
 What is Vy?
 -----------
 
-Vy is a **light** python implementation of the Vi text editor.
-It has no external dependency outside standard lib.
-It can use the Pygments library for syntax highlighting.
+Vy is a **light** python implementation of the Vi text editor. It has 
+no external dependency outside standard lib. But it can use the Pygments
+library (if present) for syntax highlighting.  It aims to stay below 3000
+lines (including doc) and run on any modern python machine.
 
 It tries to provide a classic Vi-like interface that aims to be easy to
 extend through the python programming interface. As an example you can open 
@@ -15,7 +16,8 @@ the editor by typing in the python repl:
     from vy.editor import Editor
     Editor('/etc/fstab')
 
-_note:_ `python -m vy filename` works as well
+_note:_ otherwise use `python -m vy filename` ;-) 
+
 
 It does not provide anything like VimScript but tries to expose its internals
 in a simple pythonic way. To delete from the cursor to the beginning of the

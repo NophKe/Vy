@@ -1,8 +1,8 @@
-from ..actions import *
-from .helpers import resolver, do
-
 from pathlib import Path
 import readline
+
+from ..actions import *
+from .helpers import resolver, do
 
 class CommandModeCompleter:
     @staticmethod
@@ -38,7 +38,6 @@ class CommandModeCompleter:
         self._old_complete = readline.get_completer() 
 
         readline.set_completer(self.completer)
-
         readline.set_completer_delims(' \t')
 
         readline.set_history_length(1000)
@@ -83,10 +82,10 @@ dictionary = {
     'set'   : DO_set,
     'help'  : DO_help,
     'cd'    : DO_chdir,
+
 # change mode
     'visual': 'vi',
     'vi'    : DO_nothing,
-
     'python': do(mode='python'),
 
 # See what's in the cache
@@ -136,5 +135,4 @@ dictionary = {
 
     'write!'    : 'w!',
     'w!'    : DO_force_to_save,
-
 }

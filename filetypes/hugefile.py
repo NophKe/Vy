@@ -1,4 +1,3 @@
-#from ..behaviour import ReadOnlyText
 from .textfile import TextFile
 
 class HugeFile(TextFile):

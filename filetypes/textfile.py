@@ -22,6 +22,9 @@ class TextFile(Motions, FileLike, view, WritableText):
             self._string = '\n'
         super().__init__()
 
+    def __repr__(self):
+        return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
+
     def start_undo_record(self):
         self._no_undoing = False
         self.set_undo_point()
