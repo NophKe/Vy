@@ -9,7 +9,6 @@ def do(*arg_list, mode=None):
     return func
 
 def resolver(mapping, key=None, default=None):
-    assert key
     tried = set()
     while True:
         try:

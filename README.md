@@ -5,6 +5,8 @@ What is Vy?
 -----------
 
 Vy is a **light** python implementation of the Vi text editor.
+It has no external dependency outside standard lib.
+It can use the Pygments library for syntax highlighting.
 
 It tries to provide a classic Vi-like interface that aims to be easy to
 extend through the python programming interface. As an example you can open 
@@ -28,6 +30,18 @@ And to move to the end of the file (`G` in the interface):
 Features
 --------
 
+- w/b/e/$/_ moves (can take counts like 10w)
+- h/j/k/l of course! + cursor keys
+- A/I for insert mode on end/beginning of line.
+- a/i for insert mode after/before cursor.
+- O/o for insert mode on a new line.
+- zt/zz/zb for screen navigation
+- page up/down
+- :line_number go reach this line
+- :w/:wa/:wall/:wq/:wqa/:wqall etc...
+- :vsplit
+
+
 For now quite limited...
 
 * Syntax highlighted through Pygments
@@ -48,7 +62,7 @@ The repl inside the editor.
             note that you are back in __main__ no matter what this means!
     >>> _
 
-Once in python mode you can interract with the editor with the «editor» variable!
+Once in python mode you can interact with the editor with the «editor» variable!
 
 
 from vy.textfile import TextFile
