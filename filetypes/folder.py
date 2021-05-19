@@ -9,9 +9,9 @@ def DO_open_file(ed, cmd):
         ed.warning("Vy ne gère pas l'encodage de ce fichier")
     return 'normal'
 
-def format_lines( max_col, text, cursor_lin, cur_or_par_dir):
+def format_lines(max_col, text, cursor_lin, cur_or_par_dir):
         rv = '\x1b[00;90;40m'
-        if cur_or_par_dir:
+        if cur_or_par_dir: #current or parent dir (., ..)
             rv += '\x1b[00;25;35m'
         if cursor_lin:
             rv += '\x1b[7m'

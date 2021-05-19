@@ -5,16 +5,29 @@ def find_end_of_line(buff):
     return buff.cursor + offset
 
 def find_end_of_word(buff):
-    pos = buff.tell()
-    buff.read(1)
-    while buff.read(1).isspace():
-        pass
-    buff.seek(buff.tell() - 1)
-    while not buff.read(1).isspace():
-        pass
-    rv = buff.tell() - 2
-    buff.seek(pos)
-    return rv
+    places = set()
+    if (start := buff.cursor + 2) > len(buff):
+        return buff.cursor
+    for char in ' .{}()[]():\n':
+        loc = buff[start:].find(char)
+        if loc > -1:
+            loc += buff.cursor
+            places.add(loc+1)
+    if places:
+        return min(places)
+    return buff.cursor
+
+#def find_end_of_word(buff):
+#   pos = buff.tell()
+#   buff.read(1)
+#   while buff.read(1).isspace():
+#       pass
+#   buff.seek(buff.tell() - 1)
+#   while not buff.read(1).isspace():
+#       pass
+#   rv = buff.tell() - 2
+#   buff.seek(pos)
+#   return rv
 
 def find_begining_of_line(buff):
     char = ''

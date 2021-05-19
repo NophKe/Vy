@@ -45,7 +45,6 @@ class Behaviour:
     def string(self):
         """ NOT IMPLEMENTED """
         return self._string
-    
 
 class BaseBehaviour(Behaviour):          
     stand_alone_commands = {

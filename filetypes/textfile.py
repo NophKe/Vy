@@ -5,7 +5,6 @@ from .motions import Motions
 from .syntax import view
 from ..behaviour import WritableText
 
-
 class TextFile(Motions, FileLike, view, WritableText):
     string = VyString()
     path = VyPath()
@@ -154,7 +153,6 @@ class TextFile(Motions, FileLike, view, WritableText):
         cur = self.cursor
         self.string = f'{string[:cur]}{text}{string[cur:]}'
         self.cursor += len(text)
-
 
     def print_yourself(buff):
         from os import get_terminal_size

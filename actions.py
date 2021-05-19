@@ -84,7 +84,6 @@ def DO_set(editor, arg):
     if value is toggle:
         setattr(editor.current_buffer, 'set_' + arg, not option)
 
-
 def DO_edit(editor, arg):
     try:
         editor.edit(arg)
@@ -121,7 +120,6 @@ def DO_force_to_save(editor, arg):
     except (IsADirectoryError, FileExistsError, PermissionError) as exc:
         editor.warning(f'{exc.__doc__} aborting...')
                 
-
 def DO_save_all(editor, cmd):
     for buf in editor.cache:
         if buf.unsaved:
@@ -156,7 +154,6 @@ def DO_keep_only_current_window(editor, arg):
         if editor.current_window is editor.current_window.parent.left_panel:
             editor.current_window.parent.merge_from_left_panel()
         
-
 def DO_force_leave_current_window(editor,arg):
     editor.cache.pop(editor.current_window.buff.cache_id)
     DO_edit_next_unsaved_buffer(editor, arg)
@@ -277,11 +274,9 @@ def DO_normal_n(editor,arg):
         editor.warning('string not found')
         return 'normal'
     curbuf.cursor += offset + 1
-
  
 def DO_find(editor,arg):
     editor.screen.minibar('/')
-    
     curbuf = editor.current_buffer
     try:
         needle = input()
@@ -290,7 +285,6 @@ def DO_find(editor,arg):
 
     if not needle:
         return 'normal'
-
     editor.register['/'] = needle
 
     offset = curbuf._string[curbuf.cursor+1:].find(needle)
@@ -351,4 +345,3 @@ def DO_insert_expandtabs(editor, arg):
     after = orig.expandtabs(tabsize=curbuf.set_tabsize)
     curbuf['.'] = after
     curbuf.cursor += len(after) - len(orig)
-

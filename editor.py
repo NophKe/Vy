@@ -1,5 +1,8 @@
 """This module contains the implementation of the «editor» class.
-This class is the data structure representing the state of the Vym editor.
+
+When importing Vy as a whole package, an instance of Editor is the only
+thing you get. And when executing (python -m), an Editor *instance* shall
+be the unique thing in the global dict.
 """
 from pathlib import Path
 
@@ -10,7 +13,11 @@ from .console import get_a_key
 from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
 
 class Editor:
-    
+    """ This class is the data structure representing the state of the Vym editor.
+    The editor class sould not need to be instanciated more than once.
+    It is design to be self contained: if you want your code to interract with
+    the editor, just pas the «editor» variable to your function.
+    """    
     cache = Cache()
     register = dict()
     

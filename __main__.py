@@ -1,7 +1,8 @@
-from pathlib import Path
 from .editor import Editor
 
 if __name__ == '__main__':
+    from pathlib import Path
+
     def argv_parser():
         from argparse import ArgumentParser
         parser = ArgumentParser(prog='Vy',description='Legacy-free Vi-like editor')
