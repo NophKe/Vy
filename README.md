@@ -6,7 +6,7 @@ What is Vy?
 
 Vy is a **light** python implementation of the Vi text editor. It has 
 no external dependency outside standard lib. But it can use the Pygments
-library (if present) for syntax highlighting.  It aims to stay below 3000
+library (if present) for syntax highlighting.  It aims to stay arround 1000
 lines (including doc) and run on any modern python machine.
 
 It tries to provide a classic Vi-like interface that aims to be easy to

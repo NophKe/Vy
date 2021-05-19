@@ -113,9 +113,10 @@ try:
     @cache
     def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
-            rv = list()
-            retval = list()
-            rv.append('\x1b[00;90;40m' + number + set_def )
+            line = list()   # the computed final printed line
+            retval = list() # the function return a list of those
+                            # for line wrapping
+            line.append('\x1b[00;90;40m' + number + set_def )
 
             on_col = len(number) - 1
             cursor_col += on_col - 1
@@ -123,43 +124,41 @@ try:
             cursor_flag = False
 
             for char in text:
-                if esc_flag and char != 'm':
-                    rv.append(char)
+                if esc_flag:
+                    line.append(char)
+                    if char == 'm':
+                        esc_flag = False
                     continue
+
                 if char == '\x1b':
                     esc_flag = True
-                    rv.append(char)
+                    line.append(char)
                     continue
-                if esc_flag and char == 'm':
-                    esc_flag = False
-                    rv.append(char)
-                    continue
+
                 if (on_col, on_lin) == (cursor_col, cursor_lin) and not esc_flag:
-                    rv.append('\x1b[5;7m')
+                    line.append('\x1b[5;7m')
                     cursor_flag = True
 
                 if (on_col, on_lin) != (cursor_col, cursor_lin) and cursor_flag:
-                    rv.append('\x1b[25;27m')
+                    line.append('\x1b[25;27m')
 
                 if on_col ==  max_col -1:
-                    rv.append('\x1b[0m')
-                    retval.append(''.join(rv))
-                    rv = list()
-                    rv.append('\x1b[90;40m' + ' ' * len(number)+ set_def)
+                    line.append('\x1b[0m')
+                    retval.append(''.join(line))
+                    line = list()
+                    line.append('\x1b[90;40m' + ' ' * len(number)+ set_def)
                     on_col = len(number) -1
                     esc_flag = False
-                elif esc_flag  and char == 'm': 
-                    esc_flag = False
-                    rv.append(char)
-                elif char == '\t':
+
+                if char == '\t':
                     nb_of_tabs =  tab_size - (on_col % tab_size)
-                    rv.append(' ' * nb_of_tabs)
+                    line.append(' ' * nb_of_tabs)
                     on_col += nb_of_tabs
+                    cursor_col += (nb_of_tabs-1)
                 else:
-                    if not esc_flag:
-                        on_col += 1
-                    rv.append(char)
-            retval.append(''.join(rv) + (' ' * (max_col - on_col - 1)))
+                    on_col += 1
+                    line.append(char)
+            retval.append(''.join(line) + (' ' * (max_col - on_col - 1)))
             return retval
 
     class view:
