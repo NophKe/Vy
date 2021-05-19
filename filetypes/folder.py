@@ -1,8 +1,6 @@
 from pathlib import Path
 from ..behaviour import BaseBehaviour
-from .basefile import BaseFile
 from .. import keys as k
-#from ..behaviour import FolderBehaviour
 
 def DO_open_file(ed, cmd):
     try:
@@ -28,8 +26,7 @@ def format_lines( max_col, text, cursor_lin, cur_or_par_dir):
         rv += (' ' * (max_col - on_col - 1))
         return rv
 
-
-class Folder(BaseFile, BaseBehaviour):
+class Folder(BaseBehaviour):
     def gen_window(self, max_col, min_lin, max_lin):
         for item in range(min_lin+1, max_lin+1):
             if item == 1 or item == 0:

@@ -3,9 +3,8 @@ from .filelike import FileLike
 from .motions import Motions
 from .syntax import view
 from ..behaviour import ReadOnlyText 
-from .basefile import BaseFile
 
-class ReadOnlyTextFile(BaseFile,Motions, view, ReadOnlyText):
+class ReadOnlyTextFile(Motions, view, ReadOnlyText):
     
     @property
     def hash(self):

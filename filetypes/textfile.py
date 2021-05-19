@@ -1,5 +1,4 @@
 from pathlib import Path
-from .basefile import BaseFile
 from .descriptors import VyString, VyPath
 from .filelike import FileLike
 from .motions import Motions

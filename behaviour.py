@@ -26,6 +26,27 @@ class Behaviour:
             if hasattr(klass, 'motion_commands'):
                 cls.motion_commands.update( klass.motion_commands)
 
+    # those next attrs/props shoud be soon replaced by abstract items.
+    def stop_undo_record(self):
+        """ NOT IMPLEMENTED """
+    def start_undo_record(self):
+        """ NOT IMPLEMENTED """
+    def set_undo_point(self):
+        """ NOT IMPLEMENTED """
+    def save_as(self):
+        """ NOT IMPLEMENTED """
+    def save(self):
+        """ NOT IMPLEMENTED """
+    @property
+    def unsaved(self):
+        """ NOT IMPLEMENTED """
+        return False
+    @property
+    def string(self):
+        """ NOT IMPLEMENTED """
+        return self._string
+    
+
 class BaseBehaviour(Behaviour):          
     stand_alone_commands = {
 # windows manipulation
