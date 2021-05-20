@@ -8,21 +8,24 @@ second argument.
 # lambda helpers
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 
-def yank(ed, part):
-    curbuf = ed.current_buffer
-    ed.register['"'] = curbuf[part]
+def yank(ed, part, reg=None):
+    text = ed.current_buffer[part]
+    ed.register['"'] = text
+    if reg:
+        ed.register[reg] = text
     
-def delete(ed, part):
-    curbuf = ed.current_buffer
-    to_be_del = curbuf[part]
+def delete(ed, part, reg=None):
+    to_be_del = ed.current_buffer[part]
+    ed.current_buffer.__delitem__(part)
     ed.register['"'] = to_be_del
-    curbuf.__delitem__(part)
-#    curbuf.cursor -= len(to_be_del)
+    if reg:
+        ed.register[reg] = to_be_del
 
-def swap_case(ed, part):
-    new_txt = ed.current_buffer[part].swapcase()
-    ed.current_buffer[part] = new_txt
-    ed.current_buffer.cursor += len(new_txt)
+def swap_case(ed, part, reg=None):
+    curbuf = ed.current_buffer
+    new_txt = curbuf[part].swapcase()
+    curbuf[part] = new_txt
+    curbuf.cursor = part.stop
 
 def read_file(editor, arg):
     from pathlib import Path
@@ -321,7 +324,7 @@ def DO_f(editor, arg):
 DO_suppr  = lambda x, arg: x.current_buffer.suppr()
 DO_backspace =  lambda x, arg: x.current_buffer.backspace()
 
-def DO_normal_tilde(editor, arg):
+def DO_normal_tilde(editor, reg):
     curbuf = editor.current_buffer
     curbuf[curbuf.cursor] = curbuf[curbuf.cursor].swapcase()
     curbuf.move_cursor('l')
@@ -330,12 +333,10 @@ def DO_normal_tilde(editor, arg):
 # Paste/yank
 #
 
-def DO_paste(editor, arg):
-    try:
-        txt = editor.register['"']
-    except KeyError:
-        editor.warning('nothing to paste')
-    editor.current_buffer.insert(editor.register['"']),
+def DO_paste(editor, reg):
+    if not reg:
+        reg = '"'
+    editor.current_buffer.insert(editor.register[reg]),
 
 def DO_insert_expandtabs(editor, arg):
     curbuf = editor.current_buffer

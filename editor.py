@@ -12,6 +12,22 @@ from .interface import Interface
 from .console import get_a_key
 from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
 
+class Register:
+    dico = dict()
+    def __getitem__(self, key):
+        try:
+            return self.dico[key]
+        except KeyError:
+            return ''
+    def __setitem__(self, key, value):
+        assert isinstance(value, str)
+        if key == '"':
+            self.dico['"'] = value
+        elif key.isupper():
+            self.dico[key.lower()] += value
+        else:
+            self.dico[key] = value
+        
 class Editor:
     """ This class is the data structure representing the state of the Vym editor.
     The editor class sould not need to be instanciated more than once.
@@ -19,7 +35,7 @@ class Editor:
     the editor, just pas the «editor» variable to your function.
     """    
     cache = Cache()
-    register = dict()
+    register = Register()
     
     def __init__(self, *buffers):
         self._running_flag = False
