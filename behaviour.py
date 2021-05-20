@@ -7,12 +7,38 @@ from .actions import *
 from . import keys as k
 from .filetypes.motions import motion as motion_dict
 from collections import ChainMap
+from pathlib import Path
+
+class VyPath:
+    def __get__(self, inst, objtype=None):
+        return inst._path
+    def __set__(self, inst, value):
+        assert isinstance(value, (str, Path, type(None)))
+        if value is None:
+            inst._path = None
+        elif isinstance(value, str):
+            inst._path = Path(value).resolve()
+        elif isinstance(value, Path):
+            inst._path = value.resolve()
+
+class VyString:
+    def __get__(self, inst, objtype=None):
+        return inst._string
+    def __set__(self, inst, value):
+        assert isinstance(value, str)
+        if not inst._no_undoing:
+            inst.undo_list.append((inst._string, inst.cursor))
+        inst._string = value
+        if inst.redo_list:
+            inst.redo_list = list()
 
 class Behaviour:
     """Abstract Behaviour class"""
     stand_alone_commands = {}
     full_commands = {}
     motion_commands = {}
+    string = VyString()
+    path = VyPath()
 
     def __init_subclass__(cls):
         """The is of this function is to let any implementation override
@@ -26,27 +52,20 @@ class Behaviour:
             if hasattr(klass, 'motion_commands'):
                 cls.motion_commands.update( klass.motion_commands)
 
-    # those next attrs/props shoud be soon replaced by abstract items.
-    def stop_undo_record(self):
-        """ NOT IMPLEMENTED """
-    def start_undo_record(self):
-        """ NOT IMPLEMENTED """
-    def set_undo_point(self):
-        """ NOT IMPLEMENTED """
+class BaseBehaviour(Behaviour):          
+    """Base Class, if any of the action in the dicts of this class
+    implements an action that may be unavailable to all file types,
+    it must implement any necessary abstract method and properties
+    that the current buffer would need."""
     def save_as(self):
-        """ NOT IMPLEMENTED """
+        """ Bogus implemetation."""
     def save(self):
-        """ NOT IMPLEMENTED """
+        """ Bogus implemetation."""
     @property
     def unsaved(self):
-        """ NOT IMPLEMENTED """
+        """ Bogus implemetation."""
         return False
-    @property
-    def string(self):
-        """ NOT IMPLEMENTED """
-        return self._string
 
-class BaseBehaviour(Behaviour):          
     stand_alone_commands = {
 # windows manipulation
         k.C_L           : lambda ed, cmd: ed.screen.show(True),
@@ -69,31 +88,12 @@ class BaseBehaviour(Behaviour):
         'zt'    : DO_zt,
         'zb'    : DO_zb,
 # other modes
-        ':'     : do(mode='command'),
+        ':'     : lambda ed, cmd: 'command',
 # leave
         'ZZ'    : do( DO_try_to_save, DO_exit_nice),
         'ZQ'    : DO_force_leave_current_window,
 # misc
         '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
-    }
-
-class ChoiceList(BaseBehaviour):
-    stand_alone_commands = {
-    # page scrolling 
-        k.page_up   : DO_page_up,
-        k.page_down : DO_page_down,
-    }
-    
-    full_commands = {
-        '/'     : DO_find,
-        'n'     : DO_normal_n,
-    }
-
-    motion_commands = {
-        k.up    : 'k',
-        'k' : lambda ed, cmd: ed.current_buffer.go_up(),
-        k.down  : 'j',
-        'j' : lambda ed, cmd: ed.current_buffer.go_down(),
     }
 
 class ReadOnlyText(BaseBehaviour):

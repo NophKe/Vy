@@ -1,3 +1,5 @@
+delims = ' .{}()[]():\n'
+
 def find_end_of_line(buff):
     offset = buff[buff.cursor:].find('\n')
     if offset == -1:
@@ -8,7 +10,8 @@ def find_end_of_word(buff):
     places = set()
     if (start := buff.cursor + 2) > len(buff):
         return buff.cursor
-    for char in ' .{}()[]():\n':
+    global delims
+    for char in delims:
         loc = buff[start:].find(char)
         if loc > -1:
             loc += buff.cursor
@@ -17,17 +20,21 @@ def find_end_of_word(buff):
         return min(places)
     return buff.cursor
 
-#def find_end_of_word(buff):
-#   pos = buff.tell()
-#   buff.read(1)
-#   while buff.read(1).isspace():
-#       pass
-#   buff.seek(buff.tell() - 1)
-#   while not buff.read(1).isspace():
-#       pass
-#   rv = buff.tell() - 2
-#   buff.seek(pos)
-#   return rv
+def find_end_of_WORD(buff):
+    start = buff.cursor
+    try:
+        while buff[start].isspace():
+            start += 1
+        if (start := buff.cursor + 2) > len(buff):
+            return buff.cursor
+        sp_offset = buff[start:].find(' ')
+        nl_offset = buff[start:].find('\n')
+        offset = min( (sp_offset, nl_offset,) )
+        if offset == -1:
+            return len(buff)
+        return start + offset
+    except IndexError:
+        return buff.cursor
 
 def find_begining_of_line(buff):
     char = ''
@@ -121,23 +128,46 @@ def find_normal_h(buff):
     else:
         return pos
 
+def find_next_WORD(buff):
+    cursor = buff.cursor +1
+    try:
+        if not buff[cursor].isspace(): 
+            while not buff[cursor].isspace(): 
+                cursor += 1
+        while buff[cursor].isspace(): 
+            cursor += 1
+        return cursor
+    except IndexError:
+        return cursor
+
 def find_next_word(buff):
-    pos = buff.tell()
-    next_char = buff.read(1)
-    if not next_char:
-        buff.seek(pos)
-        return len(buff)
-    if next_char.isspace(): 
-        while buff.read(1).isspace():
-            continue
-        else:
-            rv = buff.tell() - 1
-            buff.seek(pos)
-            return rv
-    else:
-        rv = find_next_word(buff)
-        buff.seek(pos)
-        return rv
+    cursor = buff.cursor +1
+    try:
+        while not buff[cursor] in delims:
+            cursor += 1
+        while buff[cursor].isspace(): 
+            cursor += 1
+        return cursor
+    except IndexError:
+        return cursor
+
+#def find_next_word(buff):
+#    pos = buff.tell()
+#    next_char = buff.read(1)
+#    if not next_char:
+#        buff.seek(pos)
+#        return len(buff)
+#    if next_char.isspace(): 
+#        while buff.read(1).isspace():
+#            continue
+#        else:
+#            rv = buff.tell() - 1
+#            buff.seek(pos)
+#            return rv
+#    else:
+#        rv = find_next_word(buff)
+#        buff.seek(pos)
+#        return rv
 
 def find_first_char_of_word(buff):
     if buff.cursor == 0:
@@ -189,10 +219,12 @@ motion = {
     'k':    find_normal_k,
     'l':    find_normal_l,
     'w':    find_next_word,
+    'W':    find_next_WORD,
     'G':    lambda buff: len(buff),
     'gg':   lambda buff: 0,
     'cursor': lambda buff: buff.cursor,
     'e':    find_end_of_word,
+    'E':    find_end_of_WORD,
     '$':    find_end_of_line,
     '0':    find_begining_of_line,
     '_':    find_first_non_blank_char_in_line,
@@ -205,7 +237,7 @@ class Motions():
         return self.seek(self._get_offset(offset_str))
     
     def __len__(self):
-        return len(self.string)
+        return len(self._string)
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -248,6 +280,8 @@ class Motions():
             else:
                 stop = key.stop
             self.string = f'{self._string[:start]}{self._string[stop:]}'
+            if key.start < self.cursor <= key.stop:
+                self.cursor = key.start
 
         elif isinstance(key, str):
             key = self._get_range(key)

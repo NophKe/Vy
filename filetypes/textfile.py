@@ -1,14 +1,10 @@
 from pathlib import Path
-from .descriptors import VyString, VyPath
 from .filelike import FileLike
 from .motions import Motions
 from .syntax import view
 from ..behaviour import WritableText
 
 class TextFile(Motions, FileLike, view, WritableText):
-    string = VyString()
-    path = VyPath()
-
     def __init__(self, path=None, cursor=0):
         self._no_undoing = False
         self.redo_list = list()

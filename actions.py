@@ -6,7 +6,6 @@ second argument.
 """
 
 # lambda helpers
-TRUE_no_unsaved_buffer_in_cache = lambda editor: False if any( [buffer.unsaved for buffer in editor.cache] ) else True
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
 
 def yank(ed, part):
@@ -191,7 +190,7 @@ def DO_nothing(editor, arg):
     return None
 
 def DO_exit_nice(editor, arg):
-    if TRUE_no_unsaved_buffer_in_cache(editor):
+    if not any([buffer.unsaved for buffer in editor.cache]):
         DO_exit_hard(editor, arg)
     else:
         DO_edit_next_unsaved_buffer(editor, False)

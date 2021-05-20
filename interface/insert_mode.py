@@ -16,55 +16,52 @@ def loop(self):
     curbuf = self.current_buffer
     screen = self.screen
     show = None
-
     
     with stdin_no_echo():
         while True:
-
-            curbuf.stop_undo_record()
-            if not show:
+            if show is None: # First loop
+                curbuf.stop_undo_record()
                 screen.show(True)
                 screen.minibar(' -- INSERT --')
-                show = Process(target=screen.show, args=())
-                show.start()
-            else:
-                show.join(0.2)
-                show = Process(target=screen.show, args=(True,))
-                show.start()
+
+            show = Process(target=screen.show, args=(True,))
+            show.start()
             
             user_input  = get_a_key()
-            if show.is_alive():
+
+            if user_input in '²\x1b':
+                curbuf.set_undo_point()
+                curbuf.start_undo_record()
                 show.kill()
+                return 'normal'
 
             if user_input == '\r':
                 curbuf.insert('\n')
                 curbuf.set_undo_point()
+                show.kill()
                 continue
 
             if user_input == ' ':
                 curbuf.insert(' ')
                 curbuf.set_undo_point()
+                show.kill()
+                continue
+            
+            if user_input.isprintable():
+                curbuf.insert(user_input)
+                show.kill()
                 continue
 
-                #show = None
-            
-            elif user_input.isprintable():
-                curbuf.insert(user_input)
-                #show.kill()
-            else:
-                curbuf.start_undo_record()
-                while one_inside_dict_starts_with(dictionary, user_input):
-                    if user_input in dictionary:
-                        rv = dictionary[user_input](self, None)
-                        if rv and rv != 'insert':
-                            return rv
-                        #show = None
-                        break
-                    else:
-                        user_input += get_a_key()
-
-
-
+            curbuf.start_undo_record()
+            while one_inside_dict_starts_with(dictionary, user_input):
+                if user_input in dictionary:
+                    rv = dictionary[user_input](self, None)
+                    show.kill()
+                    if rv and rv != 'insert':
+                        return rv
+                    break
+                else:
+                    user_input += get_a_key()
 
 dictionary = {}
 
@@ -75,6 +72,9 @@ dictionary.update({ key: do(DO_suppr) for key in ['\x1b[3~'] })
 dictionary.update({ key: do(DO_backspace) for key in ['\x08', '\x07'] })
 
 dictionary.update( {
+# Page up/down
+    k.page_up   : DO_page_up,
+    k.page_down : DO_page_down,
 # Control + Arrow
     k.C_right   : GO('w'),
     k.C_left    : GO('b'),
@@ -92,6 +92,8 @@ dictionary.update( {
 # leave insert mode
     '\x1b'  : do(mode='normal') ,
     '²'     : do(mode='normal') ,
+    # thos two are also encoded in function loop...
+    # dunno if its worth or not 
     k.C_C*7 : lambda ed, cmd: ed.warning('^C pressed seven times'),
 
 # inserter
