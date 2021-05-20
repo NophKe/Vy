@@ -32,7 +32,7 @@ And to move to the end of the file (`G` in the interface):
 Features
 --------
 
-- w/b/e/$/_ moves (can take counts like 10w)
+- w W b e E $ _ and the other motion operators are working
 - h/j/k/l of course! + cursor keys
 - A/I for insert mode on end/beginning of line.
 - a/i for insert mode after/before cursor.
@@ -41,6 +41,10 @@ Features
 - page up/down
 - :line_number go reach this line
 - :w/:wa/:wall/:wq/:wqa/:wqall etc...
+- :vsplit
+- :file
+- :registers
+- :read
 - :vsplit
 
 

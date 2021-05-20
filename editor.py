@@ -20,7 +20,6 @@ class Cache():
     - get() creates a new buffer if needed or returns the cached version.
     - pop() lets you uncache a buffer.
     """
-    __slots__ = ()
     _dic = dict()
     _counter = 1
 
@@ -57,7 +56,7 @@ class Cache():
         else:
             return False
 
-    def get(self, item):
+    def get(self, key):
             """This is the main api of this class.
 
             It takes an only argument that can be a string, a path object,
@@ -70,20 +69,20 @@ class Cache():
             Pass it an integer to reach buffers unrelated to file system.
             Pass it None to create a new unnamed buffer.
             """
-            if (key := self._make_key(item)) in self._dic:
+            if key is None:
+                buff = Open_path(key)
+                self._dic[self._counter] = buff
+                buff.cache_id = self._counter
+                self._counter +=1
+                return buff
+
+            if (key := self._make_key(key)) in self._dic:
                 return self._dic[key]
-            else:
-                if name is None:
-                    buff = Open_path(**kwargs)
-                    self._dic[self._counter] = buff
-                    buff.cache_id = self._counter
-                    self._counter +=1
-                    return buff
-                else:
-                    self._dic[name] = Open_path(name, **kwargs)
-                    rv = self._dic[name]
-                    rv.cache_id = name
-                    return rv
+                
+            self._dic[key] = Open_path(key)
+            rv = self._dic[key]
+            rv.cache_id = key
+            return rv
 
 class Register:
     __slots__ = ()
