@@ -7,7 +7,7 @@ from pathlib import Path
 from code import InteractiveConsole
 
 class Console(InteractiveConsole):
-    def __init__(self, locals=None, filename="<console>", screen=object):
+    def __init__(self, locals=None, filename="<console>", screen=None):
         self.screen = screen
         histfile=Path("~/.vy/python_history").expanduser()
         self.histfile = histfile
@@ -35,8 +35,6 @@ class Console(InteractiveConsole):
             self.screen.show(True)
             self.screen.infobar()
         return rv
-         
-
 
 def loop(editor):
     #readline.parse_and_bind("tab: complete")
@@ -48,7 +46,7 @@ def loop(editor):
     print('\tnote that you are back in __main__ no matter what this means!')
     print()
 
-    console = Console(locals= __main__.__dict__, screen= editor.screen)
+    console = Console(locals= __main__.__dict__, screen=editor.screen)
 
     def DO_not_try(*args):
         print('\tyou cannot interract with the editor stacking call to:')
@@ -56,32 +54,24 @@ def loop(editor):
         print('\tEditor.interface()')
         print()
         print('\tuse ^D or exit() to resume to the editor.')
+        input('press [enter] to continue')
     
     def new_exit():
         console.resetbuffer()
         raise SystemExit
 
-    #old_interface = editor.interface
-    #old_cmdloop = editor.cmdloop
     old_screen_minibar_ = editor.screen._minibar_flag
 
-    #editor.interface = DO_not_try
-    #editor.cmdloop = DO_not_try
     editor.screen._minibar_flag = editor.screen.number_of_lin // 2
-
-
     __main__.exit = new_exit
+
     try:
         console.interact()
     except SystemExit:
         pass
     finally:
         console.save_history()
-        
 
-    del __main__.exit
-    #editor.cmdloop = old_cmdloop
-    #editor.interface = old_interface
     editor.screen._minibar_flag = old_screen_minibar_
 
     return 'normal'

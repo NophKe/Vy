@@ -11,8 +11,6 @@ from .interface import Interface
 from .console import get_a_key
 from .filetypes import Open_path
 
-# helper function
-
 class Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path.
@@ -20,6 +18,7 @@ class Cache():
     - get() creates a new buffer if needed or returns the cached version.
     - pop() lets you uncache a buffer.
     """
+    __slots__ = ()
     _dic = dict()
     _counter = 1
 
@@ -34,7 +33,7 @@ class Cache():
         else:
             raise ValueError
 
-    def pop(self, key):
+    def __delitem__(self, key):
         """ Use this function to delete a buffer from cache. """
         return self._dic.pop(self._make_key(key))
 
@@ -49,40 +48,38 @@ class Cache():
             yield value
     
     def __contains__(self, key):
-        if key in self._dic:
-            return True
-        elif self._make_key(key) in self._dic:
+        if self._make_key(key) in self._dic:
             return True
         else:
             return False
 
-    def get(self, key):
-            """This is the main api of this class.
+    def __getitem__(self, key):
+        """This is the main api of this class.
 
-            It takes an only argument that can be a string, a path object,
-            an int, or None. 
+        It takes an only argument that can be a string, a path object,
+        an int, or None. 
 
-            If the argument is a string or a path object, it will be resolved 
-            to an absolute path, and if this path has allready been cached,
-            the correponding buffer will be returned. If not, a new buffer
-            will be created from reading the path content or from scratch.
-            Pass it an integer to reach buffers unrelated to file system.
-            Pass it None to create a new unnamed buffer.
-            """
-            if key is None:
-                buff = Open_path(key)
-                self._dic[self._counter] = buff
-                buff.cache_id = self._counter
-                self._counter +=1
-                return buff
+        If the argument is a string or a path object, it will be resolved 
+        to an absolute path, and if this path has allready been cached,
+        the correponding buffer will be returned. If not, a new buffer
+        will be created from reading the path content or from scratch.
+        Pass it an integer to reach buffers unrelated to file system.
+        Pass it None to create a new unnamed buffer.
+        """
+        if key is None:
+            buff = Open_path(key)
+            self._dic[self._counter] = buff
+            buff.cache_id = self._counter
+            self._counter +=1
+            return buff
 
-            if (key := self._make_key(key)) in self._dic:
-                return self._dic[key]
-                
-            self._dic[key] = Open_path(key)
-            rv = self._dic[key]
-            rv.cache_id = key
-            return rv
+        if (key := self._make_key(key)) in self._dic:
+            return self._dic[key]
+            
+        self._dic[key] = Open_path(key)
+        rv = self._dic[key]
+        rv.cache_id = key
+        return rv
 
 class Register:
     __slots__ = ()
@@ -95,6 +92,8 @@ class Register:
         return rv
 
     def __getitem__(self, key):
+        if isinstance(key, int):
+            key = str(key)
         try:
             return self.dico[key]
         except KeyError:
@@ -102,12 +101,23 @@ class Register:
 
     def __setitem__(self, key, value):
         assert isinstance(value, str)
-        if key == '"':
+        if isinstance(key, int):
+            key = str(key)
+        assert isinstance(key, str)
+
+        if key == '_':
+            return
+        elif key == '"':
+            for k in range(9,0,-1):
+                self[k] = self[k-1]
+            self[0] = self['"']
             self.dico['"'] = value
         elif key.isupper():
             self.dico[key.lower()] += value
-        else:
+        elif key.islower() or key.isnumeric():
             self.dico[key] = value
+        elif key == '=':
+            self.dico[key] = eval(key)
         
 class Editor:
     """ This class is the data structure representing the state of the Vym editor.
@@ -115,15 +125,16 @@ class Editor:
     It is design to be self contained: if you want your code to interract with
     the editor, just pas the «editor» variable to your function.
     """    
+    __slots__ = ('_running', 'screen', 'interface',)
     cache = Cache()
     register = Register()
     
     def __init__(self, *buffers):
-        self._running_flag = False
+        self._running = False
         if buffers:
             for buff in buffers:
-                self.cache.get(buff)
-        self.screen = Screen(self.cache.get(None if not buffers else buffers[0]))
+                self.cache[buff]
+        self.screen = Screen(self.cache[None if not buffers else buffers[0]])
         self.interface = Interface(self)
 
     def warning(self, msg):
@@ -137,7 +148,7 @@ class Editor:
         """Changes the current buffer to edit location and set the interface
         accordingly.
         """
-        return self.current_window.change_buffer(self.cache.get(location))
+        return self.current_window.change_buffer(self.cache[location])
     
     @property
     def current_window(self):
@@ -149,6 +160,13 @@ class Editor:
 
     def __call__(self,buff=None):
         """Calling the editor launches the command loop interraction."""
+        if self._running is True:
+            print("\tYou cannot interract with the editor stacking call to")
+            print("\t«Editor» instance.")
+            print("\tInstead use Editor.interface('insert')")
+            input("press [enter] to continue")
+            return
+        self._running = True
         if (buff is not None) or self.current_buffer is None:
             self.edit(buff)
             self.screen = Screen(self.current_buffer)

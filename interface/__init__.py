@@ -12,13 +12,7 @@ class Interface():
         self.add_mode('insert', insert_mode)   
         self.add_mode('python', python_mode)   
     
-    def __call__(self, name):
-        if self.inst._running_flag:
-            print('\tyou cannot interract with the editor stacking call to:')
-            print('\tEditor()')
-            print('\tEditor.interface()')
-            print('\tand such...')
-            raise
+    def __call__(self, name=None):
         assert (name in self.mode_dict) or self.last
         if name: 
             self.last = name
