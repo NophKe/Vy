@@ -34,7 +34,7 @@ class Cache():
         else:
             raise ValueError
 
-    def pop(self, key):
+    def __delitem__(self, key):
         """ Use this function to delete a buffer from cache. """
         return self._dic.pop(self._make_key(key))
 
@@ -49,14 +49,12 @@ class Cache():
             yield value
     
     def __contains__(self, key):
-        if key in self._dic:
-            return True
-        elif self._make_key(key) in self._dic:
+        if self._make_key(key) in self._dic:
             return True
         else:
             return False
 
-    def get(self, key):
+    def __getitem__(self, key):
             """This is the main api of this class.
 
             It takes an only argument that can be a string, a path object,
@@ -119,11 +117,11 @@ class Editor:
     register = Register()
     
     def __init__(self, *buffers):
-        self._running_flag = False
+        self._running = False
         if buffers:
             for buff in buffers:
-                self.cache.get(buff)
-        self.screen = Screen(self.cache.get(None if not buffers else buffers[0]))
+                self.cache[buff]
+        self.screen = Screen(self.cache[None if not buffers else buffers[0]])
         self.interface = Interface(self)
 
     def warning(self, msg):
@@ -137,7 +135,7 @@ class Editor:
         """Changes the current buffer to edit location and set the interface
         accordingly.
         """
-        return self.current_window.change_buffer(self.cache.get(location))
+        return self.current_window.change_buffer(self.cache[location])
     
     @property
     def current_window(self):
@@ -149,6 +147,13 @@ class Editor:
 
     def __call__(self,buff=None):
         """Calling the editor launches the command loop interraction."""
+        if self._running is True:
+            print("\tYou cannot interract with the editor stacking call to")
+            print("\t«Editor» instance.")
+            print("\tInstead use Editor.interface('insert')")
+            input("press [enter] to continue")
+            return
+        self._running = True
         if (buff is not None) or self.current_buffer is None:
             self.edit(buff)
             self.screen = Screen(self.current_buffer)

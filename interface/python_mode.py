@@ -56,32 +56,24 @@ def loop(editor):
         print('\tEditor.interface()')
         print()
         print('\tuse ^D or exit() to resume to the editor.')
+        input('press [enter] to continue')
     
     def new_exit():
         console.resetbuffer()
         raise SystemExit
 
-    #old_interface = editor.interface
-    #old_cmdloop = editor.cmdloop
     old_screen_minibar_ = editor.screen._minibar_flag
 
-    #editor.interface = DO_not_try
-    #editor.cmdloop = DO_not_try
     editor.screen._minibar_flag = editor.screen.number_of_lin // 2
-
-
     __main__.exit = new_exit
+
     try:
         console.interact()
     except SystemExit:
         pass
     finally:
         console.save_history()
-        
 
-    del __main__.exit
-    #editor.cmdloop = old_cmdloop
-    #editor.interface = old_interface
     editor.screen._minibar_flag = old_screen_minibar_
 
     return 'normal'

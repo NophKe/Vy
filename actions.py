@@ -157,7 +157,7 @@ def DO_keep_only_current_window(editor, arg):
             editor.current_window.parent.merge_from_left_panel()
         
 def DO_force_leave_current_window(editor,arg):
-    editor.cache.pop(editor.current_window.buff.cache_id)
+    del editor.cache[editor.current_window.buff.cache_id]
     DO_edit_next_unsaved_buffer(editor, arg)
 
 def DO_leave_current_window(editor, arg):
@@ -175,7 +175,7 @@ def DO_leave_current_window(editor, arg):
 def DO_vsplit(editor, arg):
     editor.current_window.vsplit()
     if arg:
-        editor.current_window.change_buffer(editor.cache.get(arg))
+        editor.current_window.change_buffer(editor.cache[arg])
 ###
 # Misc
 #####
