@@ -6,19 +6,101 @@ be the unique thing in the global dict.
 """
 from pathlib import Path
 
-from .cache import Cache
 from .screen import Screen
 from .interface import Interface
 from .console import get_a_key
-from .filetypes import ReadOnlyTextFile, TextFile, Folder, HugeFile
+from .filetypes import Open_path
+
+# helper function
+
+class Cache():
+    """Simple wrapper around a dict that lets you index a buffer by its
+    internal id, or any relative or absolute version of its path.
+    It only has two public methods: get() and pop().
+    - get() creates a new buffer if needed or returns the cached version.
+    - pop() lets you uncache a buffer.
+    """
+    __slots__ = ()
+    _dic = dict()
+    _counter = 1
+
+    @staticmethod
+    def _make_key(key):
+        if isinstance(key, int):
+            return key
+        elif isinstance(key, str):
+           return str(Path(key).resolve()) 
+        elif isinstance(key, Path):
+            return str(key.resolve())
+        else:
+            raise ValueError
+
+    def pop(self, key):
+        """ Use this function to delete a buffer from cache. """
+        return self._dic.pop(self._make_key(key))
+
+    def __repr__(self):
+        rv = str()
+        for buff in self._dic.values():
+            rv += f'cache_id: {buff.cache_id} : {repr(buff)}\n'
+        return rv
+
+    def __iter__(self):
+        for value in self._dic.values():
+            yield value
+    
+    def __contains__(self, key):
+        if key in self._dic:
+            return True
+        elif self._make_key(key) in self._dic:
+            return True
+        else:
+            return False
+
+    def get(self, item):
+            """This is the main api of this class.
+
+            It takes an only argument that can be a string, a path object,
+            an int, or None. 
+
+            If the argument is a string or a path object, it will be resolved 
+            to an absolute path, and if this path has allready been cached,
+            the correponding buffer will be returned. If not, a new buffer
+            will be created from reading the path content or from scratch.
+            Pass it an integer to reach buffers unrelated to file system.
+            Pass it None to create a new unnamed buffer.
+            """
+            if (key := self._make_key(item)) in self._dic:
+                return self._dic[key]
+            else:
+                if name is None:
+                    buff = Open_path(**kwargs)
+                    self._dic[self._counter] = buff
+                    buff.cache_id = self._counter
+                    self._counter +=1
+                    return buff
+                else:
+                    self._dic[name] = Open_path(name, **kwargs)
+                    rv = self._dic[name]
+                    rv.cache_id = name
+                    return rv
 
 class Register:
+    __slots__ = ()
     dico = dict()
+
+    def __repr__(self):
+        rv = str()
+        for k,v in self.dico.items():
+            rv += f'{k}: {v}\n'
+        return rv
+
     def __getitem__(self, key):
         try:
             return self.dico[key]
         except KeyError:
             return ''
+
     def __setitem__(self, key, value):
         assert isinstance(value, str)
         if key == '"':
@@ -71,7 +153,6 @@ class Editor:
         if (buff is not None) or self.current_buffer is None:
             self.edit(buff)
             self.screen = Screen(self.current_buffer)
-        #return self.cmdloop()
 
         self.screen.alternative_screen()
         self.screen.clear_screen()

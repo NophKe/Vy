@@ -93,6 +93,9 @@ dictionary = {
     'ls'    : 'buffers',
     'buffers'   : lambda ed, cmd: ed.warning(str(ed.cache)),
 
+# see what's in registers
+    'registers' : lambda ed, cmd: ed.warning(str(ed.register)),
+    'reg'   : 'registers',
 # misc
     'read'  : 'r',
     'r'     : read_file,

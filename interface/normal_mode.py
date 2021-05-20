@@ -98,6 +98,7 @@ def loop(self):
                 if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
                     self.screen.infobar(f'__processing command( {key} )__')
                     COMMAND = resolver(full_cmd, CMD)
+                    flag = False
                     if not REG:
                         flag = True
                         temp = self.register["z"]
