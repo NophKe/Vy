@@ -24,8 +24,13 @@ def loop(self):
         return Process(target=show_screen,
                          args=(self.screen,renew, child_conn))
     def get_char():
+        """ this function when used as follows REG = get_char()
+            will prevent the minibar to be printed because one 
+            element of fstring is waiting to be assigned (here REG)
+            so the print will only happen once stdin has been read.
+        """
         self.screen.minibar(f' -- NORMAL -- {REG=} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
-        return get_a_key()
+        return self.read_stdin() #get_a_key()
 
     with stdin_no_echo():
         parent_conn, child_conn = Pipe()

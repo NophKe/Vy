@@ -137,17 +137,29 @@ class Editor:
     It is design to be self contained: if you want your code to interract with
     the editor, just pass the «editor» variable to your function.
     """    
-    __slots__ = ('_running', 'screen', 'interface',)
     cache = Cache()
     register = Register()
     
     def __init__(self, *buffers):
+        self._macro_keys = ''
         self._running = False
         if buffers:
             for buff in buffers:
                 self.cache[buff]
         self.screen = Screen(self.cache[None if not buffers else buffers[0]])
         self.interface = Interface(self)
+    
+    def read_stdin(self):
+        if self._macro_keys:
+            rv = self._macro_keys[0]
+            self._macro_keys = self._macro_keys[1:]
+            return rv
+        return get_a_key()
+    
+    def push_macro(self, string):
+        assert isinstance(string, str)
+        self._macro_keys = f'{string}{self._macro_keys}'
+        
 
     def warning(self, msg):
         """Displays a warning message to the user. This should be the main way to cast

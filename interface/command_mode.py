@@ -76,7 +76,31 @@ def loop(self):
         return (resolver(dictionary,key, default=do(mode='normal'))(self, args) 
                 or 'normal')
 
+def DO_nmap(ed, arg):
+    if not arg or not ' ' in arg:
+        ed.warning('[syntax] :nmap key mapping')
+    key, value = arg.split(' ', maxsplit=1)
+    ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
+
+def DO_omap(ed, arg):
+    if not arg or not ' ' in arg:
+        ed.warning('[syntax] :nmap key mapping')
+    key, value = arg.split(' ', maxsplit=1)
+    ed.current_buffer.motion_commands[key] = lambda ed,cmd: ed.push_macro(value)
+
+def DO_fmap(ed, arg):
+    if not arg or not ' ' in arg:
+        ed.warning('[syntax] :nmap key mapping')
+    key, value = arg.split(' ', maxsplit=1)
+    ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
+
+
+
 dictionary = {
+    'nmap'  : DO_nmap,
+    'omap'  : DO_omap,
+    'fmap'  : DO_fmap,
+    'push'  : lambda ed, arg: ed.push_macro(arg),
 # Meta commands
     '!'     : DO_system,
     'set'   : DO_set,

@@ -3,10 +3,18 @@ This module contains basic «actions» upon the Vy editor.
 An action is a function that accepts an editor as first
 argument, and a possibly null, arg string, or slice as
 second argument.
+
+
+
 """
 
 # lambda helpers
 GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
+
+# Here Comes the «full command», taking a slice of the target buffer
+# and an optional register. Its up to the function to decide to move 
+# the buff.cursor or not, and to determinate what to do if no register
+# is being specified.
 
 def yank(ed, part, reg=None):
     text = ed.current_buffer[part]
@@ -27,6 +35,8 @@ def swap_case(ed, part, reg=None):
     new_txt = curbuf[part].swapcase()
     curbuf[part] = new_txt
     curbuf.cursor = part.stop
+
+
 
 def read_file(editor, arg):
     from pathlib import Path
@@ -201,7 +211,7 @@ def DO_exit_nice(editor, arg):
 
 def DO_exit_hard(editor, arg):
     import sys
-    return sys.exit(0)
+    sys.exit(0)
 
 ###
 # Screen based cursor movements

@@ -22,12 +22,16 @@ def loop(self):
             if show is None: # First loop
                 curbuf.stop_undo_record()
                 screen.show(True)
-                screen.minibar(' -- INSERT --')
 
             show = Process(target=screen.show, args=(True,))
             show.start()
+            screen.minibar(' -- INSERT --')
             
-            user_input  = get_a_key()
+            user_input  = self.read_stdin()
+
+            if user_input == k.C_A:
+                self._macro_keys = 'coucou'
+                continue
 
             if user_input in '²\x1b':
                 curbuf.set_undo_point()
@@ -61,7 +65,7 @@ def loop(self):
                         return rv
                     break
                 else:
-                    user_input += get_a_key()
+                    user_input += self.read_stdin()
 
 dictionary = {}
 
