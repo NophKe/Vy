@@ -31,13 +31,13 @@ class TextFile(Motions, FileLike, view, WritableText):
         self._no_undoing = True
 
     def set_undo_point(self):
-            actual_txt, actual_cur = self._string, self.cursor
-            if not self.undo_list:
-                self.undo_list.append((actual_txt, actual_cur))
-                return
-            last_txt, last_cur = self.undo_list[-1]
-            if actual_txt != last_txt:
-                self.undo_list.append((actual_txt, actual_cur))
+        actual_txt, actual_cur = self._string, self.cursor
+        if not self.undo_list:
+            self.undo_list.append((actual_txt, actual_cur))
+            return
+        last_txt, last_cur = self.undo_list[-1]
+        if actual_txt != last_txt:
+            self.undo_list.append((actual_txt, actual_cur))
 
     def undo(self):
         if not self.undo_list:
@@ -108,7 +108,7 @@ class TextFile(Motions, FileLike, view, WritableText):
     @property
     def cursor_lin_off(self):
         cursor = self.cursor
-        offset = lin = 0
+        lin = offset = 0
         for lin, offset in enumerate(self.lines_offsets):
             if offset == cursor:
                 return lin, offset
@@ -132,7 +132,11 @@ class TextFile(Motions, FileLike, view, WritableText):
 
     @property
     def number_of_lin(self):
-        return self.string.count('\n')
+        if not hasattr(self, '_number_of_lin') or \
+                        self._number_of_lin_hash != hash(self._string):
+            self._number_of_lin_hash = hash(self._string)
+            self._number_of_lin = self.string.count('\n')
+        return self._number_of_lin
 
     def suppr(self):
         string = self._string

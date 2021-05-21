@@ -151,31 +151,13 @@ def find_next_word(buff):
     except IndexError:
         return cursor
 
-#def find_next_word(buff):
-#    pos = buff.tell()
-#    next_char = buff.read(1)
-#    if not next_char:
-#        buff.seek(pos)
-#        return len(buff)
-#    if next_char.isspace(): 
-#        while buff.read(1).isspace():
-#            continue
-#        else:
-#            rv = buff.tell() - 1
-#            buff.seek(pos)
-#            return rv
-#    else:
-#        rv = find_next_word(buff)
-#        buff.seek(pos)
-#        return rv
-
 def find_first_char_of_word(buff):
     if buff.cursor == 0:
         return 0
     elif  buff[buff.cursor - 1].isspace():
         return buff.cursor
     else:
-        return buff[':cursor'].rfind(' ') + 1
+        return buff[:buff.cursor].rfind(' ') + 1
 
 def find_normal_b(buff):
     old_pos = buff.tell()
@@ -252,7 +234,7 @@ class Motions():
             if not start:
                 start = 0
             if not stop:
-                stop = len(self.string)
+                stop = len(self._string)
             return slice(self._get_offset(start), self._get_offset(stop))
         else:
             return self._get_offset(key)
@@ -260,8 +242,29 @@ class Motions():
     def _get_offset(self, key):
         if isinstance(key, int):
             return key
-        elif isinstance(key, str):
-            return motion[key](self)
+        elif isinstance(key, str) and key.startswith('#'):
+            current_line_start = self[:self.cursor].rfind('\n')+1
+
+            if key == '#.':
+                return current_line_start
+            elif key.startswith('#+'):
+                try:
+                    entry = self.lines_offsets.index(current_line_start) + int(key[2:])
+                    return self._lines_offsets[entry]
+                except (IndexError, ValueError):
+                    return len(self._string)
+            elif key.startswith('#-'):
+                try:
+                    entry = self.lines_offsets.index(current_line_start) - int(key[2:])
+                    return self._lines_offsets[entry]
+                except (IndexError, ValueError):
+                    return len(self._string)
+
+            try:
+                return self._lines_offsets[int(key[1:])]
+            except IndexError:
+                return len(self._string)
+        return motion[key](self)
 
     def __delitem__(self, key):
         if isinstance(key, int):

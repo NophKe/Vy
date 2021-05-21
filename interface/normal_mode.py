@@ -102,25 +102,29 @@ def loop(self):
 
                 if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
                     self.screen.infobar(f'__processing command( {key} )__')
-                    COMMAND = resolver(full_cmd, CMD)
-                    flag = False
-                    if not REG:
-                        flag = True
-                        temp = self.register["z"]
-                        REG = "z" # temporary hack
-                    if REG.islower():
-                        self.register[REG] = ""
-                        REG = REG.upper()
+                #   COMMAND = resolver(full_cmd, CMD)
+                #   flag = False
+                #   if not REG:
+                #       flag = True
+                #       temp = self.register["z"]
+                #       REG = "z" # temporary hack
+                #   if REG.islower():
+                #       self.register[REG] = ""
+                #       REG = REG.upper()
 
-                    self.current_buffer.stop_undo_record()
-                    self.current_buffer.set_undo_point()
-                    for _ in range(MOTION_COUNT * COUNT):
-                        RANGE = resolver(motion_cmd, '.')(self.current_buffer)
-                        COMMAND(self, RANGE, REG)
-                    self.current_buffer.start_undo_record()
-                    self.register['"'] = self.register[REG.lower()]
-                    if flag:
-                        self.register['z'] = temp
+                #   self.current_buffer.stop_undo_record()
+                #   self.current_buffer.set_undo_point()
+                #   for _ in range(MOTION_COUNT * COUNT):
+                #       RANGE = resolver(motion_cmd, '.')(self.current_buffer)
+                #       COMMAND(self, RANGE, REG)
+                #   self.current_buffer.start_undo_record()
+                #   self.register['"'] = self.register[REG.lower()]
+                #   if flag:
+                #       self.register['z'] = temp
+                    COUNT = COUNT * MOTION_COUNT
+                    COMMAND = resolver(full_cmd, CMD)
+                    RANGE = self.current_buffer._get_range(f'#.:#+{COUNT}')
+                    COMMAND(self, RANGE, REG)
 
                     return 'normal'
 

@@ -61,10 +61,7 @@ def loop(self):
             return 'normal'
 
         if user_input.isdigit():
-            line = int(user_input)
-            self.current_buffer.seek(0)
-            for _ in range(line):
-                self.current_buffer.move_cursor('j')
+            self.current_buffer.move_cursor(f'#{user_input}')
 
         if ' ' in user_input:
             cmd, args = user_input.split(' ', maxsplit=1)
@@ -82,25 +79,8 @@ def DO_nmap(ed, arg):
     key, value = arg.split(' ', maxsplit=1)
     ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
 
-def DO_omap(ed, arg):
-    if not arg or not ' ' in arg:
-        ed.warning('[syntax] :nmap key mapping')
-    key, value = arg.split(' ', maxsplit=1)
-    ed.current_buffer.motion_commands[key] = lambda ed,cmd: ed.push_macro(value)
-
-def DO_fmap(ed, arg):
-    if not arg or not ' ' in arg:
-        ed.warning('[syntax] :nmap key mapping')
-    key, value = arg.split(' ', maxsplit=1)
-    ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
-
-
-
 dictionary = {
     'nmap'  : DO_nmap,
-    'omap'  : DO_omap,
-    'fmap'  : DO_fmap,
-    'push'  : lambda ed, arg: ed.push_macro(arg),
 # Meta commands
     '!'     : DO_system,
     'set'   : DO_set,
