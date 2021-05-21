@@ -31,29 +31,46 @@ class TextFile(Motions, FileLike, view, WritableText):
         self._no_undoing = True
 
     def set_undo_point(self):
-        actual_txt, actual_cur = self._string, self.cursor
-        if not self.undo_list:
-            self.undo_list.append((actual_txt, actual_cur))
+        if self._no_undoing:
             return
-        last_txt, last_cur = self.undo_list[-1]
+        actual_txt, actual_cur = self._string,       self.cursor, 
+        actual_off, act_off_h  = self.lines_offsets, self._lines_offsets_hash
+        act_lex, act_lex_h     = self.lexed_lines, self._lexed_hash
+
+        if not self.undo_list:
+            self.undo_list.append((actual_txt, actual_cur, actual_off, 
+                                    act_off_h, act_lex, act_lex_h))
+            return
+        last_txt, _x, _y, _z , _a, _b = self.undo_list[-1]
         if actual_txt != last_txt:
-            self.undo_list.append((actual_txt, actual_cur))
+            self.undo_list.append((actual_txt, actual_cur, actual_off, 
+                                    act_off_h, act_lex, act_lex_h))
 
     def undo(self):
         if not self.undo_list:
             return
-        txt, pos = self.undo_list.pop()
-        self.redo_list.append((self._string,self.tell()))
+        txt, pos, off, off_h, lex, lex_h = self.undo_list.pop()
+        self.redo_list.append((self._string, self.cursor, self.lines_offsets,
+                        self._lines_offsets_hash, self.lexed_lines, self._lexed_hash))
         self._string = txt
         self.cursor = pos
+        self._lines_offsets = off
+        self._lines_offsets_hash = off_h
+        self._lexed_lines = lex
+        self._lexed_hash = lex_h
+
     
     def redo(self):
         if not self.redo_list:
             return
-        txt, pos = self.redo_list.pop()
-        self.undo_list.append((txt, pos))
+        txt, pos, off, off_h, lex, lex_h = self.redo_list.pop()
+        self.undo_list.append((txt, pos, off, off_h, lex, lex_h))
         self._string = txt
         self.cursor = pos
+        self._lines_offsets = off
+        self._lines_offsets_hash = off_h
+        self._lexed_lines = lex
+        self._lexed_hash = lex_h
 
     def save(self):
         assert self.path is not None
@@ -118,6 +135,18 @@ class TextFile(Motions, FileLike, view, WritableText):
             return lin, offset
 
     @property
+    def cursor_line(self):
+        cursor = self.cursor
+        lin = offset = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin
+            if offset > cursor:
+                return lin - 1
+        else:
+            return lin
+
+    @property
     def lines_offsets(self):
         if not hasattr(self, '_lines_offsets') or \
                         self._lines_offsets_hash != hash(self._string):
@@ -132,11 +161,7 @@ class TextFile(Motions, FileLike, view, WritableText):
 
     @property
     def number_of_lin(self):
-        if not hasattr(self, '_number_of_lin') or \
-                        self._number_of_lin_hash != hash(self._string):
-            self._number_of_lin_hash = hash(self._string)
-            self._number_of_lin = self.string.count('\n')
-        return self._number_of_lin
+        return len(self.lines_offsets)
 
     def suppr(self):
         string = self._string

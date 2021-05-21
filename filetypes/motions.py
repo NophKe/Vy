@@ -243,25 +243,26 @@ class Motions():
         if isinstance(key, int):
             return key
         elif isinstance(key, str) and key.startswith('#'):
-            current_line_start = self[:self.cursor].rfind('\n')+1
+            current_line_start = self.lines_offsets[self.cursor_line]
+            # now that .lines_offsets is computed, will use ._lines_offsets instead
 
             if key == '#.':
                 return current_line_start
             elif key.startswith('#+'):
                 try:
-                    entry = self.lines_offsets.index(current_line_start) + int(key[2:])
+                    entry = self._lines_offsets.index(current_line_start) + int(key[2:])
                     return self._lines_offsets[entry]
                 except (IndexError, ValueError):
                     return len(self._string)
             elif key.startswith('#-'):
                 try:
-                    entry = self.lines_offsets.index(current_line_start) - int(key[2:])
+                    entry = self._lines_offsets.index(current_line_start) - int(key[2:])
                     return self._lines_offsets[entry]
                 except (IndexError, ValueError):
                     return len(self._string)
 
             try:
-                return self._lines_offsets[int(key[1:])]
+                return self.lines_offsets[int(key[1:])]
             except IndexError:
                 return len(self._string)
         return motion[key](self)

@@ -307,26 +307,15 @@ def DO_find(editor,arg):
     curbuf.cursor += offset + 1
 
 def DO_r(editor, arg):
-    from .console import get_a_key
-    editor.current_buffer.write(get_a_key())
-    editor.current_buffer.seek(editor.current_buffer.tell() - 1)    
+    editor.current_buffer['cursor'] = editor.read_stdin()
     
-def DO_f(editor, arg):
-    from .console import get_a_key 
-    char_to_seek = get_a_key()
-    curbuf = editor.current_buffer
-    old_pos = curbuf.tell()
-
-    while True:
-        next_char = curbuf.read(1)
-        if not next_char:
-            curbuf.seek(old_pos)
-            return
-        elif next_char == char_to_seek:
-            curbuf.seek(curbuf.tell() - 1)
-            return
-        else:
-            continue
+def DO_f(curbuf):
+    from __main__ import Editor as editor
+    char_to_seek = editor.read_stdin()
+    char_relative = curbuf['cursor:#+1'].find(char_to_seek)
+    if char_relative > 0:
+        return curbuf.cursor + char_relative        
+    return curbuf.cursor
 
 ###
 # Edition

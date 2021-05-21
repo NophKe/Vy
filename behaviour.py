@@ -2,6 +2,7 @@
 This module contains classes that are meant to be inherited 
 by the final implementations of «filetypes».
 """
+
 from .interface.helpers import do
 from .actions import *
 from . import keys as k
@@ -26,8 +27,7 @@ class VyString:
         return inst._string
     def __set__(self, inst, value):
         assert isinstance(value, str)
-        if not inst._no_undoing:
-            inst.undo_list.append((inst._string, inst.cursor))
+        inst.set_undo_point()
         inst._string = value
         if inst.redo_list:
             inst.redo_list = list()
@@ -51,6 +51,9 @@ class Behaviour:
                 cls.full_commands.update( klass.full_commands)
             if hasattr(klass, 'motion_commands'):
                 cls.motion_commands.update( klass.motion_commands)
+
+    def __hash__(self):
+        return hash(self._string)
 
 class BaseBehaviour(Behaviour):          
     """Base Class, if any of the action in the dicts of this class
@@ -119,6 +122,8 @@ class ReadOnlyText(BaseBehaviour):
         k.right : 'l',
         k.up    : 'k',
         k.down  : 'j',
+    # asking input
+        'f' : DO_f,
     # other
         ' '     : 'l',
         '\r'    : 'j', })
