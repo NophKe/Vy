@@ -13,12 +13,20 @@ from .filetypes import Open_path
 
 class Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
-    internal id, or any relative or absolute version of its path.
-    It only has two public methods: get() and pop().
-    - get() creates a new buffer if needed or returns the cached version.
-    - pop() lets you uncache a buffer.
+    internal id, or any relative or absolute version of its path. use:
+
+    >>> x = Cache()
+    >>> x['/home/Nono/test.txt']
+       TextFile('/home/Nono/test.txt')
+    >>> x['/home/Nono/test.txt'] is x['./test.txt']
+       True
+    >>> del x['test.txt']
+    >>> '../nono/test.txt' in x
+       False
+
+    Note: You may create as many of them as you want. The wrapped dict 
+        being a class attribute. All instances will have access to it.
     """
-    __slots__ = ()
     _dic = dict()
     _counter = 1
 
@@ -38,9 +46,12 @@ class Cache():
         return self._dic.pop(self._make_key(key))
 
     def __repr__(self):
-        rv = str()
+        return repr(self._dic)
+
+    def __str__(self):
+        rv = 'cache id    :    cached file\n'
         for buff in self._dic.values():
-            rv += f'cache_id: {buff.cache_id} : {repr(buff)}\n'
+            rv += f'{buff.cache_id}    :    {repr(buff)}\n'
         return rv
 
     def __iter__(self):
@@ -48,10 +59,11 @@ class Cache():
             yield value
     
     def __contains__(self, key):
-        if self._make_key(key) in self._dic:
+        if key in self._dic:
             return True
-        else:
-            return False
+        elif self._make_key(key) in self._dic:
+            return True
+        return False
 
     def __getitem__(self, key):
         """This is the main api of this class.
@@ -94,13 +106,13 @@ class Register:
     def __getitem__(self, key):
         if isinstance(key, int):
             key = str(key)
+        assert isinstance (key, str)
         try:
             return self.dico[key]
         except KeyError:
             return ''
 
     def __setitem__(self, key, value):
-        assert isinstance(value, str)
         if isinstance(key, int):
             key = str(key)
         assert isinstance(key, str)
@@ -123,7 +135,7 @@ class Editor:
     """ This class is the data structure representing the state of the Vym editor.
     The editor class sould not need to be instanciated more than once.
     It is design to be self contained: if you want your code to interract with
-    the editor, just pas the «editor» variable to your function.
+    the editor, just pass the «editor» variable to your function.
     """    
     __slots__ = ('_running', 'screen', 'interface',)
     cache = Cache()
@@ -138,6 +150,11 @@ class Editor:
         self.interface = Interface(self)
 
     def warning(self, msg):
+        """Displays a warning message to the user. This should be the main way to cast
+        information to the screen during the execution of a command as it allows the 
+        user to enter the debugger if needed.
+        In parts of the runtime where this method can't be reached, just use input()
+        """
         assert isinstance(msg, str)
         self.screen.minibar(f"{msg}\r\n\tpress any key to continue (or ^c to debug...)")
         if (key := get_a_key()) == '\x03':
@@ -173,11 +190,26 @@ class Editor:
 
         self.screen.alternative_screen()
         self.screen.clear_screen()
-        self.screen.show(True)
+#        self.screen.show(True)
         mode = 'normal'
         try:
             while True:
                 mode = self.interface(mode)
+#       except:
+#           ans = ''
+#           while ans.strip().lower() not in 'rep':
+#               print('An exception occured what do you want to do?')
+#               print()
+#               print('[R]aise the exception')
+#               print('[E]nter debugger')
+#               print('[P]ass silently')            
+#               ans = input()
+#           if ans in 'rR':
+#               raise
+#           elif ans in 'eE':
+#               breakpoint()
+#           elif ans in 'pP':
+#               pass
         finally:
             self.screen.original_screen()
 
