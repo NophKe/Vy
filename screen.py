@@ -103,6 +103,7 @@ class Window():
         self._v_split_flag = False
         self.v_split_shift = 0
         self._focused = self 
+        self._fake_lines = 0
 
     @property
     def focused(self):
@@ -163,15 +164,20 @@ class Window():
                                                 self.shift_to_lin, 
                                                 self.number_of_lin + self.shift_to_lin)
             default = repeat( '~'+(' '*(self.number_of_col-1)))
-            max_index = self.number_of_lin + self.shift_to_lin
-
             renderer =  chain(generator,default)
 
-            for _ in range(self.number_of_lin):
-                yield next(renderer)
+            for idx, line in enumerate(renderer):
+                if line is False:
+                    self._fake_lines += 1
+                    continue
+                if idx > self._fake_lines + self.number_of_lin:
+                    break
+                yield line
+
 
 class Screen(Window):
     def __init__(self, buff):
+        self._fake_lines = 0
         self._minibar_flag = 2
         self.buff = buff
         self._v_split_flag = False
@@ -190,8 +196,8 @@ class Screen(Window):
                 
 
     def show(self, renew=False, pipe=None):
-        #self.top_left()
         self.infobar('__screen is rendering__')
+        #self.top_left()
         self.recenter()
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
@@ -199,6 +205,8 @@ class Screen(Window):
                 #self.clear_line()
                 stdout.write(line)
                 self._old_screen[index] = line
+        #if self.recenter():
+        #    return self.show()
         self.bottom()
         stdout.flush()
         self.infobar()
@@ -212,8 +220,9 @@ class Screen(Window):
         lin, col = curwin.buff.cursor_lin_col
         if lin < curwin.shift_to_lin + 1:
             curwin.shift_to_lin = lin - 1
-        elif lin >= curwin.number_of_lin + curwin.shift_to_lin - 1:
-            curwin.shift_to_lin = lin - curwin.number_of_lin + 1
+        elif lin >= - curwin._fake_lines + (curwin.number_of_lin + curwin.shift_to_lin + 1):
+            curwin.shift_to_lin = lin - curwin.number_of_lin + curwin._fake_lines
+        curwin._fake_lines = 0
 
     def minibar(self, txt=':'):
         #self.save_cursor()

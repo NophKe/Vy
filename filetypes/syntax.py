@@ -111,9 +111,7 @@ try:
     @cache
     def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             number = str(on_lin).rjust(get_rows_needed(on_lin)) + ': '
-            line = list()   # the computed final printed line
-            retval = list() # the function return a list of those
-                            # for line wrapping
+            retval = list()
             line  = '\x1b[00;90;40m' + number + set_def 
 
             on_col = len(number) - 1
@@ -133,19 +131,18 @@ try:
                     line += char
                     continue
 
-                if (on_col, on_lin) == (cursor_col, cursor_lin) and not esc_flag:
-                    line += '\x1b[5;7m'
-                    cursor_flag = True
-
-                if (on_col, on_lin) != (cursor_col, cursor_lin) and cursor_flag:
-                    line += '\x1b[25;27m'
-
                 if on_col ==  max_col -1:
                     line += '\x1b[0m'
                     retval.append(line)
+                    retval.append(False)
                     line = '\x1b[90;40m' + ' ' * len(number)+ set_def
+                    cursor_col -= on_col
                     on_col = len(number) -1
                     esc_flag = False
+
+                cursor_flag = bool((on_col, on_lin) == (cursor_col, cursor_lin))
+                if cursor_flag:
+                    line += '\x1b[5;7m'
 
                 if char == '\t':
                     nb_of_tabs =  tab_size - (on_col % tab_size)
@@ -155,6 +152,9 @@ try:
                 else:
                     on_col += 1
                     line += char
+                if cursor_flag:
+                    line += '\x1b[25;27m'
+
             retval.append(line + (' ' * (max_col - on_col - 1)))
             return retval
 

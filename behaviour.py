@@ -52,8 +52,6 @@ class Behaviour:
             if hasattr(klass, 'motion_commands'):
                 cls.motion_commands.update( klass.motion_commands)
 
-    def __hash__(self):
-        return hash(self._string)
 
 class BaseBehaviour(Behaviour):          
     """Base Class, if any of the action in the dicts of this class
