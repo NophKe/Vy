@@ -54,7 +54,7 @@ def loop(self):
 
     with CommandModeCompleter():
         try:
-            user_input = input('\x1b[0m:').strip()
+            user_input = input(':').strip()
         except KeyboardInterrupt:
             return 'command'
         except EOFError:
