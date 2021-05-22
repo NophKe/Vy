@@ -1,8 +1,9 @@
 from pathlib import Path
 from .filelike import FileLike
 from .motions import Motions
-from .syntax import view
 from ..behaviour import WritableText
+from .syntax import view
+
 
 class TextFile(Motions, FileLike, view, WritableText):
     def __init__(self, path=None, cursor=0):
@@ -176,5 +177,5 @@ class TextFile(Motions, FileLike, view, WritableText):
     def print_yourself(buff):
         from os import get_terminal_size
         max_col, max_lin = get_terminal_size()
-        for x in buff.gen_window(1, max_col +1 , 0, max_lin - 1):
+        for x in buff.gen_window( max_col +1 , 0, max_lin - 1):
             print(x, end='\r')

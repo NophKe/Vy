@@ -103,7 +103,7 @@ class Window():
         self._v_split_flag = False
         self.v_split_shift = 0
         self._focused = self 
-        self._fake_lines = 0
+        self._true_lines = 0
 
     @property
     def focused(self):
@@ -136,15 +136,9 @@ class Window():
     def vsplit(self, right_focus=False):
         if self._v_split_flag is False:
             self._v_split_flag = True
-            self.left_panel = Window( self, 
-                                        self.shift_to_col, 
-                                        self.shift_to_lin,
-                                        self.buff)
+            self.left_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
+            self.right_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
 
-            self.right_panel = Window( self,
-                                        self.shift_to_col,
-                                        self.shift_to_lin,
-                                        self.buff)
             if right_focus:
                 self.right_panel.set_focus()
             else:
@@ -160,24 +154,30 @@ class Window():
                 yield next(left_panel) + '|' + next(right_panel)
 
         else:
-            generator = self.buff.gen_window( self.number_of_col, 
-                                                self.shift_to_lin, 
+            generator = self.buff.gen_window( self.number_of_col, self.shift_to_lin, 
                                                 self.number_of_lin + self.shift_to_lin)
             default = repeat( '~'+(' '*(self.number_of_col-1)))
-            renderer =  chain(generator,default)
-
-            for idx, line in enumerate(renderer):
+            on_lin = 0
+            max_lin = self.number_of_lin 
+            for line in generator:
                 if line is False:
-                    self._fake_lines += 1
-                    continue
-                if idx > self._fake_lines + self.number_of_lin:
-                    break
+                    self.focused.shift_to_lin += 1
+                    return self.show(True)
+                if on_lin > self.number_of_lin:
+                    return
+                on_lin +=1
                 yield line
 
+            for line in default:
+                if on_lin > self.number_of_lin:
+                    return
+                self._true_lines -= 1
+                on_lin +=1
+                yield line
 
 class Screen(Window):
     def __init__(self, buff):
-        self._fake_lines = 0
+        self._true_lines = 0
         self._minibar_flag = 2
         self.buff = buff
         self._v_split_flag = False
@@ -186,8 +186,8 @@ class Screen(Window):
         self.parent = self
         self.shift_to_lin = 0
         self.shift_to_col = 0
-        self._old_screen = list(' ' * 100)
- 
+        self._old_screen = list( x for x in range(200))
+
     def vsplit(self):
         if self.focused != self:
             self.focused.vsplit()
@@ -197,8 +197,13 @@ class Screen(Window):
 
     def show(self, renew=False, pipe=None):
         self.infobar('__screen is rendering__')
-        #self.top_left()
-        self.recenter()
+        curwin = self.focused
+        lin, col = curwin.buff.cursor_lin_col
+        if lin < curwin.shift_to_lin:
+            curwin.shift_to_lin = lin
+        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+            curwin.shift_to_lin = lin - self.number_of_lin + 1
+
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
@@ -214,19 +219,17 @@ class Screen(Window):
             pipe.send(self._old_screen)
             #queue.close()
 
-
     def recenter(self):
         curwin = self.focused
         lin, col = curwin.buff.cursor_lin_col
-        if lin < curwin.shift_to_lin + 1:
-            curwin.shift_to_lin = lin - 1
-        elif ( (lin >= - curwin._fake_lines + (curwin.number_of_lin + curwin.shift_to_lin + 1))
-        or (curwin._fake_lines and curwin.shift_to_lin + curwin._fake_lines >= lin )):
-            if curwin._fake_lines:
-                curwin.shift_to_lin += curwin._fake_lines
-            else:
-                curwin.shift_to_lin = lin - curwin.number_of_lin + curwin._fake_lines
-        curwin._fake_lines = 0
+        if lin < curwin.shift_to_lin:
+            curwin.shift_to_lin = lin
+            return
+        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+            curwin.shift_to_lin = lin - self.number_of_lin + 1
+
+        fake = self.number_of_lin - self._true_lines
+        self._true_lines = 0
 
     def minibar(self, txt=':'):
         #self.save_cursor()

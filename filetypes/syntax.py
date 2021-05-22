@@ -3,8 +3,12 @@
     :copyright: Copyright 2006-2020 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
+from ..global_config import DONT_USE_PYGMENTS_LIB
+
 try:    
-    # except ImportError near the end of file
+    if DONT_USE_PYGMENTS_LIB:
+        raise ImportError
+
     from pygments.token import (Keyword, Name, Comment, String, Error, Number, Operator, 
                                                         Generic, Token, Whitespace, Text)
     from pygments.lexers import guess_lexer_for_filename
@@ -134,7 +138,6 @@ try:
                 if on_col ==  max_col -1:
                     line += '\x1b[0m'
                     retval.append(line)
-                    retval.append(False)
                     line = '\x1b[90;40m' + ' ' * len(number)+ set_def
                     cursor_col -= on_col
                     on_col = len(number) -1
@@ -172,10 +175,23 @@ try:
         def gen_window(self, max_col, min_lin, max_lin):
             cursor_lin, cursor_col = self.cursor_lin_col
             wrap = self.set_wrap
-            for on_lin in range(min_lin +1, len(self.lexed_lines)):
-                pretty_line = self.lexed_lines[on_lin]
-                to_print = switch(self.set_tabsize, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                if wrap:
+            tab_size = self.set_tabsize
+            lexed_lines = self.lexed_lines # Get a copy (descriptor)
+            virtuel = 0
+
+            for on_lin in range(min_lin, max_lin):
+                try:
+                    pretty_line = lexed_lines[on_lin]
+                except IndexError:
+                    default = '~' + ((max_col-1) * ' ')
+                    while True:
+                        yield default 
+                to_print = switch(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                if wrap: 
+                    virtuel += len(to_print) 
+                    free = max_lin - (min_lin + virtuel)
+                    if on_lin + free  < cursor_lin + 1:
+                        yield False
                     yield from to_print
                 else:
                     yield to_print[0]
@@ -185,14 +201,12 @@ try:
             if not hasattr(self,'_lexed_hash')  or self._lexed_hash != self._string.__hash__():
                 retval = list()
                 line = ''
-                on_lin = 0
                 for offset, tok, val in self.lexer.get_tokens_unprocessed(self._string):
                     colorize = _colorize(tok)
                     for token_line in val.splitlines(True):
                         if token_line.endswith('\n'):
                             token_line = token_line[:-1] + ' '
                             retval.append(line + colorize(token_line))
-                            on_lin += 1
                             line = ''
                         else:
                             line += colorize(token_line)
@@ -203,21 +217,20 @@ try:
         
 except ImportError:
     class _bogus:
-        def __set__(self, value):
+        def __set__(*args):
             pass
-        def __get__(self):
+        def __get__(*args):
             pass
     class view:
         lexed_lines = _bogus()
         set_tab_size = 4
+
         def gen_window(buff, max_col, lin_shift, max_lin):
             lin, col = buff.cursor_lin_col
+            splited_lines = buff.splited_lines
             for index in range(lin_shift, max_lin):
-                try:
-                    line = buff.splited_lines[index]
-                except IndexError:
-                    while True:
-                        yield "".expandtabs(tabsize=buff.set_tab_size).ljust(max_col, ' ')
+                try: line = splited_lines[index]
+                except IndexError: break
                 if lin == index:
                     if col < len(line):
                         line = line[:col] + '\x1b7\x1b[7;5m' + line[col] + '\x1b[25;27m' + line[col+1:]

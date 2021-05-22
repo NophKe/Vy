@@ -28,10 +28,7 @@ def loop(self):
             screen.minibar(' -- INSERT --')
             
             user_input  = self.read_stdin()
-
-            if user_input == k.C_A:
-                self._macro_keys = 'coucou'
-                continue
+            show.kill()
 
             if user_input in '²\x1b':
                 curbuf.set_undo_point()
@@ -56,9 +53,9 @@ def loop(self):
                 show.kill()
                 continue
 
-            curbuf.start_undo_record()
             while one_inside_dict_starts_with(dictionary, user_input):
                 if user_input in dictionary:
+                    curbuf.start_undo_record()
                     rv = dictionary[user_input](self, None)
                     show.kill()
                     if rv and rv != 'insert':

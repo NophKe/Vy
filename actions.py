@@ -4,8 +4,8 @@ An action is a function that accepts an editor as first
 argument, and a possibly null, arg string, or slice as
 second argument.
 
-
-
+As defined in the Vym grammar, some commands require motion
+argument, some possibly require a register to work on.
 """
 
 # lambda helpers
@@ -35,6 +35,10 @@ def swap_case(ed, part, reg=None):
     new_txt = curbuf[part].swapcase()
     curbuf[part] = new_txt
     curbuf.cursor = part.stop
+
+# Here come command mode commands, those functions must
+# take a string represententing the remaining part of the
+# command line that invoke them.
 
 def read_file(editor, arg):
     from pathlib import Path

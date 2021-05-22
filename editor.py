@@ -38,8 +38,7 @@ class Cache():
            return str(Path(key).resolve()) 
         elif isinstance(key, Path):
             return str(key.resolve())
-        else:
-            raise ValueError
+        raise ValueError(f"key is type:{key.__class__}, int, str, or Path expected")
 
     def __delitem__(self, key):
         """ Use this function to delete a buffer from cache. """
@@ -104,7 +103,7 @@ class Register:
     def __getitem__(self, key):
         if isinstance(key, int):
             key = str(key)
-        assert isinstance (key, str)
+        assert isinstance(key, str)
         try:
             return self.dico[key]
         except KeyError:
@@ -119,8 +118,8 @@ class Register:
             return
         elif key == '"':
             for k in range(9,0,-1):
-                self[k] = self[k-1]
-            self[0] = self['"']
+                self[str(k)] = self[str(k-1)]
+            self["0"] = self['"']
             self.dico['"'] = value
         elif key.isupper():
             self.dico[key.lower()] += value
@@ -138,13 +137,16 @@ class Editor:
     cache = Cache()
     register = Register()
     
-    def __init__(self, *buffers):
+    def __init__(self, *buffers, command_line=''):
+        self.command_line = command_line
         self._macro_keys = ''
         self._running = False
+        self._work_stack = list()
         if buffers:
             for buff in buffers:
-                self.cache[buff]
-        self.screen = Screen(self.cache[None if not buffers else buffers[0]])
+                self._work_stack.append(self.cache[buff])
+        first_buff = self._work_stack.pop(0) if self._work_stack else None
+        self.screen = Screen(first_buff)
         self.interface = Interface(self)
     
     def read_stdin(self):
@@ -163,9 +165,13 @@ class Editor:
         """Displays a warning message to the user. This should be the main way to cast
         information to the screen during the execution of a command as it allows the 
         user to enter the debugger if needed.
-        In parts of the runtime where this method can't be reached, just use input()
+        In parts of the runtime where this method can't be reached, ( you don't have
+        access to the editor variable ) you should raise an exception.
         """
-        assert isinstance(msg, str)
+        if self._macro_keys:
+            print('this happened during the execution of a macro that is still running')
+            print('left to evaluate: {self._macro_keys}')
+
         self.screen.minibar(f"{msg}\r\n\tpress any key to continue (or ^c to debug...)")
         if (key := get_a_key()) == '\x03':
             print('\nyou are now in debugger. use \'cont\' to resume\n')
@@ -196,11 +202,10 @@ class Editor:
         self._running = True
         if (buff is not None) or self.current_buffer is None:
             self.edit(buff)
-            self.screen = Screen(self.current_buffer)
+        self.screen = Screen(self.current_buffer)
 
         self.screen.alternative_screen()
         self.screen.clear_screen()
-#        self.screen.show(True)
         mode = 'normal'
         try:
             while True:
