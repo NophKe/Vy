@@ -36,8 +36,6 @@ def swap_case(ed, part, reg=None):
     curbuf[part] = new_txt
     curbuf.cursor = part.stop
 
-
-
 def read_file(editor, arg):
     from pathlib import Path
     if not arg:

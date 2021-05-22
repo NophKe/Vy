@@ -59,9 +59,7 @@ class Cache():
             yield value
     
     def __contains__(self, key):
-        if key in self._dic:
-            return True
-        elif self._make_key(key) in self._dic:
+        if self._make_key(key) in self._dic:
             return True
         return False
 

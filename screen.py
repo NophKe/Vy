@@ -220,8 +220,12 @@ class Screen(Window):
         lin, col = curwin.buff.cursor_lin_col
         if lin < curwin.shift_to_lin + 1:
             curwin.shift_to_lin = lin - 1
-        elif lin >= - curwin._fake_lines + (curwin.number_of_lin + curwin.shift_to_lin + 1):
-            curwin.shift_to_lin = lin - curwin.number_of_lin + curwin._fake_lines
+        elif ( (lin >= - curwin._fake_lines + (curwin.number_of_lin + curwin.shift_to_lin + 1))
+        or (curwin._fake_lines and curwin.shift_to_lin + curwin._fake_lines >= lin )):
+            if curwin._fake_lines:
+                curwin.shift_to_lin += curwin._fake_lines
+            else:
+                curwin.shift_to_lin = lin - curwin.number_of_lin + curwin._fake_lines
         curwin._fake_lines = 0
 
     def minibar(self, txt=':'):
