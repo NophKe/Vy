@@ -59,9 +59,7 @@ class Cache():
             yield value
     
     def __contains__(self, key):
-        if key in self._dic:
-            return True
-        elif self._make_key(key) in self._dic:
+        if self._make_key(key) in self._dic:
             return True
         return False
 
@@ -141,7 +139,10 @@ class Editor:
     register = Register()
     
     def __init__(self, *buffers):
+<<<<<<< HEAD
         self._macro_keys = ''
+=======
+>>>>>>> 1edc2dbdd33a99691b3dd17c34fe58cb23a11b64
         self._running = False
         if buffers:
             for buff in buffers:
