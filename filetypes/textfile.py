@@ -33,49 +33,43 @@ class TextFile(Motions, FileLike, view, WritableText):
     def set_undo_point(self):
         if self._no_undoing:
             return
-        actual_txt, actual_cur = self._string,       self.cursor, 
-        actual_off, act_off_h  = self.lines_offsets, self._lines_offsets_hash
-        act_lex, act_lex_h     = self.lexed_lines, self._lexed_hash
+        actual_txt, actual_cur = self._string, self.cursor
+        actual_off = self.lines_offsets
+        act_lex = self.lexed_lines
 
         if not self.undo_list:
-            self.undo_list.append((actual_txt, actual_cur, actual_off, 
-                                    act_off_h, act_lex, act_lex_h))
+            self.undo_list.append((actual_txt, actual_cur, actual_off, act_lex))
             return
-        last_txt, _x, _y, _z , _a, _b = self.undo_list[-1]
+        last_txt, _x, _y, _z= self.undo_list[-1]
         if actual_txt != last_txt:
-            self.undo_list.append((actual_txt, actual_cur, actual_off, 
-                                    act_off_h, act_lex, act_lex_h))
+            self.undo_list.append((actual_txt, actual_cur, actual_off, act_lex))
 
     def undo(self):
         if not self.undo_list:
             return
-        txt, pos, off, off_h, lex, lex_h = self.undo_list.pop()
-        self.redo_list.append((self._string, self.cursor, self.lines_offsets,
-                        self._lines_offsets_hash, self.lexed_lines, self._lexed_hash))
+        txt, pos, off, lex = self.undo_list.pop()
+        self.redo_list.append((self._string, self.cursor,
+                                self.lines_offsets, self.lexed_lines))
         self._string = txt
         self.cursor = pos
         self._lines_offsets = off
-        self._lines_offsets_hash = off_h
         self._lexed_lines = lex
-        self._lexed_hash = lex_h
-
+        self._lines_offsets_hash = self._lexed_hash = txt.__hash__()
     
     def redo(self):
         if not self.redo_list:
             return
-        txt, pos, off, off_h, lex, lex_h = self.redo_list.pop()
-        self.undo_list.append((txt, pos, off, off_h, lex, lex_h))
+        txt, pos, off, lex = self.redo_list.pop()
+        self.undo_list.append((txt, pos, off, lex))
         self._string = txt
         self.cursor = pos
         self._lines_offsets = off
-        self._lines_offsets_hash = off_h
         self._lexed_lines = lex
-        self._lexed_hash = lex_h
+        self._lines_offsets_hash = self._lexed_hash = txt.__hash__()
 
     def save(self):
         assert self.path is not None
         self.path.write_text(self.getvalue())
-
 
     def save_as(self, new_path=None, override=False):
         assert isinstance(new_path, (str, Path))

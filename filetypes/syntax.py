@@ -52,17 +52,15 @@ try:
             _color_     underlined color
             +color+     blinking color
         """
-        result = []
+        result = ''
         if attr[:1] == attr[-1:] == '*':
-            result.append("\x1b[01m")
+            result += "\x1b[01m"
             attr = attr[1:-1]
         if attr[:1] == attr[-1:] == '_':
-            result.append("\x1b[04m")
+            result += "\x1b[04m"
             attr = attr[1:-1]
-        result.append(codes[attr])
-        result.append(text)
-        result.append(codes['reset'])
-        return ''.join(result)
+        result += codes[attr] + text + "\x1b[39;49;00m"
+        return result
 
     colorscheme = {
         Token:              '',
@@ -116,7 +114,7 @@ try:
             line = list()   # the computed final printed line
             retval = list() # the function return a list of those
                             # for line wrapping
-            line.append('\x1b[00;90;40m' + number + set_def )
+            line  = '\x1b[00;90;40m' + number + set_def 
 
             on_col = len(number) - 1
             cursor_col += on_col - 1
@@ -125,40 +123,39 @@ try:
 
             for char in text:
                 if esc_flag:
-                    line.append(char)
+                    line += char
                     if char == 'm':
                         esc_flag = False
                     continue
 
                 if char == '\x1b':
                     esc_flag = True
-                    line.append(char)
+                    line += char
                     continue
 
                 if (on_col, on_lin) == (cursor_col, cursor_lin) and not esc_flag:
-                    line.append('\x1b[5;7m')
+                    line += '\x1b[5;7m'
                     cursor_flag = True
 
                 if (on_col, on_lin) != (cursor_col, cursor_lin) and cursor_flag:
-                    line.append('\x1b[25;27m')
+                    line += '\x1b[25;27m'
 
                 if on_col ==  max_col -1:
-                    line.append('\x1b[0m')
-                    retval.append(''.join(line))
-                    line = list()
-                    line.append('\x1b[90;40m' + ' ' * len(number)+ set_def)
+                    line += '\x1b[0m'
+                    retval.append(line)
+                    line = '\x1b[90;40m' + ' ' * len(number)+ set_def
                     on_col = len(number) -1
                     esc_flag = False
 
                 if char == '\t':
                     nb_of_tabs =  tab_size - (on_col % tab_size)
-                    line.append(' ' * nb_of_tabs)
+                    line += ' ' * nb_of_tabs
                     on_col += nb_of_tabs
                     cursor_col += (nb_of_tabs-1)
                 else:
                     on_col += 1
-                    line.append(char)
-            retval.append(''.join(line) + (' ' * (max_col - on_col - 1)))
+                    line += char
+            retval.append(line + (' ' * (max_col - on_col - 1)))
             return retval
 
     class view:
@@ -173,17 +170,15 @@ try:
                 self.lexer = guess_lexer_for_filename('text.txt', self._string, tabsize = self.set_tabsize, encoding='utf-8')
 
         def gen_window(self, max_col, min_lin, max_lin):
-            provider = self.gen_lexed_line
-
-            max_index = max_lin + min_lin
-            generator = provider( max_col, min_lin, max_lin, self.set_wrap)
-            default = repeat( '~'+(' '*(max_col-1)))
-
-            for index, item in enumerate(chain(generator,default)):
-                if index < max_lin:
-                    yield item
+            cursor_lin, cursor_col = self.cursor_lin_col
+            wrap = self.set_wrap
+            for on_lin in range(min_lin +1, len(self.lexed_lines)):
+                pretty_line = self.lexed_lines[on_lin]
+                to_print = switch(self.set_tabsize, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                if wrap:
+                    yield from to_print
                 else:
-                    break
+                    yield to_print[0]
 
         @property
         def lexed_lines(self):
@@ -206,20 +201,14 @@ try:
                 self._lexed_hash, self._lexed_lines = hash(self._string) , retval
             return self._lexed_lines
         
-        def gen_lexed_line(buff, max_col, min_lin, max_lin, wrap):
-            cursor_lin, cursor_col = buff.cursor_lin_col
-            for on_lin, pretty_line in enumerate(buff.lexed_lines):
-                if on_lin > min_lin:
-                    to_print = switch(buff.set_tabsize, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                    if wrap:
-                        yield from to_print
-                    else:
-                        yield to_print[0]
-                else:
-                    if on_lin < min_lin:
-                        continue
 except ImportError:
+    class _bogus:
+        def __set__(self, value):
+            pass
+        def __get__(self):
+            pass
     class view:
+        lexed_lines = _bogus()
         set_tab_size = 4
         def gen_window(buff, max_col, lin_shift, max_lin):
             lin, col = buff.cursor_lin_col
@@ -235,6 +224,7 @@ except ImportError:
                     else:
                         line = line[:col] + '\x1b7\x1b[7;5m \x1b[25;27m'
                 yield line.expandtabs(tabsize=buff.set_tab_size).ljust(max_col, ' ')
+
         @property
         def splited_lines(self):
             if not hasattr(self, '_splited_lines') or \
