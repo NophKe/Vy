@@ -6,6 +6,11 @@ from .syntax import view
 
 
 class TextFile(Motions, FileLike, view, WritableText):
+    """This is the class that most of files buffers should use, 
+    and should be preferably yielded by editor.cache[].
+    Inherit from it to customize it.
+    there should be a callback register to come.
+    """
     def __init__(self, path=None, cursor=0):
         self._no_undoing = False
         self.redo_list = list()
@@ -20,7 +25,8 @@ class TextFile(Motions, FileLike, view, WritableText):
 
     def __repr__(self):
         return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
-
+    
+# Undoing system
     def start_undo_record(self):
         self._no_undoing = False
         self.set_undo_point()
@@ -68,6 +74,7 @@ class TextFile(Motions, FileLike, view, WritableText):
         self._lexed_lines = lex
         self._lines_offsets_hash = self._lexed_hash = txt.__hash__()
 
+# Saving mechanism
     def save(self):
         assert self.path is not None
         self.path.write_text(self.getvalue())
@@ -101,8 +108,12 @@ class TextFile(Motions, FileLike, view, WritableText):
             return True
         return False
 
+# Properties of a text file
     @property
     def CURSOR_lin_col(self):
+        """A tupple (cursor_line, cursor_commun),
+        lines are 0 based indexed, and cols are 1-based.
+        """
         string = self._string
         cursor = self.cursor
         lin = string[:cursor].count('\n')
@@ -113,12 +124,18 @@ class TextFile(Motions, FileLike, view, WritableText):
     
     @property
     def cursor_lin_col(self):
+        """A tupple representing the actual cursor (line, collumn),
+        lines are 0 based indexed, and cols are 1-based.
+        """
         lin, off = self.cursor_lin_off
         col = self.cursor - off + 1
         return lin, col
 
     @property
     def cursor_lin_off(self):
+        """A tupple (cursor_line, ),
+        lines are 0 based indexed, and cols are 1-based.
+        """
         cursor = self.cursor
         lin = offset = 0
         for lin, offset in enumerate(self.lines_offsets):
@@ -131,6 +148,7 @@ class TextFile(Motions, FileLike, view, WritableText):
 
     @property
     def cursor_line(self):
+        """The zero-based number indexing the current line."""
         cursor = self.cursor
         lin = offset = 0
         for lin, offset in enumerate(self.lines_offsets):
@@ -156,25 +174,31 @@ class TextFile(Motions, FileLike, view, WritableText):
 
     @property
     def number_of_lin(self):
+        """Number of lines in the buffer"""
         return len(self.lines_offsets)
 
     def suppr(self):
+        """Like the key strike, deletes the character under the cursor."""
         string = self._string
         cur = self.cursor
         self.string  = f'{string[:cur]}{string[cur + 1:]}'
 
     def backspace(self):
+        """Like the key strike, deletes the left character at the cursor."""
         if self.cursor > 0:
             self.cursor -= 1
             self.suppr() 
 
     def insert(self, text):
+        """Inserts text at the cursor position.
+        Cursor will move at the and of it."""
         string = self._string
         cur = self.cursor
         self.string = f'{string[:cur]}{text}{string[cur:]}'
         self.cursor += len(text)
 
     def print_yourself(buff):
+        """Simple function the read the document inside a repl."""
         from os import get_terminal_size
         max_col, max_lin = get_terminal_size()
         for x in buff.gen_window( max_col +1 , 0, max_lin - 1):
