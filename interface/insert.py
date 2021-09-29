@@ -28,7 +28,7 @@ def loop(self):
             screen.minibar(' -- INSERT --')
             
             user_input  = self.read_stdin()
-            show.kill()
+#            show.kill()
 
             if user_input in '²\x1b':
                 curbuf.set_undo_point()

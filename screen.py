@@ -160,11 +160,6 @@ class Window():
             on_lin = 0
             max_lin = self.number_of_lin 
             for line in generator:
-                if line is False:
-                    while (screen := self.parent).parent is not screen: 
-                        pass
-                    screen.focused.shift_to_lin += 1
-                    return screen.show(True)
                 if on_lin > max_lin:
                     return
                 on_lin +=1

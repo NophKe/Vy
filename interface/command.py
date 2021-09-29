@@ -41,6 +41,7 @@ class CommandModeCompleter:
         readline.set_completer_delims(' \t')
 
         readline.set_history_length(1000)
+        readline.clear_history()
         readline.read_history_file(self.histfile)
         readline.parse_and_bind('tab: complete')
     

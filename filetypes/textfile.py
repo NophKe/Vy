@@ -104,7 +104,7 @@ class TextFile(Motions, FileLike, view, WritableText):
         if self.path is None or not self.path.exists():
             if self.string and self._string != '\n':
                 return True
-        elif self.path.read_text() != self.string:
+        elif self.path.read_text() != self.string != '\n':
             return True
         return False
 

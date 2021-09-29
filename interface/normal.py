@@ -42,30 +42,6 @@ def loop(self):
             if curbuf_hash != hash(curbuf):
                 return 'normal'
             assert curbuf is not None
-            #self.screen.recenter()
-#           if renew:
-#               show = render_screen()
-#               show.start()
-#               renew = False
-#           elif parent_conn.poll(0.2):
-#               self.screen.infobar()
-#               self.screen._old_screen = parent_conn.recv()
-#               show = render_screen()
-#               show.start()
-#           else:
-#               return
- #              if time() - stamp > 10:
- #                  self.screen.infobar(f'__screen speed being optimized__')
- #                  show.kill()
- #                  stamp = time()
- #                  renew = True
- #                  self.screen.show(True)
- #                  continue
- #              else:
- #                  self.screen.infobar(f'__screen is slow to render__')
- #                  first = True
-
-            # those values are magic...
             REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
 
             key = get_char()

@@ -194,13 +194,18 @@ def DO_vsplit(editor, arg):
 #####
 
 def DO_eval_buffer(editor,arg):
+    from .interface import python
     #import __main__
     #return exec(editor.current_buffer.getvalue(), __main__.__dict__)
+    name_space = {}
     try:
-        ret = exec(editor.current_buffer.getvalue(), {})
+        ret = exec(editor.current_buffer.getvalue(), name_space)
+        #editor.warning(f'eval returned {ret}')
     except Exception as Err:
         editor.warning(f'buggy progrm: {Err}')
-    input(f'eval returned {ret}')
+        return
+    python.name_space = name_space
+    return python.loop(editor)
 
 def DO_nothing(editor, arg):
     return None

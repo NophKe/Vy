@@ -94,17 +94,18 @@ class BaseBehaviour(Behaviour):
         'ZZ'    : do( DO_try_to_save, DO_exit_nice),
         'ZQ'    : DO_force_leave_current_window,
 # misc
-        '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
+#       '?'     : lambda x, arg: x.warning(f'{x.current_buffer.cursor_lin_col = }'),
     }
 
 class ReadOnlyText(BaseBehaviour):
     stand_alone_commands = {
+        '/'     : lambda ed, cmd: 'search_forward',
+        '?'     : lambda ed, cmd: 'search_backward',
     # page scrolling 
         k.page_up   : DO_page_up,
         k.page_down : DO_page_down,}
     
     full_commands = {
-        '/'     : DO_find,
         'n'     : DO_normal_n,
     }
     
@@ -133,21 +134,21 @@ class WritableText(ReadOnlyText):
 
     stand_alone_commands = {
         'p' : DO_paste,
-    # goto insert_mode
-        'O'   : do( GO('0'), r"x.current_buffer.insert('\n')", GO('k'), mode='insert'),
-        'o'   : do( GO('$'), r"x.current_buffer.insert('\n')", mode='insert'),
-        'i'   : do(mode='insert'),
+# goto insert_mode
+        'i'   : lambda ed, cmd: 'insert',
         'I'   : do( GO('0'), mode='insert'),
+        'o'   : do( GO('$'), r"x.current_buffer.insert('\n')", mode='insert'),
+        'O'   : do( GO('0'), r"x.current_buffer.insert('\n')", GO('k'), mode='insert'),
         'a'   : do( GO('l'), mode='insert'),
         'A'   : do( GO('$'), mode='insert'),
         k.insert    : do(mode='insert'),
-        'i'   : do(mode='insert'),
 # misc
         k.C_R   : lambda ed, cmd: ed.current_buffer.redo(),
         'u'     : lambda ed, cmd: ed.current_buffer.undo(),
 
 # edition
         k.suppr : 'x',
+        'D' : lambda ed, cmd: ed.current_buffer.__delitem__('cursor:$'),
         'x' : DO_suppr,
         'X' : lambda ed, cmd: ed.current_buffer.backspace(),
         '~' : DO_normal_tilde, 
