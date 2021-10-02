@@ -1,9 +1,14 @@
 delims = ' .{}()[]():\n'
 
+def make_word_list(string):
+    from re import split
+    return set(split(r'[ :,()\[\]]|$', string))
+
+
 def find_end_of_line(buff):
-    offset = buff[buff.cursor:].find('\n')
+    offset = buff._string.find('\n', 0, buff.cursor)
     if offset == -1:
-        return len(buff)
+        return len(buff._string)
     return buff.cursor + offset
 
 def find_end_of_word(buff):
@@ -38,8 +43,8 @@ def find_end_of_WORD(buff):
 
 def find_begining_of_line(buff):
     char = ''
-    pos = buff.tell()
-    if pos > 0:
+    pos = buff.cursor
+    if buff.cursor > 0:
         buff.seek(pos - 1)
     else:
         return 0
@@ -64,9 +69,9 @@ def find_first_non_blank_char_in_line(buff):
     return rv
 
 def find_next_non_blank_char(buff):
-    pos = buff.tell()
-    while buff.read(1).isspace():
-        pass
+    pos = buff.cursor
+    while buff._string[pos].isspace():
+        pos += 1
     rv = buff.tell() - 1
     buff.seek(pos)
     return rv
@@ -171,13 +176,13 @@ def find_normal_b(buff):
         return word_offset
 
 def inner_word(buff):
-    start = buff[:buff.cursor].rfind(' ')
+    start = buff.string.rfind(' ', 0, buff.cursor + 1)
     if start == -1:
         start = 0
     else:
         start += 1
 
-    stop = buff[:buff.cursor].find(' ')
+    stop = buff._string.find(' ', buff.cursor + 1)
     if stop == -1:
         stop = len(buff.string)
     else:
@@ -216,7 +221,7 @@ motion = {
 
 class Motions():
     def move_cursor(self, offset_str):
-        return self.seek(self._get_offset(offset_str))
+        self.cursor = self._get_offset(offset_str)
     
     def __len__(self):
         return len(self._string)
@@ -224,7 +229,7 @@ class Motions():
     def __getitem__(self, key):
         if isinstance(key, str):
             key = self._get_range(key)
-        return self.string.__getitem__(key)
+        return self._string.__getitem__(key)
 
     def _get_range(self,key):
         if ':' in key:
@@ -297,7 +302,7 @@ class Motions():
         if isinstance(key, slice):
             start = key.start
             stop = key.stop
-        if isinstance(key, int):
+        elif isinstance(key, int):
             start = key
             stop = start + 1
         self.string = f'{self._string[:start]}{value}{self._string[stop:]}'

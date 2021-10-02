@@ -8,32 +8,36 @@ As defined in the Vym grammar, some commands require motion
 argument, some possibly require a register to work on.
 """
 
-# lambda helpers
-GO = lambda where: lambda ed, cmd: ed.current_buffer.move_cursor(where)
-
 # Here Comes the «full command», taking a slice of the target buffer
 # and an optional register. Its up to the function to decide to move 
 # the buff.cursor or not, and to determinate what to do if no register
 # is being specified.
 
-def yank(ed, part, reg=None):
+def change(ed, part, reg='"'):
+    curbuf = ed.current_buffer
+    stop = part.stop
+    start = part.start
+    if curbuf[stop - 1] == '\n':
+        stop = stop - 1
+    ed.register[reg] = curbuf[start:stop]
+    del curbuf[start:stop]
+    curbuf.cursor = part.start
+    return 'insert'
+    
+def yank(ed, part, reg='"'):
     text = ed.current_buffer[part]
     ed.current_buffer.cursor = part.stop
-    ed.register['"'] = text
-    if reg:
-        ed.register[reg] = text
+    ed.register[reg] = text
+    breakpoint()
     
-def delete(ed, part, reg=None):
+def delete(ed, part, reg='"'):
     to_be_del = ed.current_buffer[part]
     ed.current_buffer.__delitem__(part)
-    ed.register['"'] = to_be_del
-    if reg:
-        ed.register[reg] = to_be_del
+    ed.register[reg] = to_be_del
 
-def swap_case(ed, part, reg=None):
+def swap_case(ed, part, reg='"'):
     curbuf = ed.current_buffer
-    new_txt = curbuf[part].swapcase()
-    curbuf[part] = new_txt
+    curbuf[part] = curbuf[part].swapcase()
     curbuf.cursor = part.stop
 
 # Here come command mode commands, those functions must
@@ -54,9 +58,9 @@ def DO_help(editor, arg):
     return help(arg)
 
 def DO_system(editor, arg):
-    import os
+    from os import system
     if arg:
-        err = os.system(arg)
+        err = system(arg)
         editor.warning(f'Command Finished with status: {err}')
 
 def DO_chdir(editor, arg):
@@ -147,7 +151,7 @@ def DO_edit_next_unsaved_buffer(editor,arg):
             next_one = buf
             break
     if next_one:
-        editor.edit(next_one)
+        editor.edit(next_one.path)
         editor.warning('buffer: ' + repr(editor.current_buffer) + ' save (:w)  or leave! (:q!)')
     else:
         if editor.current_window is editor.screen:
@@ -336,6 +340,12 @@ def DO_normal_tilde(editor, reg):
     curbuf[curbuf.cursor] = curbuf[curbuf.cursor].swapcase()
     curbuf.move_cursor('l')
 
+def DO_normal_C(editor, reg='"'):
+    curbuf = editor.current_buffer
+    editor.register[reg] = curbuf['cursor:$']
+    del curbuf['cursor:$']
+    return 'insert'
+
 ###
 # Paste/yank
 #
@@ -352,3 +362,13 @@ def DO_insert_expandtabs(editor, arg):
     after = orig.expandtabs(tabsize=curbuf.set_tabsize)
     curbuf['.'] = after
     curbuf.cursor += len(after) - len(orig)
+
+def DO_normal_gf(editor, reg):
+    from pathlib import Path
+    curbuf = editor.current_buffer
+    file = Path(curbuf['iw'])
+    if file.exists():
+        editor.edit(file)
+    else:
+        editor.warning(f'file {file.name} !!!')
+

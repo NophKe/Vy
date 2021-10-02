@@ -103,7 +103,9 @@ class ReadOnlyText(BaseBehaviour):
         '?'     : lambda ed, cmd: 'search_backward',
     # page scrolling 
         k.page_up   : DO_page_up,
-        k.page_down : DO_page_down,}
+        k.page_down : DO_page_down,
+        'gf'    : DO_normal_gf,
+        }
     
     full_commands = {
         'n'     : DO_normal_n,
@@ -152,6 +154,7 @@ class WritableText(ReadOnlyText):
         'x' : DO_suppr,
         'X' : lambda ed, cmd: ed.current_buffer.backspace(),
         '~' : DO_normal_tilde, 
+        'C' : DO_normal_C,
 
 # sub-modes
         'r' : DO_r,
@@ -160,6 +163,7 @@ class WritableText(ReadOnlyText):
     full_commands = {
         'y' : yank,
         'd' : delete,
-        'g~'    : swap_case
+        'g~'    : swap_case,
+        'c' : change,
     }
 

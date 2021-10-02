@@ -28,7 +28,7 @@ def format_lines(max_col, text, cursor_lin, cur_or_par_dir):
 
 class Folder(BaseBehaviour):
     def gen_window(self, max_col, min_lin, max_lin):
-        for item in range(min_lin+1, max_lin+1):
+        for item in range(min_lin, max_lin+1):
             if item == 1 or item == 0:
                 cur_or_par_dir = True
             else:

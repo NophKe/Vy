@@ -17,12 +17,12 @@ def loop(self):
                       + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                       + '+-*/.:%#"' )
 
-    def render_screen():
-        def show_screen(i_screen, i_renew, i_child_conn):
-            i_screen.show(i_renew, i_child_conn )
-            i_screen.minibar(' -- NORMAL -- ')
-        return Process(target=show_screen,
-                         args=(self.screen,renew, child_conn))
+#   def render_screen():
+#       def show_screen(i_screen, i_renew, i_child_conn):
+#           i_screen.show(i_renew, i_child_conn )
+##           i_screen.minibar(' -- NORMAL -- ')
+#       return Process(target=show_screen,
+#                        args=(self.screen,renew, child_conn))
     def get_char():
         """ this function when used as follows REG = get_char()
             will prevent the minibar to be printed because one 
@@ -41,8 +41,9 @@ def loop(self):
             self.screen.show(True)
             if curbuf_hash != hash(curbuf):
                 return 'normal'
-            assert curbuf is not None
-            REG = COUNT = CMD = RANGE = MOTION_COUNT = ''
+            #assert curbuf is not None
+            REG = '"'
+            COUNT = CMD = RANGE = MOTION_COUNT = ''
 
             key = get_char()
             
@@ -93,11 +94,11 @@ def loop(self):
                     return COMMAND(self, RANGE, REG)
 
                 while one_inside_dict_starts_with(motion_cmd, key):
-                    if key in dictionary: break
+                    if key in motion_cmd: break
                     else: key += get_char()
                 else: continue
 
-                if key not in motion_cmd: continue
+                #if key not in motion_cmd: continue
                 
                 self.screen.infobar(f'processing command( {key} )')
                 func = resolver(motion_cmd,key)

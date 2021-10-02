@@ -5,6 +5,7 @@ thing you get. And when executing (python -m), an Editor *instance* shall
 be the unique thing in the global dict.
 """
 from pathlib import Path
+from traceback import print_tb
 
 from .screen import Screen
 from .interface import Interface
@@ -37,7 +38,7 @@ class Cache():
         elif isinstance(key, str):
            return str(Path(key).resolve()) 
         elif isinstance(key, Path):
-            return str(key.resolve())
+            return str(key.resolve() if not key.is_absolute() else key)
         raise ValueError(f"key is type:{key.__class__}, int, str, or Path expected")
 
     def __delitem__(self, key):
@@ -48,9 +49,9 @@ class Cache():
         return repr(self._dic)
 
     def __str__(self):
-        rv = 'cache id    :    cached file\n'
+        rv = ''
         for buff in self._dic.values():
-            rv += f'{buff.cache_id}    :    {repr(buff)}\n'
+            rv += f'{buff.path.relative_to(Path().cwd()) if buff.path else buff.cache_id}\t:\t{repr(buff)}\n'
         return rv
 
     def __iter__(self):
@@ -72,7 +73,9 @@ class Cache():
         to an absolute path, and if this path has allready been cached,
         the correponding buffer will be returned. If not, a new buffer
         will be created from reading the path content or from scratch.
+
         Pass it an integer to reach buffers unrelated to file system.
+        
         Pass it None to create a new unnamed buffer.
         """
         if key is None:
@@ -94,10 +97,10 @@ class Register:
     __slots__ = ()
     dico = dict()
 
-    def __repr__(self):
+    def __str__(self):
         rv = str()
         for k,v in self.dico.items():
-            rv += f'{k}: {v}\n'
+            rv += k +'\t:\t' + v.replace('\n', '\\n') + '\n'
         return rv
 
     def __getitem__(self, key):
@@ -136,24 +139,22 @@ class Editor:
     """    
     cache = Cache()
     register = Register()
+    screen = None # Wait to have a buffer before creating it.
     
     def __init__(self, *buffers, command_line=''):
+        self.interface = Interface(self)
         self.command_line = command_line
         self._macro_keys = ''
         self._running = False
-        self._work_stack = list()
-        if buffers:
-            for buff in buffers:
-                self._work_stack.append(self.cache[buff])
-        first_buff = self._work_stack.pop(0) if self._work_stack else None
-        self.screen = Screen(first_buff)
-        self.interface = Interface(self)
+        self._work_stack = [self.cache[buff].path for buff in buffers]
     
     def read_stdin(self):
         if self._macro_keys:
             rv = self._macro_keys[0]
             self._macro_keys = self._macro_keys[1:]
             return rv
+        if self.screen.needs_redraw:
+            self.screen.show(True)
         return get_a_key()
     
     def push_macro(self, string):
@@ -181,7 +182,10 @@ class Editor:
         """Changes the current buffer to edit location and set the interface
         accordingly.
         """
-        return self.current_window.change_buffer(self.cache[location])
+        if self.screen:
+            return self.current_window.change_buffer(self.cache[location])
+        self.screen = Screen(self.cache[location])
+
     
     @property
     def current_window(self):
@@ -194,37 +198,31 @@ class Editor:
     def __call__(self,buff=None):
         """Calling the editor launches the command loop interraction."""
         if self._running is True:
-            print("\tYou cannot interract with the editor stacking call to")
-            print("\t«Editor» instance.")
-            print("\tInstead use Editor.interface('insert')")
-            input("press [enter] to continue")
+            self.warning("You cannot interract with the editor stacking call to the «Editor» instance.")
             return
         self._running = True
-        if (buff is not None) or self.current_buffer is None:
-            self.edit(buff)
-        self.screen = Screen(self.current_buffer)
+        self.edit(buff if buff 
+                    else self._work_stack.pop(0) if self._work_stack 
+                    else None)
 
         self.screen.alternative_screen()
         self.screen.clear_screen()
         mode = 'normal'
         try:
             while True:
-                mode = self.interface(mode)
-#       except:
-#           ans = ''
-#           while ans.strip().lower() not in 'rep':
-#               print('An exception occured what do you want to do?')
-#               print()
-#               print('[R]aise the exception')
-#               print('[E]nter debugger')
-#               print('[P]ass silently')            
-#               ans = input()
-#           if ans in 'rR':
-#               raise
-#           elif ans in 'eE':
-#               breakpoint()
-#           elif ans in 'pP':
-#               pass
+                try:
+                    mode = self.interface(mode)
+                except SystemExit:
+                    raise
+                except Exception as exc:
+                    self.screen.original_screen()
+                    print('The following *unhandled* exception was encountered:\n' + str(exc))
+                    print_tb(exc.__traceback__)
+                    input('The program may be corrupted, save all and restart quickly.\n[PRESS ENTER]')
+                    self.screen.alternative_screen()
+                    mode = 'normal'
+                    continue
         finally:
+            self._running = False
             self.screen.original_screen()
 

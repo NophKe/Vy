@@ -201,6 +201,7 @@ class Screen(Window):
         if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
             curwin.shift_to_lin = lin - self.number_of_lin + 1
 
+        self._old_term_size = get_terminal_size()
         for index, line in enumerate(self.gen_window(), start=1):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
@@ -210,8 +211,8 @@ class Screen(Window):
         #if self.recenter():
         #    return self.show()
         self.bottom()
-        stdout.flush()
         self.infobar()
+        stdout.flush()
         if pipe:
             pipe.send(self._old_screen)
             #queue.close()
@@ -241,7 +242,7 @@ class Screen(Window):
     def infobar(self, txt=''):
         assert '\n' not in txt
         if not txt:
-            txt = '_' * self.number_of_col
+            txt = '\u2026' * self.number_of_col
         else:
             txt = txt.center(self.number_of_col, '\u2026')
 
@@ -320,3 +321,10 @@ class Screen(Window):
     def number_of_lin(self):
         columns, lines = get_terminal_size()
         return lines - self._minibar_flag
+
+    @property
+    def needs_redraw(self):
+        actual_size = get_terminal_size()
+        if actual_size != self._old_term_size:
+            return True
+        return False

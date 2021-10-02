@@ -1,4 +1,5 @@
-from . import global_config
+from .global_config import __dict__ as global_config
+from signal import signal, SIGWINCH
 
 if __name__ == '__main__':
     from pathlib import Path
@@ -6,6 +7,8 @@ if __name__ == '__main__':
     def argv_parser():
         from argparse import ArgumentParser, BooleanOptionalAction
         parser = ArgumentParser(prog='Vy',description='Legacy-free Vi-like editor')
+        parser.add_argument('--user-config', action=BooleanOptionalAction, default=True,
+                            help='Read user config folder')
         parser.add_argument('--pygments', action=BooleanOptionalAction, default=True,
                             help='Use Pygments library for syntax hilighting if available')
         parser.add_argument("files", help="List of files to Open.",nargs='*',default=None)
@@ -19,6 +22,7 @@ if __name__ == '__main__':
     if not conf_path.exists():
         conf_path.mkdir()
     
+    signal(SIGWINCH, lambda a, b: Editor.screen.show(True))
 #Imports are late due to global variable reading from other modules
     from .editor import Editor
     Editor = Editor(*cmdline.files, command_line=cmdline)
@@ -27,4 +31,5 @@ if __name__ == '__main__':
 else:
     from .editor import Editor
     Editor = Editor()
+
 
