@@ -1,27 +1,30 @@
-from pathlib import Path
-from .filelike import FileLike
-from .motions import Motions
 from ..behaviour import WritableText
 from .syntax import view
 
-
-class TextFile(Motions, FileLike, view, WritableText):
+class TextFile(view, WritableText):
     """This is the class that most of files buffers should use, 
     and should be preferably yielded by editor.cache[].
     Inherit from it to customize it.
     there should be a callback register to come.
     """
-    def __init__(self, path=None, cursor=0):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._no_undoing = False
         self.redo_list = list()
         self.undo_list = list()
-        self.cursor = cursor
-        self.path = path
-        if self.path and self.path.exists():
-            self._string = self.path.read_text()
-        else:
-            self._string = '\n'
-        super().__init__()
+
+    @property
+    def string(self):
+        return self._string
+
+    @string.setter
+    def string(self, value):
+        assert isinstance(value, str)
+        self.set_undo_point()
+        self._string = value
+        if self.redo_list:
+            self.redo_list = list()
 
     def __repr__(self):
         return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
@@ -77,7 +80,7 @@ class TextFile(Motions, FileLike, view, WritableText):
 # Saving mechanism
     def save(self):
         assert self.path is not None
-        self.path.write_text(self.getvalue())
+        self.path.write_text(self._string)
 
     def save_as(self, new_path=None, override=False):
         assert isinstance(new_path, (str, Path))
@@ -107,75 +110,6 @@ class TextFile(Motions, FileLike, view, WritableText):
         elif self.path.read_text() != self.string != '\n':
             return True
         return False
-
-# Properties of a text file
-    @property
-    def CURSOR_lin_col(self):
-        """A tupple (cursor_line, cursor_commun),
-        lines are 0 based indexed, and cols are 1-based.
-        """
-        string = self._string
-        cursor = self.cursor
-        lin = string[:cursor].count('\n')
-        col = cursor - string[:cursor].rfind('\n')
-        if col == -1:
-            col = len(self._string)
-        return (lin, col)
-    
-    @property
-    def cursor_lin_col(self):
-        """A tupple representing the actual cursor (line, collumn),
-        lines are 0 based indexed, and cols are 1-based.
-        """
-        lin, off = self.cursor_lin_off
-        col = self.cursor - off + 1
-        return lin, col
-
-    @property
-    def cursor_lin_off(self):
-        """A tupple (cursor_line, ),
-        lines are 0 based indexed, and cols are 1-based.
-        """
-        cursor = self.cursor
-        lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
-                return lin, offset
-            if offset > cursor:
-                return lin - 1, self.lines_offsets[lin - 1 ]
-        else:
-            return lin, offset
-
-    @property
-    def cursor_line(self):
-        """The zero-based number indexing the current line."""
-        cursor = self.cursor
-        lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
-                return lin
-            if offset > cursor:
-                return lin - 1
-        else:
-            return lin
-
-    @property
-    def lines_offsets(self):
-        if not hasattr(self, '_lines_offsets') or \
-                        self._lines_offsets_hash != hash(self._string):
-            offset = 0
-            linesOffsets = list()
-            for line in self._string.splitlines(True):
-                linesOffsets.append(offset)
-                offset += len(line)
-            self._lines_offsets_hash = hash(self._string)
-            self._lines_offsets = linesOffsets
-        return self._lines_offsets
-
-    @property
-    def number_of_lin(self):
-        """Number of lines in the buffer"""
-        return len(self.lines_offsets)
 
     def suppr(self):
         """Like the key strike, deletes the character under the cursor."""

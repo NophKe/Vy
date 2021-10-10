@@ -1,5 +1,5 @@
-from time import time
-from multiprocessing import Process, Pipe
+#from time import time
+#from multiprocessing import Process, Pipe
 from collections import ChainMap
 
 from .helpers import one_inside_dict_starts_with, resolver, do
@@ -21,27 +21,22 @@ def loop(self):
 #       def show_screen(i_screen, i_renew, i_child_conn):
 #           i_screen.show(i_renew, i_child_conn )
 ##           i_screen.minibar(' -- NORMAL -- ')
-#       return Process(target=show_screen,
+#return Process(target=show_screen,
 #                        args=(self.screen,renew, child_conn))
     def get_char():
-        """ this function when used as follows REG = get_char()
-            will prevent the minibar to be printed because one 
-            element of fstring is waiting to be assigned (here REG)
-            so the print will only happen once stdin has been read.
-        """
-        self.screen.minibar(f' -- NORMAL -- {REG=} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
+        self.screen.minibar(f' -- NORMAL -- REG={REG} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
         return self.read_stdin() #get_a_key()
 
     with stdin_no_echo():
-        parent_conn, child_conn = Pipe()
-        renew = True
-        stamp = time()
+#       parent_conn, child_conn = Pipe()
+#       renew = True
+#       stamp = time()
 
         while True:
             self.screen.show(True)
-            if curbuf_hash != hash(curbuf):
-                return 'normal'
-            #assert curbuf is not None
+#           if curbuf_hash != hash(curbuf):
+#               return 'normal'
+#           assert curbuf is not None
             REG = '"'
             COUNT = CMD = RANGE = MOTION_COUNT = ''
 
@@ -71,10 +66,11 @@ def loop(self):
                 self.screen.infobar(f'processing command( {repr(key)} )')
                 func = resolver(motion_cmd, key)
                 target = func(curbuf)
-                if isinstance(target, slice): continue
-                if COUNT == 1: curbuf.cursor = target
-                curbuf.seek(target)
-                for _ in range(COUNT - 1): curbuf.seek(func(curbuf))
+                if isinstance(target, slice):
+                    continue
+                curbuf.cursor = target
+                for _ in range(COUNT - 1):
+                    curbuf.cursor = (func(curbuf))
                 continue
 
             elif key in full_cmd:
@@ -98,8 +94,6 @@ def loop(self):
                     else: key += get_char()
                 else: continue
 
-                #if key not in motion_cmd: continue
-                
                 self.screen.infobar(f'processing command( {key} )')
                 func = resolver(motion_cmd,key)
                 RANGE = func(curbuf)

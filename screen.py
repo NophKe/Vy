@@ -1,7 +1,6 @@
 """This module is a mess that handles screen rendering"""
 from os import get_terminal_size
 from sys import stdout
-from itertools import chain, repeat
 
 class Window():
     def set_focus(self):
@@ -156,7 +155,7 @@ class Window():
         else:
             generator = self.buff.gen_window( self.number_of_col, self.shift_to_lin, 
                                                 self.number_of_lin + self.shift_to_lin)
-            default = repeat( '~'+(' '*(self.number_of_col-1)))
+            default = '~'+(' '*(self.number_of_col-1))
             on_lin = 0
             max_lin = self.number_of_lin 
             for line in generator:
@@ -165,12 +164,12 @@ class Window():
                 on_lin +=1
                 yield line
 
-            for line in default:
+            while True:
                 if on_lin > self.number_of_lin:
                     return
                 self._true_lines -= 1
                 on_lin +=1
-                yield line
+                yield default
 
 class Screen(Window):
     def __init__(self, buff):

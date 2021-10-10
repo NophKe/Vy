@@ -13,30 +13,29 @@ argument, some possibly require a register to work on.
 # the buff.cursor or not, and to determinate what to do if no register
 # is being specified.
 
-def change(ed, part, reg='"'):
-    curbuf = ed.current_buffer
+def change(editor, part, reg='"'):
+    curbuf = editor.current_buffer
     stop = part.stop
     start = part.start
     if curbuf[stop - 1] == '\n':
         stop = stop - 1
-    ed.register[reg] = curbuf[start:stop]
+    editor.register[reg] = curbuf[start:stop]
     del curbuf[start:stop]
     curbuf.cursor = part.start
     return 'insert'
-    
-def yank(ed, part, reg='"'):
-    text = ed.current_buffer[part]
-    ed.current_buffer.cursor = part.stop
-    ed.register[reg] = text
-    breakpoint()
-    
-def delete(ed, part, reg='"'):
-    to_be_del = ed.current_buffer[part]
-    ed.current_buffer.__delitem__(part)
-    ed.register[reg] = to_be_del
 
-def swap_case(ed, part, reg='"'):
-    curbuf = ed.current_buffer
+def yank(editor, part, reg='"'):
+    text = editor.current_buffer[part]
+    editor.current_buffer.cursor = part.stop
+    editor.register[reg] = text
+
+def delete(editor, part, reg='"'):
+    to_be_del = editor.current_buffer[part]
+    editor.current_buffer.__delitem__(part)
+    editor.register[reg] = to_be_del
+
+def swap_case(editor, part, reg='"'):
+    curbuf = editor.current_buffer
     curbuf[part] = curbuf[part].swapcase()
     curbuf.cursor = part.stop
 
@@ -104,10 +103,16 @@ def DO_set(editor, arg):
         setattr(editor.current_buffer, 'set_' + arg, not option)
 
 def DO_edit(editor, arg):
-    try:
-        editor.edit(arg)
-    except UnicodeDecodeError:
-        editor.warning("Vy ne gère pas l'encodage de ce fichier")
+    if arg:
+        try:
+            editor.edit(arg)
+        except UnicodeDecodeError:
+            editor.warning("Vy cannot deal with this encoding")
+        except PermissionError:
+            editor.warning("You do not seem to have enough rights to read " + arg)
+
+def DO_enew(editor, arg):
+    editor.edit(None)
 
 ###
 # Saving
@@ -199,6 +204,7 @@ def DO_vsplit(editor, arg):
 
 def DO_eval_buffer(editor,arg):
     from .interface import python
+    from traceback import print_tb
     #import __main__
     #return exec(editor.current_buffer.getvalue(), __main__.__dict__)
     name_space = {}
@@ -206,6 +212,7 @@ def DO_eval_buffer(editor,arg):
         ret = exec(editor.current_buffer.getvalue(), name_space)
         #editor.warning(f'eval returned {ret}')
     except Exception as Err:
+        print_tb()
         editor.warning(f'buggy progrm: {Err}')
         return
     python.name_space = name_space
@@ -365,10 +372,14 @@ def DO_insert_expandtabs(editor, arg):
 
 def DO_normal_gf(editor, reg):
     from pathlib import Path
-    curbuf = editor.current_buffer
-    file = Path(curbuf['iw'])
-    if file.exists():
-        editor.edit(file)
-    else:
-        editor.warning(f'file {file.name} !!!')
+    filename = editor.current_buffer['iw']
+    guess1 = editor.current_buffer.path.with_name(filename)
+    guess2 = editor.current_buffer.path.parent / (filename.removeprefix('.') + '.py')
+    guess3 = editor.current_buffer.path.parent.parent / (filename.removeprefix('..') + '.py')
+    
+    for guess in [Path(filename), guess1, guess2, guess3]:
+        if guess.exists():
+            editor.edit(guess)
+            return
+    editor.warning(f'file {filename} not found.')
 

@@ -54,12 +54,18 @@ def loop(self):
     self.screen.bottom()
 
     with CommandModeCompleter():
-        try:
-            user_input = input(':').strip()
-        except KeyboardInterrupt:
-            return 'command'
-        except EOFError:
-            return 'normal'
+        if self._macro_keys and '<CR>' in self._macro_keys:
+            user_input, other_lines = self._macro_keys.split('<CR>')
+            self._macro_keys = other_lines
+        else:
+            macro_prefix = self._macro_keys or ''
+            self._macro_keys = ''
+            try:
+                user_input = macro_prefix + input(f':{macro_prefix}').strip()
+            except KeyboardInterrupt:
+                return 'command'
+            except EOFError:
+                return 'normal'
 
         if user_input.isdigit():
             self.current_buffer.move_cursor(f'#{user_input}')
@@ -111,7 +117,10 @@ dictionary = {
 
 # edit
     'edit'  : 'e',
-    'e'     : do(DO_edit, mode='normal'),
+    'ex'    : 'e',
+    'e'     : DO_edit,
+    'enew'  : DO_enew,
+
 
 # Quitting
     'quit'  : 'q',

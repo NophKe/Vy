@@ -60,19 +60,15 @@ def loop(self):
                     show.kill()
                     if rv and rv != 'insert':
                         return rv
+                    curbuf.stop_undo_record()
                     break
                 else:
                     user_input += self.read_stdin()
 
-dictionary = {}
-
-# Add DEL here
-dictionary.update({ key: do(DO_suppr) for key in ['\x1b[3~'] })
-
-# Add BSP here
-dictionary.update({ key: do(DO_backspace) for key in ['\x08', '\x07'] })
-
-dictionary.update( {
+dictionary = {
+# Deletion
+    k.backspace : DO_backspace,
+    k.suppr : DO_suppr,
 # Page up/down
     k.page_up   : DO_page_up,
     k.page_down : DO_page_down,
@@ -99,4 +95,4 @@ dictionary.update( {
 
 # inserter
     '\t'    : DO_insert_expandtabs,
-    })
+    }

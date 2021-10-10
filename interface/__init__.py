@@ -4,7 +4,7 @@ class Interface():
     __slots__ = ('last', 'inst', 'mode_dict')
 
     def __init__(self, inst):
-        self.last = None
+        self.last = 'normal'
         self.inst = inst
         self.mode_dict = {}
     

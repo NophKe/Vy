@@ -1,4 +1,5 @@
 from pathlib import Path
+from os import access, R_OK, W_OK
 
 from .hugefile import HugeFile
 from .folder import Folder
@@ -8,33 +9,29 @@ from .ro_textfile import ReadOnlyTextFile
 
 def Open_path(location):
     if (location is None):
-        return TextFile(location)
-
-    if isinstance(location, (Path, str)):
+        return TextFile(path=None,init_text='\n')
+    elif isinstance(location, str):
         location = Path(location).resolve()
-        if location.is_dir() and location.exists():
-            return Folder(location)
-        
-        if location.exists() and location.is_file():
-            if location.lstat().st_size > 1_000_000_000:
-                return HugeFile(location)
+    if not isinstance(location, Path):
+        raise TypeError('in function Open_path (Vy/filetypes/__init__.py) argument must be None, str or Path object')
+    location = location.resolve()
 
-            #try:
-            open(location, 'r').close()
-            #except PermissionError as exc:
-            #    return ReadOnlyTextFile(None)
+    try:
+        init_text = location.read_text() 
+    except FileNotFoundError:
+        init_text = '\n'
+        try:
+            location.touch()
+            return TextFile(path=location, init_text=init_text)
+        finally:
+            location.unlink()
+    except IsADirectoryError:
+        return Folder(location)
 
-            try:
-                open(location, 'a').close()
-            except PermissionError as exc:
-                return ReadOnlyTextFile(location)
-            
-            return TextFile(location)
+    if access(location, W_OK):
+        return TextFile(path=location, init_text=init_text)
+    else:
+        return ReadOnlyTextFile(path=location, init_text=init_text)
 
-        if not location.exists():
-            try:
-                open(location, 'w').close()
-            except PermissionError as exc:
-                return ReadOnlyTextFile(location)
-            return TextFile(location)
+
 

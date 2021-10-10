@@ -1,9 +1,42 @@
-delims = ' .{}()[]():\n'
-
+DELIMS = ' .{}()[]():\n'
 def make_word_list(string):
     from re import split
     return set(split(r'[ :,()\[\]]|$', string))
 
+class FileLike:
+    def write(self, text):
+        assert isinstance(text, str)
+        if text:
+            self.string = self._string[:self.cursor] + text + self._string[self.cursor + len(text):]
+            self.cursor = self.cursor + len(text)
+
+    def getvalue(self):
+        return self._string
+
+    def read(self, nchar= -1):
+        if nchar == -1:
+            rv = self._string[self.cursor:]
+            self.cursor = len(self.string)
+        else:
+            rv = self._string[self.cursor:(self.cursor + nchar)]
+            self.cursor = self.cursor + nchar
+        return rv
+
+    def tell(self):
+        return self.cursor
+
+    def seek(self,offset=0, flag=0):
+        assert isinstance(offset, int)
+        assert isinstance(flag, int)
+        if len(self._string) == 0:
+            return 0
+        max_offset = len(self.string) -1
+        if (offset == 0 and flag == 2) or (offset > max_offset):
+            self.cursor = max_offset
+        elif 0 <= offset <= max_offset:
+            self.cursor = offset
+        else:
+            breakpoint()
 
 def find_end_of_line(buff):
     offset = buff._string.find('\n', 0, buff.cursor)
@@ -15,8 +48,8 @@ def find_end_of_word(buff):
     places = set()
     if (start := buff.cursor + 2) > len(buff):
         return buff.cursor
-    global delims
-    for char in delims:
+    global DELIMS
+    for char in DELIMS:
         loc = buff[start:].find(char)
         if loc > -1:
             loc += buff.cursor
@@ -77,9 +110,8 @@ def find_next_non_blank_char(buff):
     return rv
 
 def find_normal_k(buff):
-    cursor = buff.tell()
+    cursor = buff.cursor
     on_col=1
-    line_start = buff.tell()
     while (line_start := cursor - on_col ) >= 0:
         if buff[line_start] == '\n':
             break
@@ -107,14 +139,14 @@ def find_normal_k(buff):
 
 
 def find_normal_j(buff):
-    next_line = find_end_of_line(buff) + 1
-    on_col = buff.cursor - find_begining_of_line(buff)
-    for idx in range(next_line, len(buff)):
-        if idx == next_line + on_col:
-            return idx
-        if buff[idx] == '\n':
-            return idx
-    return len(buff)
+    lin, col = buff.cursor_lin_col
+    if lin+1 >= len(buff.lines_offsets):
+        return buff.cursor
+    next_lin_offset = buff.lines_offsets[lin+1]
+    max_offset = next_lin_offset + len(buff.splited_lines[lin+1])
+    if next_lin_offset + col > max_offset:
+        return max_offset
+    return next_lin_offset + col - 1
 
 def find_normal_l(buff):
     if buff[buff.cursor] == '\n':
@@ -123,15 +155,11 @@ def find_normal_l(buff):
         return buff.cursor + 1
 
 def find_normal_h(buff):
-    old_pos = buff.tell()
-    pos = old_pos - 1
-    if pos < 0:
+    if buff.cursor == 0:
         return 0
-    buff.seek(pos)
-    if buff.read(1) == '\n':
-        return old_pos
-    else:
-        return pos
+    if buff._string[buff.cursor - 1] == '\n':
+        return buff.cursor
+    return buff.cursor - 1
 
 def find_next_WORD(buff):
     cursor = buff.cursor +1
@@ -148,7 +176,7 @@ def find_next_WORD(buff):
 def find_next_word(buff):
     cursor = buff.cursor +1
     try:
-        while not buff[cursor] in delims:
+        while not buff[cursor] in DELIMS:
             cursor += 1
         while buff[cursor].isspace(): 
             cursor += 1
@@ -175,19 +203,46 @@ def find_normal_b(buff):
     else:
         return word_offset
 
+def find_next_delim(buff):
+    global DELIMS
+    cursor = buff.cursor
+    while buff._string[cursor] in DELIMS:
+        if cursor == len(buff) - 1:
+            return cursor
+        cursor += 1
+    while buff._string[cursor] not in DELIMS:
+        if cursor == len(buff) - 1:
+            return cursor
+        cursor +=1
+    while buff._string[cursor].isspace():
+        if cursor == len(buff) - 1:
+            return cursor
+        cursor +=1
+    return cursor
+
+def find_previous_delim(buff):
+    global DELIMS
+    cursor = buff.cursor
+    while buff._string[cursor] in DELIMS:
+        cursor -= 1
+    while buff._string[cursor] not in DELIMS:
+        if cursor == 0:
+            return cursor
+        cursor -=1
+    return cursor
+
 def inner_word(buff):
+    return slice(find_previous_delim(buff),find_next_delim(buff))
+
+def INNER_WORD(buff):
     start = buff.string.rfind(' ', 0, buff.cursor + 1)
     if start == -1:
         start = 0
     else:
-        start += 1
-
+        start +=1
     stop = buff._string.find(' ', buff.cursor + 1)
     if stop == -1:
-        stop = len(buff.string)
-    else:
-        stop += buff.cursor
-
+        stop = len(buff.string) - 1
     return slice(start, stop)
 
 def current_line(buff):
@@ -199,15 +254,15 @@ def current_line(buff):
 
 motion = {
     '.':    current_line,
-    'b':    find_normal_b,
+    'b':    find_previous_delim,
     'iw':   inner_word,
     'h':    find_normal_h,
     'j':    find_normal_j,
     'k':    find_normal_k,
     'l':    find_normal_l,
-    'w':    find_next_word,
+    'w':    find_next_delim,
     'W':    find_next_WORD,
-    'G':    lambda buff: len(buff),
+    'G':    lambda buff: len(buff) - 1 ,
     'gg':   lambda buff: 0,
     'cursor': lambda buff: buff.cursor,
     'e':    find_end_of_word,
@@ -219,7 +274,79 @@ motion = {
 
 
 
-class Motions():
+class Motions(FileLike):
+    def __init__(self, cursor=0, init_text='', path=None, **kwargs):
+        self.path = path
+        self.cursor = cursor
+        self._string = init_text
+        super().__init__(**kwargs)
+
+    @property
+    def string(self):
+        return self._string
+
+    @property
+    def cursor_lin_col(self):
+        """A tupple representing the actual cursor (line, collumn),
+        lines are 0 based indexed, and cols are 1-based.
+        """
+        lin, off = self.cursor_lin_off
+        col = self.cursor - off + 1
+        return lin, col
+
+    @property
+    def cursor_lin_off(self):
+        """A tupple (cursor_line, ),
+        lines are 0 based indexed, and cols are 1-based.
+        """
+        cursor = self.cursor
+        lin = offset = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin, offset
+            if offset > cursor:
+                return lin - 1, self.lines_offsets[lin - 1 ]
+        else:
+            return lin, offset
+
+    @property
+    def cursor_line(self):
+        """The zero-based number indexing the current line."""
+        cursor = self.cursor
+        lin = offset = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin
+            if offset > cursor:
+                return lin - 1
+        else:
+            return lin
+
+    @property
+    def lines_offsets(self):
+        if not hasattr(self, '_lines_offsets') or \
+                        self._lines_offsets_hash != hash(self._string):
+            offset = 0
+            linesOffsets = list()
+            for line in self._string.splitlines(True):
+                linesOffsets.append(offset)
+                offset += len(line)
+            self._lines_offsets_hash = hash(self._string)
+            self._lines_offsets = linesOffsets
+        return self._lines_offsets
+
+    @property
+    def splited_lines(self):
+        if not hasattr(self, '_splited_lines') or \
+                    self._hash_of_splited_lines != hash(self._string):
+            self._splited_lines = list(self._string.splitlines())
+            self._hash_of_splited_lines = hash(self._string)
+        return self._splited_lines
+
+    @property
+    def number_of_lin(self):
+        """Number of lines in the buffer"""
+        return len(self.lines_offsets)
     def move_cursor(self, offset_str):
         self.cursor = self._get_offset(offset_str)
     
@@ -277,7 +404,7 @@ class Motions():
             if key >=0 and key < len(self.string):
                 self.string = self._string[0:key] + self._string[key+1:]
             else:
-                raise IndexError('string index out of range')
+                raise IndexError('Vy Runtime: string index out of range')
 
         elif isinstance(key, slice):
             if not key.start:
@@ -295,6 +422,8 @@ class Motions():
         elif isinstance(key, str):
             key = self._get_range(key)
             return self.__delitem__(key)
+        else:
+            raise 
 
     def __setitem__(self, key, value):
         if isinstance(key, str):
@@ -307,6 +436,21 @@ class Motions():
             stop = start + 1
         self.string = f'{self._string[:start]}{value}{self._string[stop:]}'
 
-    def insert(self, text):
-        self.string = f'{self._string[:self.cursor]}{text}{self._string[self.cursor:]}'
-        self.cursor += len(text)
+
+if __name__ == '__main__':
+    test = Motions()
+    test._string = '1234 6789\n'
+    test.cursor = 0
+    assert test['gg:G']     == '1234 6789\n'
+    assert test[':G']       == '1234 6789\n'
+    assert test['gg:']      == '1234 6789\n'
+    assert test['.']        == '1234 6789\n'
+    assert test['h']        == '1'
+    assert test['j']        == '1'
+    assert test['k']        == '1'
+    assert test['l']        == '2'
+    assert test['cursor']   == '1'
+    assert test['cursor:w'] == '1234 '
+    assert test['cursor:e'] == '1234'
+
+

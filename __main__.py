@@ -1,4 +1,4 @@
-from .global_config import __dict__ as global_config
+from . import global_config
 from signal import signal, SIGWINCH
 
 if __name__ == '__main__':

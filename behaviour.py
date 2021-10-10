@@ -22,22 +22,12 @@ class VyPath:
         elif isinstance(value, Path):
             inst._path = value.resolve()
 
-class VyString:
-    def __get__(self, inst, objtype=None):
-        return inst._string
-    def __set__(self, inst, value):
-        assert isinstance(value, str)
-        inst.set_undo_point()
-        inst._string = value
-        if inst.redo_list:
-            inst.redo_list = list()
 
 class Behaviour:
     """Abstract Behaviour class"""
     stand_alone_commands = {}
     full_commands = {}
     motion_commands = {}
-    string = VyString()
     path = VyPath()
 
     def __init_subclass__(cls):

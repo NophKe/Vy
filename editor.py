@@ -6,6 +6,7 @@ be the unique thing in the global dict.
 """
 from pathlib import Path
 from traceback import print_tb
+from bdb import BdbQuit
 
 from .screen import Screen
 from .interface import Interface
@@ -125,8 +126,13 @@ class Register:
             self["0"] = self['"']
             self.dico['"'] = value
         elif key.isupper():
-            self.dico[key.lower()] += value
-        elif key.islower() or key.isnumeric():
+            key = key.lower()
+            self.dico[key] += value
+            self['"'] = self.dico[key]
+        elif key.islower():
+            self.dico[key] = value
+            self['"'] = self.dico[key]
+        elif key.isnumeric():
             self.dico[key] = value
         elif key == '=':
             self.dico[key] = eval(key)
@@ -153,8 +159,8 @@ class Editor:
             rv = self._macro_keys[0]
             self._macro_keys = self._macro_keys[1:]
             return rv
-        if self.screen.needs_redraw:
-            self.screen.show(True)
+        #if self.screen.needs_redraw:
+        #    self.screen.show(True)
         return get_a_key()
     
     def push_macro(self, string):
@@ -214,6 +220,10 @@ class Editor:
                     mode = self.interface(mode)
                 except SystemExit:
                     raise
+                except BdbQuit:
+                    mode = 'normal'
+                    continue
+                    
                 except Exception as exc:
                     self.screen.original_screen()
                     print('The following *unhandled* exception was encountered:\n' + str(exc))
