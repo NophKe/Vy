@@ -39,10 +39,10 @@ class FileLike:
             breakpoint()
 
 def find_end_of_line(buff):
-    offset = buff._string.find('\n', 0, buff.cursor)
+    offset = buff._string.find('\n', buff.cursor)
     if offset == -1:
-        return len(buff._string)
-    return buff.cursor + offset
+        return len(buff)
+    return offset
 
 def find_end_of_word(buff):
     places = set()
@@ -104,10 +104,10 @@ def find_first_non_blank_char_in_line(buff):
 def find_next_non_blank_char(buff):
     pos = buff.cursor
     while buff._string[pos].isspace():
+        if pos == len(buff):
+            break
         pos += 1
-    rv = buff.tell() - 1
-    buff.seek(pos)
-    return rv
+    return pos
 
 def find_normal_k(buff):
     cursor = buff.cursor
@@ -203,19 +203,28 @@ def find_normal_b(buff):
     else:
         return word_offset
 
-def find_next_delim(buff):
+def find_next_non_delim(buff):
     global DELIMS
     cursor = buff.cursor
     while buff._string[cursor] in DELIMS:
-        if cursor == len(buff) - 1:
+        if cursor == len(buff):
             return cursor
-        cursor += 1
+        cursor +=1
+    return cursor
+
+def find_next_delim(buff):
+    global DELIMS
+    cursor = buff.cursor
+    
+    if buff[cursor] in DELIMS:
+        return find_next_non_delim(buff)
+
     while buff._string[cursor] not in DELIMS:
-        if cursor == len(buff) - 1:
+        if cursor == len(buff):
             return cursor
         cursor +=1
     while buff._string[cursor].isspace():
-        if cursor == len(buff) - 1:
+        if cursor == len(buff):
             return cursor
         cursor +=1
     return cursor
@@ -242,7 +251,7 @@ def INNER_WORD(buff):
         start +=1
     stop = buff._string.find(' ', buff.cursor + 1)
     if stop == -1:
-        stop = len(buff.string) - 1
+        stop = len(buff.string)
     return slice(start, stop)
 
 def current_line(buff):
@@ -262,7 +271,7 @@ motion = {
     'l':    find_normal_l,
     'w':    find_next_delim,
     'W':    find_next_WORD,
-    'G':    lambda buff: len(buff) - 1 ,
+    'G':    lambda buff: len(buff),
     'gg':   lambda buff: 0,
     'cursor': lambda buff: buff.cursor,
     'e':    find_end_of_word,
@@ -351,7 +360,7 @@ class Motions(FileLike):
         self.cursor = self._get_offset(offset_str)
     
     def __len__(self):
-        return len(self._string)
+        return len(self._string) - 1
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -366,7 +375,7 @@ class Motions(FileLike):
             if not start:
                 start = 0
             if not stop:
-                stop = len(self._string)
+                stop = len(self._string) - 1
             return slice(self._get_offset(start), self._get_offset(stop))
         else:
             return self._get_offset(key)
@@ -396,12 +405,12 @@ class Motions(FileLike):
             try:
                 return self.lines_offsets[int(key[1:])]
             except IndexError:
-                return len(self._string)
+                return len(self._string) - 1 # is this ever reached ?
         return motion[key](self)
 
     def __delitem__(self, key):
         if isinstance(key, int):
-            if key >=0 and key < len(self.string):
+            if key >=0 and key < len(self.string) -1:
                 self.string = self._string[0:key] + self._string[key+1:]
             else:
                 raise IndexError('Vy Runtime: string index out of range')
@@ -412,7 +421,7 @@ class Motions(FileLike):
             else:
                 start = key.start
             if not key.stop:
-                stop = len(self._string)
+                stop = len(self._string) - 1
             else:
                 stop = key.stop
             self.string = f'{self._string[:start]}{self._string[stop:]}'
@@ -441,16 +450,39 @@ if __name__ == '__main__':
     test = Motions()
     test._string = '1234 6789\n'
     test.cursor = 0
-    assert test['gg:G']     == '1234 6789\n'
-    assert test[':G']       == '1234 6789\n'
-    assert test['gg:']      == '1234 6789\n'
-    assert test['.']        == '1234 6789\n'
+
+# unless good reason all text fileo must end with new line 
+# G and $ must not include new line
+# Unlike Vim (for now at least)  Vy does not include a 'noeol' option
+    assert test[':G']       == '1234 6789'
+    assert test[':$']       == '1234 6789'
+    assert test['gg:']      == '1234 6789'
+    assert test['.']        == '1234 6789'
+    assert test['cursor:']  == '1234 6789'
+
+# As the cursor is on zero position, any backward *slice*
+# should return the empty string
+    assert test[':cursor']  == ''
+    assert test['b:cursor']  == ''
+    assert test['h:cursor']  == ''
+    assert test['gg:cursor']  == ''
+    assert test['0:cursor']  == ''
+    assert test['_:cursor']  == ''
+
+# cursor being in first position any backward *index* returns the first char.
     assert test['h']        == '1'
-    assert test['j']        == '1'
     assert test['k']        == '1'
-    assert test['l']        == '2'
-    assert test['cursor']   == '1'
+    assert test['b']        == '1'
+    assert test['_']        == '1'
+    assert test['0']        == '1'
+
+# string being one line long
+    assert test['k']        == '1'
+    assert test['j']        == '1'
+
     assert test['cursor:w'] == '1234 '
+    assert test['l']        == '2'
     assert test['cursor:e'] == '1234'
+    assert test['cursor']   == '1'
 
 

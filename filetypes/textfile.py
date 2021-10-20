@@ -1,7 +1,7 @@
 from ..behaviour import WritableText
-from .syntax import view
+from .syntax import WindowGenerator
 
-class TextFile(view, WritableText):
+class TextFile(WindowGenerator, WritableText):
     """This is the class that most of files buffers should use, 
     and should be preferably yielded by editor.cache[].
     Inherit from it to customize it.
@@ -83,7 +83,7 @@ class TextFile(view, WritableText):
         self.path.write_text(self._string)
 
     def save_as(self, new_path=None, override=False):
-        assert isinstance(new_path, (str, Path))
+        from pathlib import Path
         new_path = Path(new_path).resolve()
                 
         if not new_path.exists():

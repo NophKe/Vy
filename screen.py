@@ -153,11 +153,11 @@ class Window():
                 yield next(left_panel) + '|' + next(right_panel)
 
         else:
-            generator = self.buff.gen_window( self.number_of_col, self.shift_to_lin, 
+            generator = self.buff.gen_window( self.number_of_col, self.shift_to_lin,
                                                 self.number_of_lin + self.shift_to_lin)
             default = '~'+(' '*(self.number_of_col-1))
             on_lin = 0
-            max_lin = self.number_of_lin 
+            max_lin = self.number_of_lin
             for line in generator:
                 if on_lin > max_lin:
                     return
@@ -241,9 +241,9 @@ class Screen(Window):
     def infobar(self, txt=''):
         assert '\n' not in txt
         if not txt:
-            txt = '\u2026' * self.number_of_col
+            txt = '-' * self.number_of_col
         else:
-            txt = txt.center(self.number_of_col, '\u2026')
+            txt = txt.center(self.number_of_col, '-')
 
         self.go_line(self.number_of_lin + 1)
         if txt.endswith('\n'):

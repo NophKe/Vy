@@ -1,5 +1,3 @@
-#from time import time
-#from multiprocessing import Process, Pipe
 from collections import ChainMap
 
 from .helpers import one_inside_dict_starts_with, resolver, do
@@ -7,36 +5,22 @@ from ..console import get_a_key, stdin_no_echo
 
 def loop(self):
     curbuf = self.current_buffer
-    curbuf_hash = hash(curbuf)
 
     sa_cmd = curbuf.stand_alone_commands
     full_cmd = curbuf.full_commands
     motion_cmd = curbuf.motion_commands
     dictionary =  ChainMap(sa_cmd, full_cmd, motion_cmd)
+
     valid_registers = ( 'abcdefghijklmnopqrstuvwxyz'
                       + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                       + '+-*/.:%#"' )
-
-#   def render_screen():
-#       def show_screen(i_screen, i_renew, i_child_conn):
-#           i_screen.show(i_renew, i_child_conn )
-##           i_screen.minibar(' -- NORMAL -- ')
-#return Process(target=show_screen,
-#                        args=(self.screen,renew, child_conn))
     def get_char():
         self.screen.minibar(f' -- NORMAL -- REG={REG} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
         return self.read_stdin() #get_a_key()
 
     with stdin_no_echo():
-#       parent_conn, child_conn = Pipe()
-#       renew = True
-#       stamp = time()
-
         while True:
             self.screen.show(True)
-#           if curbuf_hash != hash(curbuf):
-#               return 'normal'
-#           assert curbuf is not None
             REG = '"'
             COUNT = CMD = RANGE = MOTION_COUNT = ''
 
@@ -58,11 +42,13 @@ def loop(self):
             else: continue
 
             if key in sa_cmd: 
+                #show.kill()
                 self.screen.infobar(f'processing command( {repr(key)} )')
                 rv = resolver(sa_cmd, key)(self, REG)
                 return rv
 
             elif key in motion_cmd:
+                #show.kill()
                 self.screen.infobar(f'processing command( {repr(key)} )')
                 func = resolver(motion_cmd, key)
                 target = func(curbuf)
@@ -90,9 +76,12 @@ def loop(self):
                     return COMMAND(self, RANGE, REG)
 
                 while one_inside_dict_starts_with(motion_cmd, key):
-                    if key in motion_cmd: break
-                    else: key += get_char()
-                else: continue
+                    if key in motion_cmd: 
+                        break
+                    else: 
+                        key += get_char()
+                else: 
+                    return 'normal'
 
                 self.screen.infobar(f'processing command( {key} )')
                 func = resolver(motion_cmd,key)

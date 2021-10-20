@@ -1,8 +1,8 @@
 from .motions import Motions
-from .syntax import view
+from .syntax import WindowGenerator
 from ..behaviour import ReadOnlyText 
 
-class ReadOnlyTextFile(view, ReadOnlyText):
+class ReadOnlyTextFile(WindowGenerator, ReadOnlyText):
     def __repr__(self):
         return f"read-only buffer: {self.path.name if self.path else 'undound to file system'}"
 

@@ -3,41 +3,35 @@ from ..behaviour import BaseBehaviour
 from .. import keys as k
 
 def DO_open_file(ed, cmd):
+    file = ed.current_buffer.value[ed.current_buffer.cursor_lin]
     try:
-        ed.edit(ed.current_buffer.value[ed.current_buffer.cursor_lin])
+        ed.edit(file)
     except UnicodeDecodeError:
         ed.warning("Vy ne gère pas l'encodage de ce fichier")
+    except PermissionError:
+        ed.warning(f"Not enough right to read {file}")
     return 'normal'
 
 def format_lines(max_col, text, cursor_lin, cur_or_par_dir):
-        rv = '\x1b[00;90;40m'
-        if cur_or_par_dir: #current or parent dir (., ..)
-            rv += '\x1b[00;25;35m'
-        if cursor_lin:
-            rv += '\x1b[7m'
-        on_col = 0
-        for char in text:
-            if on_col ==  max_col -1:
-                rv += '\x1b[0m'
-                return rv
-            else:
-                on_col += 1
-                rv += char
-        rv += (' ' * (max_col - on_col - 1))
-        return rv
+    retval = '\x1b[00;90;40m'
+    if cur_or_par_dir: #current or parent dir (., ..)
+        retval += '\x1b[00;25;35m'
+    if cursor_lin:
+        retval += '\x1b[7m'
+    on_col = 0
+    for on_col, char in enumerate(text):
+        if on_col ==  max_col -1:
+            retval += '\x1b[0m'
+            return retval
+        retval += char
+    retval += (' ' * (max_col - on_col - 1))
+    return retval
 
 class Folder(BaseBehaviour):
     def gen_window(self, max_col, min_lin, max_lin):
         for item in range(min_lin, max_lin+1):
-            if item == 1 or item == 0:
-                cur_or_par_dir = True
-            else:
-                cur_or_par_dir = False
-            
-            if item == self.cursor_lin:
-                cursor = True
-            else:
-                cursor = False
+            cur_or_par_dir = bool(item == 1 or item == 0)
+            cursor = bool(item == self.cursor_lin)
             try:
                 yield format_lines(max_col, str(self.value[item]), cursor, cur_or_par_dir)
             except IndexError:

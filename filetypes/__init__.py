@@ -19,15 +19,19 @@ def Open_path(location):
     try:
         init_text = location.read_text() 
     except FileNotFoundError:
-        init_text = '\n'
         try:
             location.touch()
-            return TextFile(path=location, init_text=init_text)
-        finally:
             location.unlink()
-    except IsADirectoryError:
-        return Folder(location)
+            return TextFile(path=location, init_text='\n')
+        except PermissionError:
+            raise # to be explicit
 
+    except IsADirectoryError:
+        try:
+            return Folder(location)
+        except PermissionError:
+            raise
+                        
     if access(location, W_OK):
         return TextFile(path=location, init_text=init_text)
     else:

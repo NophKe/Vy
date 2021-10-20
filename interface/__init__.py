@@ -15,7 +15,7 @@ class Interface():
             return self.mode_dict[name].loop(self.inst)
         except KeyError:
             try:
-                self.mode_dict[name] = import_module(f'.{name}', 'Vy.interface')
+                self.mode_dict[name] = import_module(f'.{name}', __package__)
                 return self.mode_dict[name].loop(self.inst)
             except ImportError:
                 self.inst.warning(f"Vy can't find the definition of {name} mode.")

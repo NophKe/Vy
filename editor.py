@@ -7,30 +7,59 @@ be the unique thing in the global dict.
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
+from functools import partial
 
 from .screen import Screen
 from .interface import Interface
 from .console import get_a_key
 from .filetypes import Open_path
+from .actions import __dict__ as action_dict
 
-class Cache():
+class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
 
-    >>> x = Cache()
-    >>> x['/home/Nono/test.txt']
-       TextFile('/home/Nono/test.txt')
-    >>> x['/home/Nono/test.txt'] is x['./test.txt']
-       True
-    >>> del x['test.txt']
-    >>> '../nono/test.txt' in x
-       False
-
-    Note: You may create as many of them as you want. The wrapped dict 
-        being a class attribute. All instances will have access to it.
+    >> x = Cache()
+    >> x['/home/Nono/test.txt']
+      TextFile('/home/Nono/test.txt')
+    >> x['/home/Nono/test.txt'] is x['./test.txt']
+      True
+    >> del x['test.txt']
+    >> '../nono/test.txt' in x
+    False
     """
     _dic = dict()
     _counter = 1
+
+    def __getitem__(self, key):
+        """This is the main api of this class.
+
+        It takes an only argument that can be a string, a path object,
+        an int, or None. 
+
+        If the argument is a string or a path object, it will be resolved 
+        to an absolute path, and if this path has allready been cached,
+        the correponding buffer will be returned. If not, a new buffer
+        will be created from reading the path content or from scratch.
+
+        Pass it an integer to reach buffers unrelated to file system.
+        
+        Pass it None to create a new unnamed buffer.
+        """
+        if key is None:
+            buff = Open_path(key)
+            self._dic[self._counter] = buff
+            buff.cache_id = self._counter
+            self._counter +=1
+            return buff
+
+        if (key := self._make_key(key)) in self._dic:
+            return self._dic[key]
+            
+        self._dic[key] = Open_path(key)
+        rv = self._dic[key]
+        rv.cache_id = key
+        return rv
 
     @staticmethod
     def _make_key(key):
@@ -64,37 +93,9 @@ class Cache():
             return True
         return False
 
-    def __getitem__(self, key):
-        """This is the main api of this class.
+########## end of class _Cache ##########
 
-        It takes an only argument that can be a string, a path object,
-        an int, or None. 
-
-        If the argument is a string or a path object, it will be resolved 
-        to an absolute path, and if this path has allready been cached,
-        the correponding buffer will be returned. If not, a new buffer
-        will be created from reading the path content or from scratch.
-
-        Pass it an integer to reach buffers unrelated to file system.
-        
-        Pass it None to create a new unnamed buffer.
-        """
-        if key is None:
-            buff = Open_path(key)
-            self._dic[self._counter] = buff
-            buff.cache_id = self._counter
-            self._counter +=1
-            return buff
-
-        if (key := self._make_key(key)) in self._dic:
-            return self._dic[key]
-            
-        self._dic[key] = Open_path(key)
-        rv = self._dic[key]
-        rv.cache_id = key
-        return rv
-
-class Register:
+class _Register:
     __slots__ = ()
     dico = dict()
 
@@ -136,18 +137,97 @@ class Register:
             self.dico[key] = value
         elif key == '=':
             self.dico[key] = eval(key)
-        
+
+########## end of class _Register ##########
+
+class _BoundNameSpace:
+    def __init__(self, instance):
+        super().__setattr__("_instance", instance) 
+
+    def __setattr__(self, key, value):
+        if callable(value) and not key.startswith('_'):
+            final = partial(value, self._instance)
+
+            final.n_alias = value.n_alias if value.n_alias else None
+            final.c_alias = value.c_alias if value.c_alias else None
+            final.v_alias = value.v_alias if value.v_alias else None
+            final.i_alias = value.i_alias if value.i_alias else None
+
+            final.__doc__ = value.__doc__ 
+            final.category = value.category 
+            super().__setattr__(key, final)
+
+    def __repr__(self):
+        return self.__dict__.__repr__()
+
+########## end of _BoundNameSpace ##########
+
+class _Actions:
+    def __init__(self, instance):
+        self.insert             = dict()
+        self.insert_stand_alone = _BoundNameSpace(instance)
+        self.insert_full        = _BoundNameSpace(instance)
+        self.insert_motion      = _BoundNameSpace(instance)
+        self.insert_atomic      = _BoundNameSpace(instance)
+        self.insert_with_args   = _BoundNameSpace(instance)
+
+        self.command             = dict()
+        self.command_stand_alone = _BoundNameSpace(instance)
+        self.command_full        = _BoundNameSpace(instance)
+        self.command_motion      = _BoundNameSpace(instance)
+        self.command_atomic      = _BoundNameSpace(instance)
+        self.command_with_args   = _BoundNameSpace(instance)
+
+        self.visual             = dict()
+        self.visual_stand_alone = _BoundNameSpace(instance)
+        self.visual_full        = _BoundNameSpace(instance)
+        self.visual_motion      = _BoundNameSpace(instance)
+        self.visual_atomic      = _BoundNameSpace(instance)
+        self.visual_with_args   = _BoundNameSpace(instance)
+
+        self.normal             = dict()
+        self.normal_stand_alone = _BoundNameSpace(instance)
+        self.normal_full        = _BoundNameSpace(instance)
+        self.normal_motion      = _BoundNameSpace(instance)
+        self.normal_atomic      = _BoundNameSpace(instance)
+        self.normal_with_args   = _BoundNameSpace(instance)
+
+        bound_name_spaces = vars(self)
+
+        for name, action in action_dict.items():
+            obj = None
+            if name.startswith('_'):
+                continue
+            for subspace in bound_name_spaces:
+                if not hasattr(action, 'category'):
+                    break
+                if subspace in action.category:
+                    obj = getattr(self,subspace)
+                    setattr(obj, name, action)
+            if obj:
+                action = getattr(obj, name) 
+                if action.v_alias:
+                    for k in action.v_alias: self.visual[k]= action 
+                if action.n_alias:
+                    for k in action.n_alias: self.normal[k]= action 
+                if action.i_alias:
+                    for k in action.i_alias: self.insert[k]= action 
+                if action.c_alias:
+                    for k in action.c_alias: self.command[k]= action 
+                
+########## end of class _Actions ##########
+
 class Editor:
     """ This class is the data structure representing the state of the Vym editor.
     The editor class sould not need to be instanciated more than once.
     It is design to be self contained: if you want your code to interract with
     the editor, just pass the «editor» variable to your function.
     """    
-    cache = Cache()
-    register = Register()
-    screen = None # Wait to have a buffer before creating it.
-    
     def __init__(self, *buffers, command_line=''):
+        self.actions = _Actions(self)
+        self.cache = _Cache()
+        self.register = _Register()
+        self.screen = None # Wait to have a buffer before creating it.
         self.interface = Interface(self)
         self.command_line = command_line
         self._macro_keys = ''
@@ -159,8 +239,6 @@ class Editor:
             rv = self._macro_keys[0]
             self._macro_keys = self._macro_keys[1:]
             return rv
-        #if self.screen.needs_redraw:
-        #    self.screen.show(True)
         return get_a_key()
     
     def push_macro(self, string):
@@ -181,7 +259,8 @@ class Editor:
 
         self.screen.minibar(f"{msg}\r\n\tpress any key to continue (or ^c to debug...)")
         if (key := get_a_key()) == '\x03':
-            print('\nyou are now in debugger. use \'cont\' to resume\n')
+            print("\nyou are now in debugger. use 'up' to go back to the origin of this erros")
+            print("'cont' to resume")
             breakpoint()
 
     def edit(self, location):
@@ -191,7 +270,6 @@ class Editor:
         if self.screen:
             return self.current_window.change_buffer(self.cache[location])
         self.screen = Screen(self.cache[location])
-
     
     @property
     def current_window(self):
@@ -218,17 +296,25 @@ class Editor:
             while True:
                 try:
                     mode = self.interface(mode)
-                except SystemExit:
-                    raise
                 except BdbQuit:
                     mode = 'normal'
                     continue
                     
                 except Exception as exc:
                     self.screen.original_screen()
-                    print('The following *unhandled* exception was encountered:\n' + str(exc))
+                    print('The following *unhandled* exception was encountered:\n  >  ' + repr(exc))
+                    print('indicating:\n  >  ' + str(exc))
+                    print()
                     print_tb(exc.__traceback__)
-                    input('The program may be corrupted, save all and restart quickly.\n[PRESS ENTER]')
+                    print()
+                    print('The program may be corrupted, save all and restart quickly.')
+                    try:
+                        input('Press [ENTER] to resume  (or [CTRL+C] to close)')
+                    except KeyboardInterrupt:
+                        try:
+                            input('\rPress [ENTER] to resume  (or [CTRL+C] (ONE MORE TIME) to close)')
+                        except KeyboardInterrupt:
+                            raise SystemExit
                     self.screen.alternative_screen()
                     mode = 'normal'
                     continue

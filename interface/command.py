@@ -1,14 +1,17 @@
 from pathlib import Path
 import readline
-
-from ..actions import *
-from .helpers import resolver, do
+import rlcompleter
 
 class CommandModeCompleter:
     @staticmethod
     def completer(txt, state):
+
+        from __main__ import Editor         # kinda hacky 
+        dictionary = Editor.actions.command
+
         readline.redisplay()
         line = readline.get_line_buffer()
+
         if not line:
             rv = [k for k in dictionary][state] + ' '
             return rv
@@ -51,6 +54,7 @@ class CommandModeCompleter:
         
 def loop(self):
     self.screen.minibar('')
+    self.screen.infobar('')
     self.screen.bottom()
 
     with CommandModeCompleter():
@@ -75,81 +79,6 @@ def loop(self):
             key = cmd
         else:
             key = user_input
-            args = None
-        
-        return (resolver(dictionary,key, default=do(mode='normal'))(self, args) 
-                or 'normal')
+            args = ''
 
-def DO_nmap(ed, arg):
-    if not arg or not ' ' in arg:
-        ed.warning('[syntax] :nmap key mapping')
-    key, value = arg.split(' ', maxsplit=1)
-    ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
-
-dictionary = {
-    'nmap'  : DO_nmap,
-# Meta commands
-    '!'     : DO_system,
-    'set'   : DO_set,
-    'help'  : DO_help,
-    'cd'    : DO_chdir,
-
-# change mode
-    'visual': 'vi',
-    'vi'    : DO_nothing,
-    'python': do(mode='python'),
-
-# See what's in the cache
-    'file'  : 'buffers',
-    'ls'    : 'buffers',
-    'buffers'   : lambda ed, cmd: ed.warning(str(ed.cache)),
-
-# see what's in registers
-    'registers' : lambda ed, cmd: ed.warning(str(ed.register)),
-    'reg'   : 'registers',
-# misc
-    'read'  : 'r',
-    'r'     : read_file,
-    'on'    : 'only',
-    'only'  : DO_keep_only_current_window,
-    'vsplit': DO_vsplit,
-    'eval'  : DO_eval_buffer,
-
-# edit
-    'edit'  : 'e',
-    'ex'    : 'e',
-    'e'     : DO_edit,
-    'enew'  : DO_enew,
-
-
-# Quitting
-    'quit'  : 'q',
-    'q'     : DO_leave_current_window,
-
-    'quitall'   : 'qa',
-    'quita' : 'qa',
-    'qall'  : 'qa',
-    'qa'    :  DO_exit_nice,
-
-    'quitall!'  : 'qa!',
-    'quita!'    : 'qa!',
-    'qall!' : 'qa!',
-    'qa!'   : DO_exit_hard,
-
-    'quit!' : 'q!',
-    'q!'    : DO_force_leave_current_window ,
-
-    'wq'    : do(DO_try_to_save, DO_exit_nice),
-    'wqa'   : do(DO_save_all, DO_exit_nice ),
-    'wqa!'  : do(DO_force_to_save, DO_save_all, DO_exit_hard ),
-
-# Saving
-    'wall'  : 'wa',
-    'wa'    : DO_save_all,
-
-    'write' : 'w',
-    'w'     : DO_try_to_save, 
-
-    'write!'    : 'w!',
-    'w!'    : DO_force_to_save,
-}
+        return self.actions.command.get(key, lambda x: 'normal')(args) or 'normal'

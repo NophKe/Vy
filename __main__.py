@@ -30,6 +30,11 @@ if __name__ == '__main__':
 
 else:
     from .editor import Editor
+    from __main__ import __dict__ as main_dict
     Editor = Editor()
+    if 'Editor' in main_dict:
+        raise ImportError
+    main_dict['Editor'] = Editor
+    print('launch Vy by typing\n>>> Editor()')
 
 
