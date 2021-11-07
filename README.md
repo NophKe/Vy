@@ -6,55 +6,39 @@ What is Vy?
 
 Vy is a **light** python implementation of the Vi text editor. It has 
 no external dependency outside standard lib. But it can use the Pygments
-library (if present) for syntax highlighting.  It aims to stay arround 1000
+library (if present) for syntax highlighting.  It aims to stay less than 5000
 lines (including doc) and run on any modern python machine.
 
 It tries to provide a classic Vi-like interface that aims to be easy to
-extend through the python programming interface. As an example you can open 
-the editor by typing in the python repl:
+extend through the python programming interface. It does not provide anything 
+like VimScript but tries to expose its internals in a «pythonic» way. 
 
-    from vy.editor import Editor
-    Editor('/etc/fstab')
+This is not supposed to be a clone of Vim or Vi. It is meant to be legacy-free.
+Even if it might feel the same while using it, some quirks or the vi/vim grammar
+are to be eliminated.
 
-_note:_ otherwise use `python -m vy filename` ;-) 
+It must be self-documenting, and the application API mus be discoverable.
 
+Vym will will never be better at encodings than vanilla python allready is, and
+will never handle binary files.
 
-It does not provide anything like VimScript but tries to expose its internals
-in a simple pythonic way. To delete from the cursor to the beginning of the
-next word, you can use `dw` in the interface whereas you can from python:
-
-    del Editor.current_buffer['w']
-
-And to move to the end of the file (`G` in the interface):
-
-    Editor.current_buffer.move_cursor('G')
-
-Features
---------
-
-- w W b e E $ _ and the other motion operators are working
-- h/j/k/l of course! + cursor keys
-- A/I for insert mode on end/beginning of line.
-- a/i for insert mode after/before cursor.
-- O/o for insert mode on a new line.
-- zt/zz/zb for screen navigation
-- page up/down
-- :line_number go reach this line
-- :w/:wa/:wall/:wq/:wqa/:wqall etc...
-- :vsplit
-- :file
-- :registers
-- :read
-- :vsplit
+Vym will never try to handle weird terminals. It makes minimal terminal maipulation,
+and will keep to very basic vt100/ANSI/«de facto» standard.
 
 
-For now quite limited...
+Implemented Features
+--------------------
 
-* Syntax highlighted through Pygments
-* linear undo/redo
-* dictionary based modes 
-(`CommandMode['save_it_all'] = 'wall'` will create a new valid command mode command )
-* incomplete list...
+* Syntax highlighted through Pygments library
+* Linear undo/redo
+* Registers
+* Macros
+* Expantabs
+* Windows and vertical splits
+* Most basic motions ( W w e E $ gg G b _ 0 h j k l )
+* Most basic 
+
+
 
 Python Mode
 -----------

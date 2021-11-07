@@ -1,98 +1,64 @@
+from threading import Thread
 from multiprocessing import Process
 
-from .. import keys as k
-from ..actions import *
-from ..console import get_a_key, stdin_no_echo
-from .helpers import one_inside_dict_starts_with, do
-
-
-def GO(where):
-    def func(ed, cmd):
-        ed.current_buffer.move_cursor(where)
-        return 'insert'
-    return func
+from ..keys import C_C, _escape
+from ..console import stdin_no_echo
+from .helpers import one_inside_dict_starts_with
 
 def loop(self):
     curbuf = self.current_buffer
     screen = self.screen
-    show = None
-    
+    dictionary = self.actions.insert
+    dictionary[C_C] = lambda: 'normal'
+
+    first = True
+    show = lambda : None
+    show.kill = show
     with stdin_no_echo():
         while True:
-            if show is None: # First loop
-                curbuf.stop_undo_record()
-                screen.show(True)
-
-            show = Process(target=screen.show, args=(True,))
-            show.start()
-            screen.minibar(' -- INSERT --')
-            
-            user_input  = self.read_stdin()
-#            show.kill()
+#           queue = curbuf._lexer_queue if not curbuf._lexed_lines else None
+            new_show = Process(target=self.show_screen, args=(True,))
+            new_show.start()
+            show.kill()
+            show = new_show
+            user_input = self.read_stdin()
 
             if user_input in '²\x1b':
                 curbuf.set_undo_point()
-                curbuf.start_undo_record()
-                show.kill()
+                show.join()
                 return 'normal'
 
             if user_input == '\r':
+                #show.kill()
                 curbuf.insert('\n')
+                self.screen.infobar(' (newline inserted, setting undo point)')
                 curbuf.set_undo_point()
-                show.kill()
                 continue
 
-            if user_input == ' ':
-                curbuf.insert(' ')
-                curbuf.set_undo_point()
-                show.kill()
-                continue
-            
-            if user_input.isprintable():
+            if user_input.isprintable() or user_input == ' ':
+                #show.kill()
                 curbuf.insert(user_input)
-                show.kill()
                 continue
 
-            while one_inside_dict_starts_with(dictionary, user_input):
-                if user_input in dictionary:
-                    curbuf.start_undo_record()
-                    rv = dictionary[user_input](self, None)
-                    show.kill()
-                    if rv and rv != 'insert':
-                        return rv
-                    curbuf.stop_undo_record()
-                    break
-                else:
-                    user_input += self.read_stdin()
+            if user_input in dictionary:
+                #show.kill()
+                self.screen.infobar(f' (Processing command: {_escape(user_input)} )')
+                self.screen.minibar('')
+                rv = dictionary[user_input]()
+                if rv and rv != 'insert':
+                    #curbuf.start_undo_record()
+                    return rv
+                continue
 
-dictionary = {
-# Deletion
-    k.backspace : DO_backspace,
-    k.suppr : DO_suppr,
-# Page up/down
-    k.page_up   : DO_page_up,
-    k.page_down : DO_page_down,
-# Control + Arrow
-    k.C_right   : GO('w'),
-    k.C_left    : GO('b'),
-
-# Shift + Arrow
-    k.S_right   : GO('w'),
-    k.S_left    : GO('b'),
-
-# Arrows
-    k.left  : GO('h'),
-    k.down  : GO('j'),
-    k.up    : GO('k'),
-    k.right : GO('l'),
-
-# leave insert mode
-    '\x1b'  : do(mode='normal') ,
-    '²'     : do(mode='normal') ,
-    # thos two are also encoded in function loop...
-    # dunno if its worth or not 
-    k.C_C*7 : lambda ed, cmd: ed.warning('^C pressed seven times'),
-
-# inserter
-    '\t'    : DO_insert_expandtabs,
-    }
+            if one_inside_dict_starts_with(dictionary, user_input):
+                user_input += self.read_stdin()
+                while one_inside_dict_starts_with(dictionary, user_input):
+                    if user_input in dictionary:
+                        #show.kill()
+                        self.screen.infobar(f' (Processing command: {_escape(user_input)} )')
+                        self.screen.minibar('')
+                        rv = dictionary[user_input]()
+                        if rv and rv != 'insert':
+                            #curbuf.start_undo_record()
+                            return rv
+                        break

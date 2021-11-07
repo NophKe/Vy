@@ -12,6 +12,49 @@ ISPEED = 4
 OSPEED = 5
 CC = 6
 
+def stdout_no_cr():
+        mode = tcgetattr(stdin)
+#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
+#       mode[OFLAG] = mode[OFLAG] & ONOCR
+#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
+#       mode[IFLAG] = mode[IFLAG] & ~INLCR
+#       mode[IFLAG] = mode[IFLAG] & IGNCR
+        mode[LFLAG] = mode[LFLAG] & ~ECHONL
+        tcsetattr(stdin, TCSAFLUSH, mode)
+
+        mode = tcgetattr(stdout)
+#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
+#       mode[OFLAG] = mode[OFLAG] & ONOCR
+#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
+#       mode[IFLAG] = mode[IFLAG] & ~INLCR
+#       mode[IFLAG] = mode[IFLAG] & IGNCR
+        mode[LFLAG] = mode[LFLAG] & ~ECHONL
+        tcsetattr(stdout, TCSAFLUSH, mode)
+
+        mode = tcgetattr(stderr)
+#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
+#       mode[OFLAG] = mode[OFLAG] & ONOCR
+#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
+#       mode[IFLAG] = mode[IFLAG] & ~INLCR
+#       mode[IFLAG] = mode[IFLAG] & IGNCR
+        mode[LFLAG] = mode[LFLAG] & ~ECHONL
+        tcsetattr(stderr, TCSAFLUSH, mode)
+
+class stdin_no_echo_nl:
+    """use like:
+    with stdin_no_echo():
+        uifunction()
+    """
+    def __enter__(self):
+        mode = tcgetattr(stdin)
+        self.mode = mode[:]
+        mode[LFLAG] = mode[LFLAG] & ~ICANON
+        mode[LFLAG] = mode[LFLAG] & ~ECHONL
+        mode[LFLAG] = mode[LFLAG] & ECHO
+        tcsetattr(stdin, TCSAFLUSH, mode)
+    def __exit__(self, *args):
+        tcsetattr(stdin, TCSAFLUSH, self.mode)
+
 class stdin_no_echo:
     """use like:
     with stdin_no_echo():

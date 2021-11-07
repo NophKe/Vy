@@ -1,11 +1,10 @@
 from pathlib import Path
 from os import access, R_OK, W_OK
 
-from .hugefile import HugeFile
+#from .hugefile import HugeFile
 from .folder import Folder
 from .textfile import TextFile
-from .ro_textfile import ReadOnlyTextFile
-
+#from .ro_textfile import ReadOnlyTextFile
 
 def Open_path(location):
     if (location is None):
@@ -34,8 +33,5 @@ def Open_path(location):
                         
     if access(location, W_OK):
         return TextFile(path=location, init_text=init_text)
-    else:
-        return ReadOnlyTextFile(path=location, init_text=init_text)
-
-
-
+    #else:
+        #return ReadOnlyTextFile(path=location, init_text=init_text)

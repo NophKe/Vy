@@ -1,48 +1,213 @@
-"""
-This module contains basic «actions» upon the Vy editor.
+""" This module contains basic «actions» upon the Vy editor.
 An action is a function that accepts an editor as first
 argument, and a possibly null, arg string, or slice as
 second argument.
 
 As defined in the Vym grammar, some commands require motion
 argument, some possibly require a register to work on.
+
 """
-from .helpers import ( sa_commands, full_commands,
+
+from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
-from . import keys as k
+from vy import keys as k
 
-# Here Comes the «full command», taking a slice of the target buffer
-# and an optional register. Its up to the function to decide to move 
-# the buff.cursor or not, and to determinate what to do if no register
-# is being specified.
+@sa_commands('J')
+def join_lines(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Joins the {count} next lines together.
+    """
+    curbuf = editor.current_buffer
+    for _ in range(count):
+        try:
+            newline = curbuf.lines_offsets[curbuf.cursor_line + 1]
+        except IndexError:
+            return
+        curbuf.move_cursor('$')
+        if not curbuf[curbuf.cursor].isspace():
+            del curbuf[newline - 1]
+        else:
+            curbuf[newline - 1] = ' '
 
-@with_args_commands(':nmap :nnoremap')
-def DO_nmap(ed, arg):
-    if not arg or not ' ' in arg:
-        ed.warning('[SYNTAX]    :nmap [key] [mapping]')
-    key, value = arg.split(' ', maxsplit=1)
-    ed.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
 
-@atomic_commands(':reg :registers')
-def show_registers(ed, cmd):
-    ed.warning(str(ed.register))
+@sa_commands(f'{k.C_W}>')
+def increase_window_width_right(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Increases window width to the right by {count} columns.
+    """
+    curwin = editor.current_window
+    if curwin.parent is curwin: #if it's screen itself
+        return
+    curwin.parent.move_v_split_right(count)
+
+@sa_commands(f'{k.C_W}<')
+def increase_window_width_left(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Increases window width to the left by {count} columns.
+    """
+    curwin = editor.current_window
+    if curwin.parent is curwin: #if it's screen itself
+        return
+    curwin.parent.move_v_split_left(count)
+
+@atomic_commands('?')
+def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
+    return 'search_backward'
+
+
+@atomic_commands('/')
+def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
+    return 'search_forward'
+
+
+@atomic_commands('o')
+def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor on a new empty line below the current line.
+    And starts «Insert» mode.
+    """
+    curbuf = editor.current_buffer
+    curbuf.move_cursor('$')
+    curbuf.insert('\n')
+    return 'insert'
+
+
+@atomic_commands('O')
+def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor on a new empty line under the current line.
+    And starts «Insert» mode.
+    """
+    curbuf = editor.current_buffer
+    curbuf.move_cursor('0')
+    curbuf.insert('\n')
+    curbuf.move_cursor('k')
+    return 'insert'
+
+
+@atomic_commands('A')
+def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor on the last character on the current line.
+    And starts «Insert» mode.
+    """
+    editor.current_buffer.move_cursor('$')
+    return 'insert'
+
+
+
+@atomic_commands('u :u :un :undo')
+#@with_args_commands('u :u :un :undo')
+def undo(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Undo last action in the current buffer.
+    Register argument is ignored.
+    """
+    if arg:
+        try:
+            count = int(arg)
+        except ValueError:
+            editor.screen.minibar(f'Wrong coount argument: {arg}')
+            return
+    for _ in range(count):
+        editor.current_buffer.undo()
+
+
+#@with_args_commands(f'{k.C_R} :red :redo')
+@sa_commands(f'{k.C_R} :red :redo')
+def redo(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Redo last undone action in the current buffer.
+    """
+    if arg:
+        try:
+            count = int(arg)
+        except ValueError:
+            editor.screen.minibar(f'Wrong coount argument: {arg}')
+            return
+    for _ in range(count):
+        editor.current_buffer.redo()
+
+
+@atomic_commands(f'i {k.insert}')
+def insert_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Insert» mode at cursor position.
+    """
+    return 'insert'
+
+
+@atomic_commands(':')
+def command_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Command» mode.
+    """
+    return 'command'
+
+
+@atomic_commands(f'{k.escape} i_{k.escape} :vi :visual :stopi :stopinsert')
+def normal_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Normal» mode.
+    """
     return 'normal'
 
-@atomic_commands(':files :ls :buffers')
-def show_buffers(ed, cmd):
-    ed.warning(str(ed.cache))
-    return 'normal'
 
-@atomic_commands(':vi :visual')
-def normal_mode(ed, cmd):
-    return 'normal'
-
-@atomic_commands(':python :py')
-def python_mode(ed, cmd):
+@atomic_commands(':PYTHON :PY')
+def python__main__mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Python» mode in the __main__ name space.
+    """
+    from .interface import python
+    from __main__ import __dict__ as main_name_space
+    python.name_space = main_name_space
     return 'python'
 
+
+@atomic_commands(':python :py')
+def python_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Python» mode.
+    """
+    return 'python'
+
+
+#@with_args_commands(':nmap :nnoremap')
+#def do_nmap(editor, reg=None, part=None, arg=None, count=1):
+#    """
+#    TODO. Not working anymore (api change)
+#    """
+#    if not arg or not ' ' in arg:
+#        editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
+#        return
+#    key, value = arg.split(' ', maxsplit=1)
+#    editor.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
+
+@with_args_commands(':reg :registers :di :display')
+@atomic_commands(':reg :registers :di :display')
+def show_registers(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Shows the content of registers.
+    If an argument is given, only shows the content of this register.
+    """
+    if arg:
+        editor.warning(arg + ': ' + str(editor.registr[arg]))
+    else:
+        editor.warning(str(editor.registr))
+    return 'normal'
+
+
+@atomic_commands(':files :ls :buffers')
+def show_buffers(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Shows the list of «cached» buffers.
+    """
+    editor.warning(str(editor.cache))
+    return 'normal'
+
+
 @full_commands('c')
-def change(editor, part, reg='_'):
+def change(editor, reg='_', part=None, arg=None, count=1):
     """
     Deletes the text from the cursor position to MOTION argument,
     or inside MOTION if it resolves to as slice of the text.
@@ -55,13 +220,14 @@ def change(editor, part, reg='_'):
     start = part.start
     if curbuf[stop - 1] == '\n':
         stop = stop - 1
-    editor.register[reg] = curbuf[start:stop]
+    editor.registr[reg] = curbuf[start:stop]
     del curbuf[start:stop]
     curbuf.cursor = part.start
     return 'insert'
 
+
 @full_commands('y')
-def yank(editor, part, reg='"'):
+def yank(editor, reg='"', part=None, arg=None, count=1):
     """
     Yanks (copies) the text from the cursor position to {movement} argument,
     or inside {movement} if it resolves to as slice of the text.
@@ -69,10 +235,11 @@ def yank(editor, part, reg='"'):
     """
     text = editor.current_buffer[part]
     editor.current_buffer.cursor = part.stop
-    editor.register[reg] = text
+    editor.registr[reg] = text
+
 
 @full_commands('d')
-def delete(editor, part, reg='"'):
+def delete(editor, reg='"', part=None, arg=None, count=1):
     """
     Deletes the text from the cursor position to {movement} argument,
     or inside {movement} if it resolves to as slice of the text.
@@ -81,10 +248,11 @@ def delete(editor, part, reg='"'):
     """
     to_be_del = editor.current_buffer[part]
     editor.current_buffer.__delitem__(part)
-    editor.register[reg] = to_be_del
+    editor.registr[reg] = to_be_del
+
 
 @full_commands('gu')
-def lower_case(editor, part, reg='_'):
+def lower_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Makes the text lower case from the cursor position to {movement} argument,
     or inside {movement} if it resolves to as slice of the text.
@@ -94,8 +262,9 @@ def lower_case(editor, part, reg='_'):
     curbuf[part] = curbuf[part].lower()
     curbuf.cursor = part.stop
 
+
 @full_commands('gU')
-def upper_case(editor, part, reg='_'):
+def upper_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Makes the text upper case from the cursor position to {movement} argument,
     or inside {movement} if it resolves to as slice of the text.
@@ -105,8 +274,9 @@ def upper_case(editor, part, reg='_'):
     curbuf[part] = curbuf[part].upper()
     curbuf.cursor = part.stop
 
+
 @full_commands('g~')
-def swap_case(editor, part, reg='_'):
+def swap_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Swaps the case of the text from the cursor position to {movement} argument,
     or inside {movement} if it resolves to as slice of the text.
@@ -116,12 +286,9 @@ def swap_case(editor, part, reg='_'):
     curbuf[part] = curbuf[part].swapcase()
     curbuf.cursor = part.stop
 
-# Here come command mode commands, those functions must
-# take a string represententing the remaining part of the
-# command line that invoke them.
 
-@with_args_commands(":read :r")
-def read_file(editor, arg):
+@with_args_commands(":read :re :r")
+def read_file(editor, reg=None, part=None, arg=None, count=1):
     """
     Reads the content of file specified as argument and inserts it at the current
     cursor location.
@@ -129,23 +296,31 @@ def read_file(editor, arg):
     """
     from pathlib import Path
     if not arg:
-        editor.warning(':r needs an argument')
+        editor.screen.minibar('Commmand needs arg!')
         return
     editor.current_buffer.insert(Path(arg).read_text())
 
-#
-# Meta Commands
-#
-@with_args_commands(":!")
-def DO_system(editor, arg):
-    from os import system
-    if arg:
-        err = system(arg)
-        editor.warning(f'Command Finished with status: {err}')
 
-@with_args_commands(":chdir")
-def DO_chdir(editor, arg):
+@with_args_commands(":!")
+def do_system(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Execute a system command.
+    """
+    from os import system
     if not arg:
+        editor.screen.minibar('Commmand needs arg!')
+        return
+    err = system(arg)
+    editor.warning(f'Command Finished with status: {err}')
+
+
+@with_args_commands(":chdir :chd :cd")
+def do_chdir(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Change current directory
+    """
+    if not arg:
+        editor.screen.minibar('Commmand needs arg!')
         return
     import os
     try:
@@ -153,10 +328,15 @@ def DO_chdir(editor, arg):
     except FileNotFoundError:
         editor.warning(f'File not found: {arg}')
 
-# Editor
-####
+
 @with_args_commands(":set :se")
-def DO_set(editor, arg):
+def do_set(editor, reg=None, part=None, arg=None, count=1):
+    """
+    [SYNTAX]        :set {argument}   >>> set to True
+    [SYNTAX]        :set no{argument} >>> set to False
+    [SYNTAX]        :set {argument}!  >>> toggle True/False
+    """
+
     if not arg:
         editor.warning("""
     [SYNTAX]        :set {argument}   >>> set to True
@@ -165,7 +345,7 @@ def DO_set(editor, arg):
         return
 
     toggle = object()
-    
+
     arg = arg.strip().lower()
     if ' ' in arg:
         arg, value = arg.split(' ', maxsplit=1)
@@ -178,11 +358,11 @@ def DO_set(editor, arg):
         value = toggle
     else:
         value = True
-    
+
     try:
         option = getattr(editor.current_buffer, 'set_' + arg)
     except AttributeError:
-        editor.warning(f"invalid option {arg}")
+        editor.screen.minibar(f"Invalid option {arg}")
         return
 
     if isinstance(option, type(value)):
@@ -192,7 +372,11 @@ def DO_set(editor, arg):
 
 
 @with_args_commands(":e :edit :ex")
-def DO_edit(editor, arg):
+def do_edit(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Start editing a file in the current window. If the file has allready
+    being visited, the file is not read again and the cached version in served
+    """
     if arg:
         try:
             editor.edit(arg)
@@ -201,17 +385,18 @@ def DO_edit(editor, arg):
         except PermissionError:
             editor.warning("You do not seem to have enough rights to read " + arg)
 
-@atomic_commands(":enew")
-def DO_enew(editor, arg):
+
+@atomic_commands(":enew :ene")
+def do_enew(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts editing a new unnamed buffer.
+    """
     editor.edit(None)
 
-###
-# Saving
-#####
 
 @atomic_commands(':w :write')
 @with_args_commands(':w :write')
-def DO_try_to_save(editor, arg):
+def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
     '''anything'''
     if not arg:
         if not editor.current_buffer.unsaved:
@@ -229,9 +414,13 @@ def DO_try_to_save(editor, arg):
         except (IsADirectoryError, FileExistsError, PermissionError) as exc:
             editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
 
-@atomic_commands(":w! :write:")
-@with_args_commands(":w! :write:")
-def DO_force_to_save(editor, arg):
+
+@atomic_commands(":w! :write!")
+@with_args_commands(":w! :write!")
+def do_force_to_save(editor, reg=None, part=None, arg=None, count=1):
+    """
+    TODO
+    """
     try:
         if arg:
             editor.current_buffer.save_as(arg,override=True)
@@ -239,15 +428,23 @@ def DO_force_to_save(editor, arg):
             editor.current_buffer.save(override=True)
     except (IsADirectoryError, FileExistsError, PermissionError) as exc:
         editor.warning(f'{exc.__doc__} aborting...')
-                
-@sa_commands(":wall")
-def DO_save_all(editor, cmd):
+
+
+@atomic_commands(":wa :wall")
+def do_save_all(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Saves all cached buffers.
+    """
     for buf in editor.cache:
         if buf.unsaved:
             buf.save()
 
-@atomic_commands(':next')
-def DO_edit_next_unsaved_buffer(editor,arg):
+
+@atomic_commands(':n :ne :next')
+def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Edit next unsaved buffer. If no buffer is unsaved, leaves. 
+    """
     next_one = False
     for buf in editor.cache:
         if buf.unsaved:
@@ -258,61 +455,115 @@ def DO_edit_next_unsaved_buffer(editor,arg):
         editor.warning('buffer: ' + repr(editor.current_buffer) + ' save (:w)  or leave! (:q!)')
     else:
         if editor.current_window is editor.screen:
-            DO_exit_nice(editor, arg)
-###
-# Window Manip
-#####
+            do_exit_nice(editor, arg)
+
 
 @atomic_commands(f'{k.C_W}{k.C_H} {k.C_W}{k.C_left} {k.C_W}h')
-def DO_focus_left_window(editor, arg):
+def do_focus_left_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Focus the window on the left of current focused window.
+    """
     editor.current_window.get_left_buffer().set_focus()
 
+
 @atomic_commands(f'{k.C_W}{k.C_L} {k.C_W}{k.C_right} {k.C_W}l')
-def DO_focus_right_window(editor, arg):
+def do_focus_right_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Focus the window on the right of current focused window.
+    """
     editor.current_window.get_right_buffer().set_focus()
 
-@atomic_commands(f'{k.C_W}o {k.C_W}{k.C_O} :only')
-def DO_keep_only_current_window(editor, arg):
+
+@atomic_commands(f'{k.C_W}o {k.C_W}{k.C_O} :only :on')
+def do_keep_only_current_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Closes every windows except the current one.
+    """
     while editor.current_window is not editor.screen:
         if editor.current_window is editor.current_window.parent.right_panel:
             editor.current_window.parent.merge_from_right_panel()
         if editor.current_window is editor.current_window.parent.left_panel:
             editor.current_window.parent.merge_from_left_panel()
-        
-@atomic_commands('ZQ')
-def DO_force_leave_current_window(editor,arg):
-    del editor.cache[editor.current_window.buff.cache_id]
-    DO_edit_next_unsaved_buffer(editor, arg)
 
-@atomic_commands(':q :quit')
-def DO_leave_current_window(editor, arg):
+
+@atomic_commands(':wq! :x! :xit! :exit!')
+def do_save_current_buffer_and_force_leave_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Saves the current buffer and leaves its window. If it is
+    the only open window and no unsaved buffer in cache, leaves
+    the editor.
+    Equivalent to :w <CR> :q <CR>
+    """
+    do_try_to_save(editor)
+    do_force_leave_current_window(editor)
+
+
+@atomic_commands(':wq :x :xit :exit ZZ')
+def do_save_current_buffer_and_try_leave_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Saves the current buffer and leaves its window. If it is
+    the only open window and no unsaved buffer in cache, leaves
+    the editor.
+    Equivalent to :w <CR> :q <CR>
+    """
+    do_try_to_save(editor)
+    do_leave_current_window(editor)
+
+
+@atomic_commands(':q! :quit! ZQ')
+def do_force_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Leaves the current window, discarding its buffer, even if it has not been saved.
+    If
+    """
     curwin = editor.current_window
+    del editor.cache[curwin.buff.cache_id]
+
     if curwin is editor.screen:
-        if curwin.buff.unsaved:
-            editor.warning('save this buffer (:w) or force (:q!)')
-        else:
-            DO_exit_nice(editor, arg)
+        do_exit_nice(editor)
     elif curwin.parent.left_panel is curwin:
         curwin.parent.merge_from_right_panel()
     else:
         curwin.parent.merge_from_left_panel()
 
-@atomic_commands(f':vsplit :vs {k.C_W}v')
-@with_args_commands(':vsplit')
-def DO_vsplit(editor, arg):
+
+@atomic_commands(f':q :quit {k.C_W}{k.C_Q} {k.C_W}q')
+def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
+    """
+    TODO
+    """
+    curwin = editor.current_window
+    if curwin is editor.screen:
+        if curwin.buff.unsaved:
+            editor.warning('save this buffer (:w) or force (:q!)')
+        else:
+            do_exit_nice(editor)
+    elif curwin.parent.left_panel is curwin:
+        curwin.parent.merge_from_right_panel()
+    else:
+        curwin.parent.merge_from_left_panel()
+
+
+@with_args_commands(':vsplit :vs')
+@atomic_commands(f'{k.C_W}v')
+def do_vsplit(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Splits the current window vertically. If an argument is given, use this
+    as new buffer for the new current window.
+    """
     editor.current_window.vsplit()
     if arg:
         editor.current_window.change_buffer(editor.cache[arg])
-###
-# Misc
-#####
+
 
 @atomic_commands(":eval")
-def DO_eval_buffer(editor,arg):
+def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Evaluates a python buffer.
+    Use 'from __main__ import Editor' to make use of it.
+    """
     from .interface import python
     from traceback import print_tb
-    #import __main__
-    #return exec(editor.current_buffer.getvalue(), __main__.__dict__)
     name_space = {}
     try:
         ret = exec(editor.current_buffer.getvalue(), name_space)
@@ -324,134 +575,257 @@ def DO_eval_buffer(editor,arg):
     python.name_space = name_space
     return python.loop(editor)
 
-@atomic_commands(":q :quit :quitall :quita :qall :qa")
-def DO_exit_nice(editor, arg):
-    if not any([buffer.unsaved for buffer in editor.cache]):
-        DO_exit_hard(editor, arg)
-    else:
-        DO_edit_next_unsaved_buffer(editor, False)
 
-@atomic_commands(":q! :quit! :quitall! :quita! :qall! :qa!")
-def DO_exit_hard(editor, arg):
+@atomic_commands(":quitall :quita :qall :qa")
+def do_exit_nice(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Exits Vy except if there are unsaved buffers. In this case switch current window
+    to next unsaved buffer.
+    """
+    if not any([buffer.unsaved for buffer in editor.cache]):
+        do_exit_hard(editor)
+    else:
+        do_edit_next_unsaved_buffer(editor)
+
+
+@atomic_commands(':wqa! :wqall! :xa! :xall!')
+def do_save_all_and_leave_all(editor, arg=None, reg=None, part=None, count=1):
+    """
+    Saves all unsaved buffers, no matter if this succeeds, closes the editor.
+    """
+    do_save_all(editor)
+    do_exit_hard(editor)
+
+
+@atomic_commands(':wqa :wqall :xa :xall')
+def do_save_all_and_try_leave_all(editor, arg=None, reg=None, part=None, count=1):
+    """
+    Saves all unsaved buffers, and if this succeeds, closes the editor.
+    """
+    do_save_all(editor)
+    do_exit_nice(editor)
+
+
+@atomic_commands(":quitall! :quita! :qall! :qa! ZZ")
+def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Exits Vy immediatly without checking for any unsaved buffer.
+    """
     import sys
     sys.exit(0)
 
-###
-# Screen based cursor movements
-#####
+
 @atomic_commands("zz")
-def DO_zz(editor, arg):
-    curwin = editor.current_window 
+def do_zz(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the central line.
+    Warning: not to confund with ZZ. 
+    """
+    curwin = editor.current_window
     middle = (curwin.number_of_lin + 1) / 2
     lin, _ = curwin.buff.cursor_lin_col
     new_pos = int(lin - middle)
     if new_pos <= 0:
         curwin.shift_to_lin = 0
     elif new_pos > curwin.buff.number_of_lin:
-        curwin.shift_to_lin = curwin.number_of_lin 
+        curwin.shift_to_lin = curwin.number_of_lin
     else:
-        curwin.shift_to_lin = new_pos 
+        curwin.shift_to_lin = new_pos
+
+
+@atomic_commands("z-")
+def do_z__MINUS__(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the bottom line.
+    (like zb does) but cursor is placed on the first non blank
+    caracter of the line.
+    """
+    curbuf = editor.current_buffer
+    do_zb(editor)
+    curbuf.move_cursor('0')
+    curbuf.move_cursor('_')
+
+@atomic_commands("z.")
+def do_z__DOT__(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the middle line.
+    (like zz does) but cursor is placed on the first non blank
+    caracter of the line.
+    """
+    curbuf = editor.current_buffer
+    do_zz(editor)
+    curbuf.move_cursor('0')
+    curbuf.move_cursor('_')
+
+
+@atomic_commands(f'{k.C_E}')
+def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Scrolls one line down. Ajust cursor position so that it is keeps on
+    the top line, if it were to escape the current window.
+    """
+    curwin = editor.current_window
+    curbuf = editor.current_buffer
+    if curwin.shift_to_lin < curbuf.number_of_lin:
+        curwin.shift_to_lin += 1
+    cursor_line, _ = curbuf.cursor_lin_col
+    if curwin.shift_to_lin > cursor_line:
+        curbuf.move_cursor('j')
+
+
+@atomic_commands(f"z{k.C_M}")
+def do_z__CR__(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the top line.
+    (like zt does) but cursor is placed on the first non blank
+    caracter of the line.
+    """
+    curbuf = editor.current_buffer
+    do_zt(editor)
+    curbuf.move_cursor('0')
+    curbuf.move_cursor('_')
+
 
 @atomic_commands("zt")
-def DO_zt(editor, arg):
-    curwin = editor.current_window 
+def do_zt(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the top line.
+    """
+    curwin = editor.current_window
     lin, _ = curwin.buff.cursor_lin_col
-    new_pos = lin - 1 
+    new_pos = lin
     if new_pos <= 0:
         curwin.shift_to_lin = 0
     elif new_pos > curwin.buff.number_of_lin:
-        curwin.shift_to_lin = curwin.number_of_lin 
+        curwin.shift_to_lin = curwin.number_of_lin
     else:
-        curwin.shift_to_lin = new_pos 
+        curwin.shift_to_lin = new_pos
+
 
 @atomic_commands("zb")
-def DO_zb(editor, arg):
-    curwin = editor.current_window 
-    lin, col = curwin.buff.cursor_lin_col
+def do_zb(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Recenters the screen to make cursor line the bottom line.
+    """
+    curwin = editor.current_window
+    lin, _ = curwin.buff.cursor_lin_col
     new_pos = lin - curwin.number_of_lin
     if new_pos <= 0:
         curwin.shift_to_lin = 0
     elif new_pos > curwin.buff.number_of_lin:
-        curwin.shift_to_lin = curwin.number_of_lin 
+        curwin.shift_to_lin = curwin.number_of_lin
     else:
-        curwin.shift_to_lin = new_pos 
+        curwin.shift_to_lin = new_pos
 
-@atomic_commands(f'{k.page_up}')
-def DO_page_down(editor, arg):
-    buff = editor.current_buffer
-    for _ in range(editor.screen.number_of_lin - 1):
-        next_line = buff[buff.cursor:].find('\n')
-        if next_line == -1:
-            return
-        buff.cursor += (next_line + 1)
 
-@atomic_commands(f'{k.page_down}')
-def DO_page_up(editor, arg):
-    buff = editor.current_buffer
-    for _ in range(editor.screen.number_of_lin):
-        prev_line = buff[:buff.cursor].rfind('\n')
-        if prev_line == -1:
-            return
-        buff.cursor = prev_line
-    if buff.cursor > 0:
-        buff.cursor += 1
+@atomic_commands(f'{k.page_down} {k.C_B}')
+def do_page_down(editor, reg=None, part=None, arg=None, count=1):
+    """
+    First keystrike puts the cursor on the beginning of last line shown
+    in the current windows. Next keystrokes scrolls the text one page down.
+    """
+    curbuf = editor.current_buffer
+    curwin = editor.current_window
+    line_shift = curwin.shift_to_lin
+    page_size = curwin.number_of_lin
+    lin, col = curbuf.cursor_lin_col
+    lines_offsets = curbuf.lines_offsets
+    number_of_lin = len(lines_offsets) - 1
 
-###
-# Normal Mode sub-loops
-#####
+    newline = (line_shift + page_size - 1)
+    if lin < newline:
+        newline = min(newline, number_of_lin)
+        curbuf.cursor = lines_offsets[newline]
+    else:
+        newline = min((newline + page_size), number_of_lin) 
+        curbuf.cursor = lines_offsets[newline]
 
-@atomic_commands("zz")
-def DO_normal_n(editor,arg):
-    try:
-        needle = editor.register['/']
-    except KeyError:
-        return
+
+
+@atomic_commands(f'{k.page_up} {k.C_F}')
+def do_page_up(editor, reg=None, part=None, arg=None, count=1):
+    """
+    First keystrike puts the cursor on the beginning of first line shown
+    in the current windows. Next keystrokes scrolls the text one page up.
+    """
+    curbuf = editor.current_buffer
+    curwin = editor.current_window
+    line_shift = curwin.shift_to_lin
+    page_size = curwin.number_of_lin
+    lin, col = curbuf.cursor_lin_col
+    lines_offsets = curbuf.lines_offsets
+
+    if lin > line_shift:
+        curbuf.cursor = lines_offsets[line_shift]
+    #elif (newline := (lin - page_size)) > 0:   No := in cython
+    #    curbuf.cursor = lines_offsets[newline]
+    elif lin - page_size > 0:
+        newline = lin - page_size
+        curbuf.cursor = lines_offsets[newline]
+    else:
+        curbuf.cursor = 0
+
+
+@atomic_commands("n")
+def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor to next occurrence of last searched text.
+    """
+    needle = editor.registr['/']
 
     if not needle:
+        editor.screen.minibar('No previous search!')
         return
     curbuf = editor.current_buffer
 
-    offset = curbuf._string[curbuf.cursor+1:].find(needle)
+    offset = curbuf._string.find(needle, curbuf.cursor+1)
     if offset == -1:
-        editor.warning('string not found')
-        return 'normal'
-    curbuf.cursor += offset + 1
- 
-def DO_find(editor,arg):
-    editor.screen.minibar('/')
-    curbuf = editor.current_buffer
-    try:
-        needle = input()
-    except KeyboardInterrupt:
-        return 'normal'
+        editor.screen.minibar('String not found: back to the top.')
+        offset = curbuf._string.find(needle)
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+            return
+        curbuf.cursor = offset
+    else:
+        curbuf.cursor = offset + 1
+        return
+
+
+@atomic_commands("N")
+def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor to previous occurrence of last searched text.
+    """
+    needle = editor.registr['/']
 
     if not needle:
-        return 'normal'
-    editor.register['/'] = needle
+        editor.screen.minibar('No previous search!')
+        return
+    curbuf = editor.current_buffer
 
-    offset = curbuf._string[curbuf.cursor+1:].find(needle)
+    offset = curbuf._string.rfind(needle, 0, curbuf.cursor)
     if offset == -1:
-        editor.warning('string not found')
-        return 'normal'
-    curbuf.cursor += offset + 1
+        editor.screen.minibar('String not found: back to the bottom.')
+        offset = curbuf._string.rfind(needle)
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+            return
+        curbuf.cursor = offset
+    else:
+        curbuf.cursor = offset + 1
+        return
 
-@sa_commands("r")
-def DO_r(editor, arg):
+
+@atomic_commands("r")
+def do_r(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Replace the character under the cursor by next keystrike.
+    """
     editor.current_buffer['cursor'] = editor.read_stdin()
-    
-def DO_f(curbuf):
-    from __main__ import Editor as editor
-    char_to_seek = editor.read_stdin()
-    char_relative = curbuf['cursor:#+1'].find(char_to_seek)
-    if char_relative > 0:
-        return curbuf.cursor + char_relative        
-    return curbuf.cursor
 
-###
-# Edition
 
-@atomic_commands(f'i_{k.backspace}')
-def DO_backspace(editor, arg):
+@atomic_commands(f'i_{k.backspace} X')
+def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character on the left of the cursor, joining current line
     with the previous one if on the first position of the line.
@@ -459,20 +833,33 @@ def DO_backspace(editor, arg):
     """
     editor.current_buffer.backspace()
 
-    
-@atomic_commands(f'i_{k.suppr}')
-def DO_suppr(editor, arg):
+
+@sa_commands('D')
+def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
+    """
+    Deletes text from the cursor to the end of line. Text is copied to the
+    specified register. If no register is specified, use default " register.
+    """
+    curbuf = editor.current_buffer
+    editor.registr[reg] = curbuf['cursor:$']
+    del curbuf['cursor:$']
+    return 'normal'
+
+
+@atomic_commands(f'i_{k.suppr} x')
+def do_suppr(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character under the cursor, joining current line with the
     next one if on the last position of the line.
     Does nothing if on the last position of the buffer.
     """
     editor.current_buffer.suppr()
-    
+
+
 @sa_commands("~")
-def DO_normal_tilde(editor, reg):
+def do_normal_tilde(editor, reg=None, part=None, arg=None, count=1):
     """
-    Makes the character under the cursor upper case, and moves the cursor 
+    Makes the character under the cursor upper case, and moves the cursor
     one character right unless if on the last position of the line.
     Optionnal "{register} argument is ignored.
     """
@@ -480,30 +867,28 @@ def DO_normal_tilde(editor, reg):
     curbuf[curbuf.cursor] = curbuf[curbuf.cursor].upper()
     curbuf.move_cursor('l')
 
+
 @sa_commands("C")
-def DO_normal_C(editor, reg='"'):
+def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
     """
     Yanks the text from the cursor to the register, the delete it and starts
     'insert' mode.
     By default, if no register is specified the default "" register is used.
+    Optionnal {count} argument is ignored.
     """
     curbuf = editor.current_buffer
-    editor.register[reg] = curbuf['cursor:$']
+    editor.registr[reg] = curbuf['cursor:$']
     del curbuf['cursor:$']
     return 'insert'
 
-###
-# Paste/yank
-#
 
-
-@atomic_commands(':help :h')
+# TODO Add k.F1 and i_k.F1( but set value in keys.py first ) 
 @with_args_commands(':help :h')
-def help(ed, cmd):
+def do_help(editor, reg=None, part=None, arg=None, count=1):
     """
     [SYNTAX] :help TOPIC
 
-    For help about a command mode command prepend: i_
+    For help about a command mode command prepend: :
         :help :help
 
     For help about a insert mode command prepend: i_
@@ -514,45 +899,55 @@ def help(ed, cmd):
 
     For help about a normal mode command just type it!
         :help ~
-    """
-    topic = ':help' if not cmd else cmd
 
-    try:
-        if topic.startswith(':'):
-            topic = ed.actions.command[topic[1:]]
-        elif topic.startswith('i_'):
-            topic = ed.actions.insert[topic[2:]]
-        elif topic.startswith('v_'):
-            topic = ed.actions.visual[topic[2:]]
-        else:
-            topic = ed.actions.normal[topic]
-    except KeyError:
-        ed.warning(f'{topic} not found in help.')
+    To enter a "special key" prepend [CTRL+V].
+    """
+    if not arg:
+        help(do_help)
         return 'normal'
-    ed.screen.original_screen() 
-    help(topic)
-    ed.screen.alternative_screen()
+    try:
+        if arg.startswith(':'):
+            arg = editor.actions.command[arg[1:]]
+        elif arg.startswith('i_'):
+            arg = editor.actions.insert[arg[2:]]
+        elif arg.startswith('v_'):
+            arg = editor.actions.visual[arg[2:]]
+        else:
+            arg = editor.actions.normal[arg]
+    except KeyError:
+        editor.warning(f'{arg} not found in help.')
+        return 'normal'
+
+    editor.screen.original_screen()
+    help(arg)
+    editor.screen.alternative_screen()
     return 'normal'
 
+
 @sa_commands("p")
-def DO_paste(editor, reg):
+def do_paste(editor, reg=None, part=None, arg=None, count=1):
     """
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    editor.current_buffer.insert(editor.register[reg]),
+    editor.current_buffer.insert(editor.registr[reg]),
+
 
 @atomic_commands('i_\t')
-def DO_insert_expandtabs(editor, arg):
+def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
+    """
+    TODO
+    """
     curbuf = editor.current_buffer
     curbuf.insert('\t')
-    orig = curbuf['.']
+    orig = curbuf['0:$']
     after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-    curbuf['.'] = after
+    curbuf['0:$'] = after
     curbuf.cursor += len(after) - len(orig)
 
+
 @atomic_commands("gf")
-def DO_normal_gf(editor, reg):
+def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     """
     Interpret the word the cursor is on as a file name, and try to open it.
     If the file cannot be found in the folder that contains the current buffer,
@@ -565,12 +960,27 @@ def DO_normal_gf(editor, reg):
     guess2 = editor.current_buffer.path.with_name(filename + '.py')
     guess3 = editor.current_buffer.path.parent / (filename.removeprefix('.') + '.py')
     guess4 = editor.current_buffer.path.parent.parent / (filename.removeprefix('..') + '.py')
-    
+
     for guess in [Path(filename), guess1, guess2, guess3, guess4]:
         if guess.exists():
             editor.edit(guess)
             return 'normal'
-    editor.warning(f'file {filename!r} not found.')
+    editor.screen.minibar(f'file {filename!r} not found.')
+    return 'normal'
 
 
-del sa_commands, full_commands, atomic_commands, with_args_commands
+@atomic_commands(':HELP')
+def dump_help(editor, reg=None, arg=None, part=None, count=1):
+    """
+    Dumps help text of all recognized commands of the standard modes to a 
+    new unnamed buffer.
+    """
+    editor.edit(None)
+    curbuf = editor.current_buffer
+    for k, v in globals().items():
+        curbuf.insert('\n##########\n')
+        curbuf.insert(v.__doc__)
+
+
+del sa_commands, full_commands, atomic_commands
+del with_args_commands, k

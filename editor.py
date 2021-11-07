@@ -9,11 +9,10 @@ from traceback import print_tb
 from bdb import BdbQuit
 from functools import partial
 
-from .screen import Screen
-from .interface import Interface
-from .console import get_a_key
-from .filetypes import Open_path
-from .actions import __dict__ as action_dict
+from vy.screen import Screen
+from vy.interface import Interface
+from vy.console import get_a_key
+from vy.filetypes import Open_path
 
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
@@ -28,8 +27,9 @@ class _Cache():
     >> '../nono/test.txt' in x
     False
     """
-    _dic = dict()
-    _counter = 1
+    def __init__(self):
+        self._dic: dict = dict()
+        self._counter: int = 1
 
     def __getitem__(self, key):
         """This is the main api of this class.
@@ -53,7 +53,8 @@ class _Cache():
             self._counter +=1
             return buff
 
-        if (key := self._make_key(key)) in self._dic:
+        key = self._make_key(key)
+        if key in self._dic:
             return self._dic[key]
             
         self._dic[key] = Open_path(key)
@@ -61,8 +62,8 @@ class _Cache():
         rv.cache_id = key
         return rv
 
-    @staticmethod
-    def _make_key(key):
+#    @staticmethod
+    def _make_key(self, key):
         if isinstance(key, int):
             return key
         elif isinstance(key, str):
@@ -73,7 +74,7 @@ class _Cache():
 
     def __delitem__(self, key):
         """ Use this function to delete a buffer from cache. """
-        return self._dic.pop(self._make_key(key))
+        self._dic.pop(self._make_key(key))
 
     def __repr__(self):
         return repr(self._dic)
@@ -96,8 +97,9 @@ class _Cache():
 ########## end of class _Cache ##########
 
 class _Register:
-    __slots__ = ()
-    dico = dict()
+    __slots__ = "dico"
+    def __init__(self):
+        self.dico = dict()
 
     def __str__(self):
         rv = str()
@@ -133,10 +135,12 @@ class _Register:
         elif key.islower():
             self.dico[key] = value
             self['"'] = self.dico[key]
-        elif key.isnumeric():
+        elif key.isnumeric() or key == '/':
             self.dico[key] = value
         elif key == '=':
-            self.dico[key] = eval(key)
+            self.dico[key] = eval(value)
+        elif key == '!':
+            self.dico[key] = exec(value)
 
 ########## end of class _Register ##########
 
@@ -145,75 +149,47 @@ class _BoundNameSpace:
         super().__setattr__("_instance", instance) 
 
     def __setattr__(self, key, value):
-        if callable(value) and not key.startswith('_'):
-            final = partial(value, self._instance)
-
-            final.n_alias = value.n_alias if value.n_alias else None
-            final.c_alias = value.c_alias if value.c_alias else None
-            final.v_alias = value.v_alias if value.v_alias else None
-            final.i_alias = value.i_alias if value.i_alias else None
-
-            final.__doc__ = value.__doc__ 
-            final.category = value.category 
-            super().__setattr__(key, final)
+        pass
+            
 
     def __repr__(self):
         return self.__dict__.__repr__()
+
+    def __iter__(self):
+        return iter(self.__dict__)
 
 ########## end of _BoundNameSpace ##########
 
 class _Actions:
     def __init__(self, instance):
-        self.insert             = dict()
-        self.insert_stand_alone = _BoundNameSpace(instance)
-        self.insert_full        = _BoundNameSpace(instance)
-        self.insert_motion      = _BoundNameSpace(instance)
-        self.insert_atomic      = _BoundNameSpace(instance)
-        self.insert_with_args   = _BoundNameSpace(instance)
-
-        self.command             = dict()
-        self.command_stand_alone = _BoundNameSpace(instance)
-        self.command_full        = _BoundNameSpace(instance)
-        self.command_motion      = _BoundNameSpace(instance)
-        self.command_atomic      = _BoundNameSpace(instance)
-        self.command_with_args   = _BoundNameSpace(instance)
-
-        self.visual             = dict()
-        self.visual_stand_alone = _BoundNameSpace(instance)
-        self.visual_full        = _BoundNameSpace(instance)
-        self.visual_motion      = _BoundNameSpace(instance)
-        self.visual_atomic      = _BoundNameSpace(instance)
-        self.visual_with_args   = _BoundNameSpace(instance)
-
-        self.normal             = dict()
-        self.normal_stand_alone = _BoundNameSpace(instance)
-        self.normal_full        = _BoundNameSpace(instance)
-        self.normal_motion      = _BoundNameSpace(instance)
-        self.normal_atomic      = _BoundNameSpace(instance)
-        self.normal_with_args   = _BoundNameSpace(instance)
-
-        bound_name_spaces = vars(self)
+        from vy.actions import __dict__ as action_dict
+        self.insert = dict()
+        self.command= dict()
+        self.visual = dict()
+        self.normal = dict()
 
         for name, action in action_dict.items():
-            obj = None
-            if name.startswith('_'):
-                continue
-            for subspace in bound_name_spaces:
-                if not hasattr(action, 'category'):
-                    break
-                if subspace in action.category:
-                    obj = getattr(self,subspace)
-                    setattr(obj, name, action)
-            if obj:
-                action = getattr(obj, name) 
+            if callable(action) and not name.startswith('_'):
+                final = partial(action, instance)
+
+                final.atomic = action.atomic
+                final.stand_alone = action.stand_alone
+                final.with_args = action.with_args
+                final.full = action.full
+                final.__doc__ = action.__doc__ 
+
                 if action.v_alias:
-                    for k in action.v_alias: self.visual[k]= action 
+                    for k in action.v_alias:
+                        self.visual[k]= final
                 if action.n_alias:
-                    for k in action.n_alias: self.normal[k]= action 
+                    for k in action.n_alias:
+                        self.normal[k]= final
                 if action.i_alias:
-                    for k in action.i_alias: self.insert[k]= action 
+                    for k in action.i_alias: 
+                        self.insert[k]= final
                 if action.c_alias:
-                    for k in action.c_alias: self.command[k]= action 
+                    for k in action.c_alias: 
+                        self.command[k]= final
                 
 ########## end of class _Actions ##########
 
@@ -226,14 +202,18 @@ class Editor:
     def __init__(self, *buffers, command_line=''):
         self.actions = _Actions(self)
         self.cache = _Cache()
-        self.register = _Register()
+        self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
         self.interface = Interface(self)
         self.command_line = command_line
-        self._macro_keys = ''
+        self._macro_keys = str()
         self._running = False
         self._work_stack = [self.cache[buff].path for buff in buffers]
+        self.command_list = list()
+        self.current_mode = ''
     
+# TODO make read_stdin recognize escape chars, or maybe use a list instead of
+# of a string ???
     def read_stdin(self):
         if self._macro_keys:
             rv = self._macro_keys[0]
@@ -244,7 +224,19 @@ class Editor:
     def push_macro(self, string):
         assert isinstance(string, str)
         self._macro_keys = f'{string}{self._macro_keys}'
-        
+    
+    def show_screen(self, renew=False, curbuf_queue=None):
+        assert self._running
+        screen = self.screen
+        screen.infobar('( Screen Rendering )')
+        try:
+            if screen.needs_redraw or renew:
+                screen.show(True)
+            else:
+                screen.show()
+        except RuntimeError:
+            raise 'Lexing is too Slow'
+        screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
     def warning(self, msg):
         """Displays a warning message to the user. This should be the main way to cast
@@ -258,7 +250,8 @@ class Editor:
             print('left to evaluate: {self._macro_keys}')
 
         self.screen.minibar(f"{msg}\r\n\tpress any key to continue (or ^c to debug...)")
-        if (key := get_a_key()) == '\x03':
+        key = get_a_key()
+        if key == '\x03':
             print("\nyou are now in debugger. use 'up' to go back to the origin of this erros")
             print("'cont' to resume")
             breakpoint()
@@ -268,7 +261,8 @@ class Editor:
         accordingly.
         """
         if self.screen:
-            return self.current_window.change_buffer(self.cache[location])
+            self.current_window.change_buffer(self.cache[location])
+            return
         self.screen = Screen(self.cache[location])
     
     @property
@@ -279,7 +273,7 @@ class Editor:
     def current_buffer(self):
         return self.current_window.buff
 
-    def __call__(self,buff=None):
+    def __call__(self,buff=None, mode='normal'):
         """Calling the editor launches the command loop interraction."""
         if self._running is True:
             self.warning("You cannot interract with the editor stacking call to the «Editor» instance.")
@@ -291,10 +285,11 @@ class Editor:
 
         self.screen.alternative_screen()
         self.screen.clear_screen()
-        mode = 'normal'
+        print('  Vy is starting. Please wait.')
         try:
             while True:
                 try:
+                    self.current_mode = mode if mode else self.current_mode
                     mode = self.interface(mode)
                 except BdbQuit:
                     mode = 'normal'
@@ -318,7 +313,8 @@ class Editor:
                     self.screen.alternative_screen()
                     mode = 'normal'
                     continue
+                except SystemExit:
+                    break
         finally:
             self._running = False
             self.screen.original_screen()
-

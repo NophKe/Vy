@@ -1,6 +1,7 @@
-from .textfile import TextFile
+ #from .textfile import TextFile
 
-class HugeFile(TextFile):
+#class HugeFile(TextFile):
+class HugeFile: #(TextFile):
     set_tab_size = 4
     def gen_window(buff, max_col, lin_shift, max_lin):
         lin, col = buff.cursor_lin_col

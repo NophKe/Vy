@@ -5,7 +5,6 @@ import rlcompleter
 class CommandModeCompleter:
     @staticmethod
     def completer(txt, state):
-
         from __main__ import Editor         # kinda hacky 
         dictionary = Editor.actions.command
 
@@ -29,7 +28,7 @@ class CommandModeCompleter:
                         'w ', 'w! ', 'write ', 'write! ')):
             readline.set_completer(None)
             rv = readline.get_completer(txt, state)
-            readline.set_completer(self.completer)
+#            readline.set_completer(self.completer)
             return rv
 
            
@@ -47,38 +46,51 @@ class CommandModeCompleter:
         readline.clear_history()
         readline.read_history_file(self.histfile)
         readline.parse_and_bind('tab: complete')
+        #readline.set_pre_input_hook(stdout_no_cr)
     
     def __exit__(self, *args, **kwargs):
         readline.write_history_file(self.histfile)
         readline.set_completer(self._old_complete)
+        #readline.set_pre_input_hook(None)
         
 def loop(self):
-    self.screen.minibar('')
-    self.screen.infobar('')
-    self.screen.bottom()
+    self.show_screen()
+    ARG = PART = REG = None
+    if self._macro_keys and '<CR>' in self._macro_keys:   #NEVER TESTED NOT USED
+        user_input, other_lines = self._macro_keys.split('<CR>')
+        self._macro_keys = other_lines
+    else:
+        macro_prefix = self._macro_keys or ''
+        self._macro_keys = ''
+        try:
+#            with stdin_no_echo_nl():
+                with CommandModeCompleter():
+                    user_input = macro_prefix + input(f':{macro_prefix}').strip()
+        except KeyboardInterrupt:
+            self.screen.minibar('')
+            return 'command'
+        except EOFError:
+            return 'normal'
 
-    with CommandModeCompleter():
-        if self._macro_keys and '<CR>' in self._macro_keys:
-            user_input, other_lines = self._macro_keys.split('<CR>')
-            self._macro_keys = other_lines
-        else:
-            macro_prefix = self._macro_keys or ''
-            self._macro_keys = ''
-            try:
-                user_input = macro_prefix + input(f':{macro_prefix}').strip()
-            except KeyboardInterrupt:
-                return 'command'
-            except EOFError:
-                return 'normal'
+    if not user_input:
+        return 'normal'
 
-        if user_input.isdigit():
-            self.current_buffer.move_cursor(f'#{user_input}')
+    if user_input.isdigit():
+        args = ''
+        self.current_buffer.move_cursor(f'#{user_input}')
+        self.command_list.append(f':{user_input}<CR>')
+        return 'normal'
 
-        if ' ' in user_input:
-            cmd, args = user_input.split(' ', maxsplit=1)
-            key = cmd
-        else:
-            key = user_input
-            args = ''
+    if ' ' in user_input:
+        cmd, ARG = user_input.split(' ', maxsplit=1)
+    else:
+        cmd = user_input.strip()
 
-        return self.actions.command.get(key, lambda x: 'normal')(args) or 'normal'
+    try:
+        action = self.actions.command[cmd]
+    except KeyError:
+        self.screen.minibar(f'unrecognized command: {cmd}')
+        return 'normal'
+    self.command_list.append(':{user_input}<CR>')
+    self.screen.infobar(f'( Processing Command: {user_input} )')
+    return action(arg=ARG, part=PART, reg=REG) or 'normal'

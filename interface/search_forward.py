@@ -32,6 +32,14 @@ def loop(editor):
             user_input = input('/')
         except (KeyboardInterrupt, EOFError):
             return 'normal'
+
+        if not user_input:
+            user_input = editor.register['/']
+        else:
+            editor.register['/'] = user_input
+        if not user_input:
+            return 'normal'
+
         offset = curbuf.string.find(user_input, curbuf.cursor)
         if offset == -1:
             editor.warning('chaine de caractere non trouvée. (recherche vers l\'avant)')

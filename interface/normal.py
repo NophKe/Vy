@@ -1,65 +1,95 @@
-from collections import ChainMap
+from vy.interface.helpers import one_inside_dict_starts_with
+from vy.console import stdin_no_echo
+from vy.keys import _escape
 
-from .helpers import one_inside_dict_starts_with, resolver, do
-from ..console import get_a_key, stdin_no_echo
+dictionary = dict()
+curbuf_hash = curbuf = motion_cmd = None
+valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
+                        'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                        '+-*/.:%#"=' )
 
 def loop(self):
-    curbuf = self.current_buffer
+    """ Normal mode event-loop function """
 
-    sa_cmd = curbuf.stand_alone_commands
-    full_cmd = curbuf.full_commands
-    motion_cmd = curbuf.motion_commands
-    dictionary =  ChainMap(sa_cmd, full_cmd, motion_cmd)
+    def update_globals():
+        """if the current buffer has changed, update the action dictionnary"""
+        global curbuf_hash, curbuf, dictionary, motion_cmd
+        if not curbuf or curbuf_hash != curbuf:
+            curbuf = self.current_buffer
+            motion_cmd = curbuf.motion_commands
+            dictionary.update(motion_cmd)
+            dictionary.update(self.actions.normal)
 
-    valid_registers = ( 'abcdefghijklmnopqrstuvwxyz'
-                      + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                      + '+-*/.:%#"' )
     def get_char():
-        self.screen.minibar(f' -- NORMAL -- REG={REG} {COUNT=} {CMD=} {RANGE=} {MOTION_COUNT=}')
-        return self.read_stdin() #get_a_key()
-
+        """Updates mini-bar before reading a new key-strike"""
+        texte                   = ''
+        if REG                  : texte += ' Register: ' + REG + ' '
+        if COUNT and COUNT != 1 : texte += ' Count: ' + str(COUNT) + ' '
+        if CMD                  : texte += ' Command: ' + CMD + ' '
+        if MOTION_COUNT         : texte += ' Motion count: ' + str(MOTION_COUNT) + ' '
+        if RANGE                : texte += ' Motion: ' + RANGE + ' '
+        if key                  : texte += ' (not fully evaluated: ' + _escape(key) + ' )'
+        if texte: self.screen.minibar(texte)
+        return self.read_stdin()
     with stdin_no_echo():
         while True:
-            self.screen.show(True)
-            REG = '"'
-            COUNT = CMD = RANGE = MOTION_COUNT = ''
+            update_globals()
+            self.show_screen(True)
 
+            key = REG = CMD = RANGE = MOTION_COUNT = ''
+            COUNT = ''
             key = get_char()
-            
+            self.show_screen(True)
+
+
             if key == '"':
                 REG = get_char()
-                if REG not in valid_registers: continue
+                if REG not in valid_registers:
+                    self.screen.minibar(f'Invalid register: {_escape(REG)}')
+                    continue
                 key = get_char()
-            
+
             if key.isdigit():
                 COUNT += key
-                while (key := get_char()).isdigit(): COUNT += key
+                while (key := get_char()) in '0123456789':
+                    COUNT += key
             COUNT = int(COUNT) if COUNT else 1
 
             while one_inside_dict_starts_with(dictionary, key):
-                if key in dictionary: break
-                else: key += get_char()
-            else: continue
-
-            if key in sa_cmd: 
-                #show.kill()
-                self.screen.infobar(f'processing command( {repr(key)} )')
-                rv = resolver(sa_cmd, key)(self, REG)
-                return rv
-
-            elif key in motion_cmd:
-                #show.kill()
-                self.screen.infobar(f'processing command( {repr(key)} )')
-                func = resolver(motion_cmd, key)
-                target = func(curbuf)
-                if isinstance(target, slice):
-                    continue
-                curbuf.cursor = target
-                for _ in range(COUNT - 1):
-                    curbuf.cursor = (func(curbuf))
+                if key in dictionary:
+                    break
+                else:
+                    key += get_char()
+            else:
+                self.screen.minibar(f'Invalid command: {_escape(key)}')
                 continue
 
-            elif key in full_cmd:
+            action = dictionary[key]
+            
+            if key in motion_cmd:
+                self.screen.infobar(f'processing command( {_escape(key)} )')
+                self.screen.minibar(f'')
+                for _ in range(COUNT):
+                    curbuf.move_cursor(key)
+                continue
+
+            if action.atomic:
+                self.screen.infobar(f'processing command( {repr(key)} )')
+                self.screen.minibar(f'')
+                rv = action()
+                if rv and rv != 'normal':
+                    return rv
+                continue
+
+            elif action.stand_alone:
+                self.screen.infobar(f'processing command( {repr(key)} )')
+                self.screen.minibar(f'')
+                rv = action(reg=REG if REG else '"', count=COUNT)
+                if rv and rv != 'normal':
+                    return rv
+                continue
+
+            elif action.full:
                 CMD = key
                 key = get_char()
 
@@ -69,35 +99,36 @@ def loop(self):
                 MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
 
                 if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
-                    self.screen.infobar(f'processing command( {key} )')
                     COUNT = COUNT * MOTION_COUNT
-                    COMMAND = resolver(full_cmd, CMD)
+                    self.screen.infobar(f'( Processing Command: {_escape(CMD)} on {COUNT} lines )')
+                    self.screen.minibar(f'')
                     RANGE = curbuf._get_range(f'#.:#+{COUNT}')
-                    return COMMAND(self, RANGE, REG)
+                    rv = action(reg=REG if REG else '"', part=RANGE)
+                    if rv and rv != 'normal':
+                        return rv
+                    continue
 
                 while one_inside_dict_starts_with(motion_cmd, key):
-                    if key in motion_cmd: 
-                        break
-                    else: 
-                        key += get_char()
-                else: 
-                    return 'normal'
+                    if key in motion_cmd: break
+                    else: key += get_char()
+                else:
+                    self.screen.minibar(f'Invalid motion: {_escape(key)}')
+                    continue
+                func = motion_cmd[key]
+                RANGE = func()
+                COUNT = COUNT * MOTION_COUNT
 
-                self.screen.infobar(f'processing command( {key} )')
-                func = resolver(motion_cmd,key)
-                RANGE = func(curbuf)
-                
-                if isinstance(RANGE, slice):
+                self.screen.infobar(f'( Processing Command: {_escape(CMD)}{COUNT}{_escape(key)} )')
+                self.screen.minibar(f'')
+
+                if isinstance(RANGE, slice): # correct! discard COUNT in case of slice
                     old_pos, new_pos = RANGE.start, RANGE.stop
                 else:
-                    old_pos = curbuf.tell()
-                    for _ in range(COUNT * MOTION_COUNT):
-                        curbuf.seek(func(curbuf))
-                    new_pos = curbuf.tell()
-                
-                if old_pos > new_pos:
-                    old_pos, new_pos = new_pos, old_pos
-                RANGE = slice(old_pos, new_pos)
+                    old_pos = curbuf.cursor
+                    for _ in range(COUNT):
+                        curbuf.cursor = func()
+                    new_pos = curbuf.cursor
 
-                return resolver(full_cmd, CMD)(self, RANGE, REG)
+                RANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
+                return action(reg=REG if REG else '"', part=RANGE)

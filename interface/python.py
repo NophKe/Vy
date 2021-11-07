@@ -6,8 +6,8 @@ from code import InteractiveConsole
 name_space = None
 
 class Console(InteractiveConsole):
-    def __init__(self, locals=None, filename="<console>", screen=None):
-        self.screen = screen
+    def __init__(self, locals=None, filename="<console>", editor=None):
+        self.editor = editor
         self.histfile=Path("~/.vym/python_history").expanduser()
         if not self.histfile.exists():
             self.histfile.touch()
@@ -26,14 +26,14 @@ class Console(InteractiveConsole):
     def push(self, line):
         rv = super().push(line)
         if not rv:
-            self.screen.show(True)
-            self.screen.infobar()
+            self.editor.show_screen(True)
+            #self.screen.infobar()
         return rv
 
 def loop(editor):
-    def new_exit():
-        console.resetbuffer()
-        raise SystemExit
+#   def new_exit():
+#       console.resetbuffer()
+#       raise SystemExit
 
     global name_space
     if name_space is None:
@@ -43,12 +43,19 @@ def loop(editor):
         print()
         print('\tBuffer correctly evaluated.')
         print()
-    name_space['exit'] = new_exit
     readline.set_completer(Completer(name_space).complete)
 #
-    console = Console(locals= name_space, screen=editor.screen)
+    console = Console(locals= name_space, editor=editor)
+
+#   def new_exit(console):
+#       console.resetbuffer()
+#       raise SystemExit
+
+#   name_space['exit'] = lambda: new_exit(console)
+    
     old_screen_minibar_ = editor.screen._minibar_flag
     editor.screen._minibar_flag = editor.screen.number_of_lin // 2
+    editor.screen.minibar('')
 
     try:
         console.interact()

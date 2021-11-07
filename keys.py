@@ -73,6 +73,40 @@ backspace = '\x08'
 #Alt + function key
 A_f4 = '\x1b\x5b\x31\x3b\x33\x53'
 
+
+_reprs = {key: value for (value, key) in vars().items()
+                if isinstance(key, str) 
+                if not value.startswith('_')}
+#
+def _escape(text):
+    """
+    Returns a string with escaped version of non-printable chars
+    in a vim fashion (like <CR> for NewLine and <C_W> for [Ctrl+W]
+    """
+    final = ''
+    evaluing = ''
+    char = ''
+    for char in  text:
+        if evaluing:
+            if any( [item.startswith(evaluing + char) for item in _reprs]):
+                evaluing += char
+                continue
+            final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+            if char.isprintable():
+                evaluing = ''
+                final += char.replace('_','-')
+                continue
+            evaluing = char
+            continue
+        if any( [item.startswith(char) for item in _reprs]): 
+            evaluing += char
+            continue
+        final += char
+    if evaluing:
+        final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+    return final
+    
+
 if __name__ == '__main__':
     from console import get_a_key
     file_out = input('write to a file? give it a name or just type [enter] : ')
