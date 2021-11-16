@@ -1,16 +1,10 @@
 all: top_level filetypes_module interface_module
 
-filetypes_module: filetypes/textfile.so filetypes/__init__.so
+filetypes_module: filetypes/basefile.so filetypes/textfile.so filetypes/__init__.so
 top_level: actions.so keys.so global_config.so editor.so screen.so console.so 
 interface_module: top_level interface/__init__.so interface/insert.so interface/command.so interface/python.so
 
-#__main__.bin
-#__main__.bin: editor.so global_config.so
-#	cython --embed='main' -3 -w . -I /usr/include/python3.9/Python.h __main__.py
-#	gcc -fPIC -I/usr/include/python3.9 -I/usr/include/python3.9 -I/usr/include/python3.9 -I/usr/include/python3.9 -Wno-unused-result -Wsign-compare -march=native -mtune=native -O3 -pipe -fno-plt -fno-semantic-interposition -DNDEBUG -g -fwrapv -O3 -Wall -L/usr/lib -lcrypt -lpthread -ldl -lutil -lm -lm __main__.c -o __main__.bin
 
-#interface/__init__.so: editor.so
-#interface/insert.so: editor.so
 action.so: editor.so
 editor.so: screen.so console.so
 screen.so: filetypes/textfile.so

@@ -16,7 +16,7 @@ cdef class _Actions:
 cdef class _Register:
     cdef dico
 
-cdef class Editor:
+cdef class _Editor:
     cdef:
         #dict __dict__
         public _Cache cache
@@ -34,6 +34,6 @@ cdef class Editor:
     cpdef str read_stdin(self)
     cpdef void edit(self, buff)
     cpdef void push_macro(self,str string)
-    cpdef warning(self,str msg)
+    cpdef void warning(self,str msg)
     cpdef void edit(self, location)
     #cpdef show_screen(self, bint renew=*)

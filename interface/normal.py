@@ -1,9 +1,11 @@
+from multiprocessing import Process
+from threading import Thread
 from vy.interface.helpers import one_inside_dict_starts_with
 from vy.console import stdin_no_echo
 from vy.keys import _escape
 
 dictionary = dict()
-curbuf_hash = curbuf = motion_cmd = None
+curbuf_hash = curbuf = motion_cmd = local_actions = None
 valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
                         'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                         '+-*/.:%#"=' )
@@ -13,12 +15,15 @@ def loop(self):
 
     def update_globals():
         """if the current buffer has changed, update the action dictionnary"""
-        global curbuf_hash, curbuf, dictionary, motion_cmd
+        global curbuf_hash, curbuf, dictionary, motion_cmd, local_actions
         if not curbuf or curbuf_hash != curbuf:
             curbuf = self.current_buffer
             motion_cmd = curbuf.motion_commands
-            dictionary.update(motion_cmd)
+            local_actions = curbuf.actions 
+
             dictionary.update(self.actions.normal)
+            dictionary.update(motion_cmd)
+            dictionary.update(local_actions)
 
     def get_char():
         """Updates mini-bar before reading a new key-strike"""
@@ -31,16 +36,27 @@ def loop(self):
         if key                  : texte += ' (not fully evaluated: ' + _escape(key) + ' )'
         if texte: self.screen.minibar(texte)
         return self.read_stdin()
+
+    def screen():
+        while True:
+            Editor.show_screen()
+        if screen is None:
+            screen = Thread(target=self.show)
+
+    show = lambda : None
+    show.join = lambda x: None
     with stdin_no_echo():
         while True:
             update_globals()
-            self.show_screen(True)
+            new_show = Thread(target=self.show_screen, args=(True,), daemon=True)
+            new_show.start()
+            show.join(0.05)
+            show = new_show
 
             key = REG = CMD = RANGE = MOTION_COUNT = ''
             COUNT = ''
+            #self.show_screen(True)
             key = get_char()
-            self.show_screen(True)
-
 
             if key == '"':
                 REG = get_char()
@@ -66,6 +82,9 @@ def loop(self):
 
             action = dictionary[key]
             
+            if key in local_actions:
+                return action(self)
+
             if key in motion_cmd:
                 self.screen.infobar(f'processing command( {_escape(key)} )')
                 self.screen.minibar(f'')
@@ -131,4 +150,7 @@ def loop(self):
 
                 RANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
-                return action(reg=REG if REG else '"', part=RANGE)
+                rv = action(reg=REG if REG else '"', part=RANGE)
+                if rv and rv != 'normal':
+                    return rv
+                continue

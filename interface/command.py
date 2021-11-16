@@ -1,13 +1,10 @@
-from pathlib import Path
-import readline
-import rlcompleter
+from vy.interface.helpers import CommandCompleter
 
-class CommandModeCompleter:
-    @staticmethod
-    def completer(txt, state):
+class CommandModeCompleter(CommandCompleter):
+    def completer(self, txt, state):
+        import readline
         from __main__ import Editor         # kinda hacky 
         dictionary = Editor.actions.command
-
         readline.redisplay()
         line = readline.get_line_buffer()
 
@@ -24,35 +21,14 @@ class CommandModeCompleter:
         if line in dictionary:
             readline.insert_text(' ')
 
-        if line.startswith( ('r ', 'e ', 'edit ', 'vsplit ', 
-                        'w ', 'w! ', 'write ', 'write! ')):
+        if line.startswith( ('r ', 'e ', 'edit ', 'vsplit ', 'w ', 'w! ', 'write ', 'write! ')):
+            self_completer = readline.get_completer()
             readline.set_completer(None)
             rv = readline.get_completer(txt, state)
+            readline.set_completer(self_completer)
 #            readline.set_completer(self.completer)
             return rv
 
-           
-    def __enter__(self):
-        self.histfile = Path("~/.vym/command_history").expanduser()
-        if not self.histfile.exists():
-            self.histfile.touch()
-
-        self._old_complete = readline.get_completer() 
-
-        readline.set_completer(self.completer)
-        readline.set_completer_delims(' \t')
-
-        readline.set_history_length(1000)
-        readline.clear_history()
-        readline.read_history_file(self.histfile)
-        readline.parse_and_bind('tab: complete')
-        #readline.set_pre_input_hook(stdout_no_cr)
-    
-    def __exit__(self, *args, **kwargs):
-        readline.write_history_file(self.histfile)
-        readline.set_completer(self._old_complete)
-        #readline.set_pre_input_hook(None)
-        
 def loop(self):
     self.show_screen()
     ARG = PART = REG = None
@@ -63,9 +39,8 @@ def loop(self):
         macro_prefix = self._macro_keys or ''
         self._macro_keys = ''
         try:
-#            with stdin_no_echo_nl():
-                with CommandModeCompleter():
-                    user_input = macro_prefix + input(f':{macro_prefix}').strip()
+            with CommandModeCompleter("~/.vym/command_history"):
+                user_input = macro_prefix + input(f':{macro_prefix}').strip()
         except KeyboardInterrupt:
             self.screen.minibar('')
             return 'command'
@@ -91,6 +66,6 @@ def loop(self):
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
-    self.command_list.append(':{user_input}<CR>')
+    self.command_list.append('{user_input}<CR>')
     self.screen.infobar(f'( Processing Command: {user_input} )')
     return action(arg=ARG, part=PART, reg=REG) or 'normal'

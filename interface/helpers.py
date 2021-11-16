@@ -1,3 +1,30 @@
+from pathlib import Path
+import readline
+import rlcompleter
+
+class CommandCompleter:
+    def completer(self, txt, state):
+        return ''
+    def __init__(self, file):
+        histfile = Path(file).expanduser()
+        restric = set(histfile.read_text().splitlines(True))
+        histfile.write_text(''.join(restric))
+        self.histfile = histfile
+    def __enter__(self):
+        self._old_complete = readline.get_completer() 
+        readline.set_completer(lambda txt,state: self.completer(txt, state))
+        readline.set_completer_delims(' \t')
+        readline.set_history_length(1000)
+        readline.clear_history()
+        readline.read_history_file(self.histfile)
+        readline.parse_and_bind('tab: complete')
+        #readline.set_pre_input_hook(stdout_no_cr)
+    def __exit__(self, *args, **kwargs):
+        readline.write_history_file(self.histfile)
+        readline.set_completer(self._old_complete)
+        #readline.set_pre_input_hook(None)
+
+
 def do(*arg_list, mode=None):
     doc = 'This command is does the following actions:\n'
     for arg_item in arg_list:

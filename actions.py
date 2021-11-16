@@ -12,6 +12,16 @@ from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
 from vy import keys as k
 
+@atomic_commands(':pwd :pw :pwd-verbose')
+def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
+    from pathlib import Path
+    editor.screen.minibar(str(Path('.').resolve()))
+
+@atomic_commands('I')
+def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
+    editor.current_buffer.move_cursor('#.')
+    return 'insert'
+
 @sa_commands('J')
 def join_lines(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -514,7 +524,6 @@ def do_save_current_buffer_and_try_leave_window(editor, reg=None, part=None, arg
 def do_force_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
     """
     Leaves the current window, discarding its buffer, even if it has not been saved.
-    If
     """
     curwin = editor.current_window
     del editor.cache[curwin.buff.cache_id]
@@ -530,7 +539,8 @@ def do_force_leave_current_window(editor, reg=None, part=None, arg=None, count=1
 @atomic_commands(f':q :quit {k.C_W}{k.C_Q} {k.C_W}q')
 def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
     """
-    TODO
+    Leaves the current window. If this is the only window on screen, tries
+    exiting the editor ( unless unsaved buffrs )
     """
     curwin = editor.current_window
     if curwin is editor.screen:
@@ -771,6 +781,8 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to next occurrence of last searched text.
     """
+    # This code is sadly a duplicate of vy.interface.search_*
+    # TODO find a place to merge it all
     needle = editor.registr['/']
 
     if not needle:
@@ -907,13 +919,13 @@ def do_help(editor, reg=None, part=None, arg=None, count=1):
         return 'normal'
     try:
         if arg.startswith(':'):
-            arg = editor.actions.command[arg[1:]]
+            arg = editor.actions.command[arg[1:]].func
         elif arg.startswith('i_'):
-            arg = editor.actions.insert[arg[2:]]
+            arg = editor.actions.insert[arg[2:]].func
         elif arg.startswith('v_'):
-            arg = editor.actions.visual[arg[2:]]
+            arg = editor.actions.visual[arg[2:]].func
         else:
-            arg = editor.actions.normal[arg]
+            arg = editor.actions.normal[arg].func
     except KeyError:
         editor.warning(f'{arg} not found in help.')
         return 'normal'
@@ -936,7 +948,8 @@ def do_paste(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands('i_\t')
 def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     """
-    TODO
+    Inserts the necessery number of spaces to reach next level of indentation
+
     """
     curbuf = editor.current_buffer
     curbuf.insert('\t')

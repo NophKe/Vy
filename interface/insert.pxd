@@ -1,3 +1,3 @@
-from vy.editor cimport Editor
+from vy.editor cimport _Editor
 
-cpdef loop(Editor self)
+cpdef loop(_Editor self)

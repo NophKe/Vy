@@ -3,18 +3,29 @@ import readline
 from pathlib import Path
 from code import InteractiveConsole
 
+
+
 name_space = None
 
 class Console(InteractiveConsole):
     def __init__(self, locals=None, filename="<console>", editor=None):
         self.editor = editor
-        self.histfile=Path("~/.vym/python_history").expanduser()
+        self.histfile = Path("~/.vym/python_history").expanduser()
+        #self.session = Path("~/.vym/python_history").expanduser()
+        #if not self.session.exists():
+            #self.session.touch()
         if not self.histfile.exists():
             self.histfile.touch()
         InteractiveConsole.__init__(self, locals, filename)
         readline.parse_and_bind("tab: complete")
         readline.clear_history()
         readline.read_history_file(self.histfile)
+    
+    #def raw_input(self, prompt):
+        #rv = input(prompt)
+        #self.session.write_line(rv)
+        #return rv
+
 
     def save_history(self):
         try:

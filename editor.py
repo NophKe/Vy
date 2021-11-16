@@ -193,7 +193,7 @@ class _Actions:
                 
 ########## end of class _Actions ##########
 
-class Editor:
+class _Editor:
     """ This class is the data structure representing the state of the Vym editor.
     The editor class sould not need to be instanciated more than once.
     It is design to be self contained: if you want your code to interract with
@@ -235,7 +235,7 @@ class Editor:
             else:
                 screen.show()
         except RuntimeError:
-            raise 'Lexing is too Slow'
+            raise RuntimeError('Lexing is too Slow')
         screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
     def warning(self, msg):
@@ -255,10 +255,11 @@ class Editor:
             print("\nyou are now in debugger. use 'up' to go back to the origin of this erros")
             print("'cont' to resume")
             breakpoint()
+        self.screen.minibar('')
 
     def edit(self, location):
-        """Changes the current buffer to edit location and set the interface
-        accordingly.
+        """
+        Changes the current buffer to edit location and set the interface accordingly.
         """
         if self.screen:
             self.current_window.change_buffer(self.cache[location])
@@ -270,14 +271,19 @@ class Editor:
         return self.screen.focused
 
     @property
-    def current_buffer(self):
+    def current_buffer(self): 
         return self.current_window.buff
 
     def __call__(self,buff=None, mode='normal'):
-        """Calling the editor launches the command loop interraction."""
+        """
+        Calling the editor launches the command loop interraction.
+
+        If the editor is allready running it is equivalent to Editor.edit(filename)
+        (Changes the current buffer and current window to edit location)
+
+        """
         if self._running is True:
-            self.warning("You cannot interract with the editor stacking call to the «Editor» instance.")
-            return
+            return self.edit(buff)
         self._running = True
         self.edit(buff if buff 
                     else self._work_stack.pop(0) if self._work_stack 

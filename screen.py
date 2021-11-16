@@ -3,6 +3,9 @@ from os import get_terminal_size
 from sys import stdout
 
 from vy.global_config import DONT_USE_PYGMENTS_LIB 
+
+MAGIC_VALUE = 100
+
 try:
     if DONT_USE_PYGMENTS_LIB:
         raise ImportError
@@ -87,7 +90,7 @@ def get_rows_needed(number):
 
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     number = f'{on_lin:{get_rows_needed(on_lin)}}: '
-    line =  f'\x1b[00;90;40m{number}\x1b[0m'
+    line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
 
     retval: list = list()
     on_col: int = len(number)
@@ -109,9 +112,9 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
             continue
 
         if on_col ==  max_col:
-            line += '\x1b[0m'
+            line += '\x1b[39;49m'
             retval.append(line)
-            line = '\x1b[90;40m' + ' ' * len(number)+ '\x1b[0m'
+            line = '\x1b[90;40m' + ' ' * len(number)+ '\x1b[39;49m'
             cursor_col  = cursor_col - (max_col - len(number))
             on_col = len(number)
             esc_flag = False
@@ -136,7 +139,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
 
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     retval: list = list()
-    line: str = '\x1b[0m'
+    line: str = '\x1b[39;49m'
     on_col: int = 1
     cursor_col += on_col - 1
     esc_flag: bool = False
@@ -156,9 +159,9 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             continue
 
         if on_col ==  max_col:
-            line += '\x1b[0m'
+            line += '\x1b[39;49m'
             retval.append(line)
-            line = '\x1b[0m'
+            line = '\x1b[39;49m'
             cursor_col  = cursor_col - max_col + 1
             on_col = 1
             esc_flag = False
@@ -340,6 +343,17 @@ class Window():
                 for on_lin in range(min_lin, max_lin):
                     index, pretty_line = self.buff.get_lexed_line(on_lin)
                     assert index == on_lin
+        #           for trying in range(MAGIC_VALUE):  #
+        #               index, pretty_line = self.buff.get_lexed_line(on_lin)
+        #               if index == on_lin:
+        #                   break
+        #           else:
+        #               Screen.original_screen()
+        #               print('You are probably editing a file that is too big for Vy')
+        #               print('Or your computer lacks of power to fully use this soft')
+        #               print('This has to be corrected in next version')
+        #               input('   HIT [RETURN]')
+        #               raise
                     if number:
                         to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
                     else:
@@ -364,7 +378,7 @@ class Screen(Window):
         self.parent = self
         self.shift_to_lin = 0
         self.shift_to_col = 0
-        self._old_screen = [None for _ in range(200)]
+        self._old_screen = [None for _ in range(MAGIC_VALUE)]
         self._old_term_size = (0, 0)
 
     def vsplit(self):
@@ -374,6 +388,7 @@ class Screen(Window):
             super().vsplit().set_focus()
                 
     def show(self, renew=False):
+        self.hide_cursor()
         curwin = self.focused
         lin, col = curwin.buff.cursor_lin_col
         if lin < curwin.shift_to_lin:
@@ -385,10 +400,12 @@ class Screen(Window):
         for line, index in zip(self.gen_window(), range(1, self.number_of_lin + 1)):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
-                self.clear_line()
+                #self.clear_line()
                 stdout.write(line)
                 self._old_screen[index] = line
         self.bottom()
+        #self.show_cursor()
+        self.show_cursor()
         stdout.flush()
 
     def recenter(self):
@@ -430,6 +447,15 @@ class Screen(Window):
         self.bottom()
 
     @staticmethod
+    def hide_cursor():
+        stdout.write('\x1b[25l')
+
+    @staticmethod
+    def show_cursor():
+        stdout.write('\x1b[25h')
+
+
+    @staticmethod
     def insert(text):
 #        stdout.write(f'\x1b[@{text}')
         stdout.write(f'\x1b[@\x1b[7m{text}\x1b[27m')
@@ -463,6 +489,7 @@ class Screen(Window):
     @staticmethod
     def go_line(number):
         stdout.write(f'\x1b[{number};1H')
+
     @staticmethod
     def underline():
         stdout.write('\x1b[4m')

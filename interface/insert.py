@@ -14,18 +14,20 @@ def loop(self):
     first = True
     show = lambda : None
     show.kill = show
+    show.join = lambda x: None
     with stdin_no_echo():
         while True:
 #           queue = curbuf._lexer_queue if not curbuf._lexed_lines else None
-            new_show = Process(target=self.show_screen, args=(True,))
+            new_show = Thread(target=self.show_screen, args=(True,), daemon=True)
             new_show.start()
-            show.kill()
+            show.join(0.01)
+            #show.kill()
             show = new_show
             user_input = self.read_stdin()
 
             if user_input in '²\x1b':
                 curbuf.set_undo_point()
-                show.join()
+                #show.join()
                 return 'normal'
 
             if user_input == '\r':

@@ -1,45 +1,29 @@
-import readline
-from pathlib import Path
-
-class CommandModeCompleter:
-    def __enter__(self):
-        self.histfile = Path("~/.vym/search_backward_history").expanduser()
-        if not self.histfile.exists():
-            self.histfile.touch()
-        self._old_complete = readline.get_completer() 
-
-        readline.set_completer(lambda txt, state: None)
-        readline.clear_history()
-        readline.set_history_length(1000)
-        readline.read_history_file(self.histfile)
-        readline.parse_and_bind('tab: complete')
-    
-    def __exit__(self, *args, **kwargs):
-        readline.write_history_file(self.histfile)
-        readline.set_completer(self._old_complete)
+from .helpers import CommandCompleter
 
 def loop(editor):
     curbuf = editor.current_buffer
-
     editor.screen.minibar('')
     editor.screen.bottom()
-    with CommandModeCompleter():
-        try:
-            user_input = input('?')
-        except (KeyboardInterrupt, EOFError):
-            return 'normal'
-
-        if not user_input:
-            user_input = editor.register['/']
-        else:
-            editor.register['/'] = user_input
-        if not user_input:
-            return 'normal'
-
-        offset = curbuf.string.find(user_input, 0, curbuf.cursor)
-        if offset == -1:
-            editor.warning("chaine de caractere non trouvée. (recherche vers l'arrière.")
-            return 'normal'
-        curbuf.cursor = offset
+    try:
+        with CommandCompleter("~/.vym/search_backward_history"):
+            needle = input('?')
+    except (KeyboardInterrupt, EOFError):
         return 'normal'
 
+    if not needle:
+        needle = editor.registr['/']
+    else:
+        editor.registr['/'] = needle
+    if not needle:
+        return 'normal'
+    offset = curbuf._string.find(needle, curbuf.cursor+1)
+    if offset == -1:
+        editor.screen.minibar('String not found: back to the top.')
+        offset = curbuf._string.find(needle)
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+            return 'normal'
+        curbuf.cursor = offset
+    else:
+        curbuf.cursor = offset + 1
+        return 'normal'
