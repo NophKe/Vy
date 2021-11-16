@@ -1,8 +1,5 @@
 from .helpers import CommandCompleter
 
-
-        self.histfile = Path("~/.vym/search_forward_history").expanduser()
-
 def make_word_list(string):
     from re import split
     return set(split(r'[ :,()\[\]]|$', string))
@@ -12,7 +9,7 @@ def loop(editor):
 
     editor.screen.minibar('')
     editor.screen.bottom()
-    with CommandModeCompleter():
+    with CommandCompleter('search_forward_history'):
         try:
             user_input = input('/')
         except (KeyboardInterrupt, EOFError):

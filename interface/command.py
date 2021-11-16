@@ -39,7 +39,7 @@ def loop(self):
         macro_prefix = self._macro_keys or ''
         self._macro_keys = ''
         try:
-            with CommandModeCompleter("~/.vym/command_history"):
+            with CommandModeCompleter("command_history"):
                 user_input = macro_prefix + input(f':{macro_prefix}').strip()
         except KeyboardInterrupt:
             self.screen.minibar('')

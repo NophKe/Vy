@@ -5,7 +5,7 @@ def loop(editor):
     editor.screen.minibar('')
     editor.screen.bottom()
     try:
-        with CommandCompleter("~/.vym/search_backward_history"):
+        with CommandCompleter("search_backward_history"):
             needle = input('?')
     except (KeyboardInterrupt, EOFError):
         return 'normal'

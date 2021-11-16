@@ -1,12 +1,15 @@
 from pathlib import Path
 import readline
 import rlcompleter
+from ..global_config import USER_DIR
 
 class CommandCompleter:
     def completer(self, txt, state):
         return ''
     def __init__(self, file):
-        histfile = Path(file).expanduser()
+        histfile = USER_DIR / file
+        if not histfile.exists():
+            histfile.touch()
         restric = set(histfile.read_text().splitlines(True))
         histfile.write_text(''.join(restric))
         self.histfile = histfile
