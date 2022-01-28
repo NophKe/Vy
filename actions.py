@@ -942,7 +942,7 @@ def do_paste(editor, reg=None, part=None, arg=None, count=1):
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    editor.current_buffer.insert(editor.registr[reg]),
+    editor.current_buffer.insert(editor.registr[reg])
 
 
 @atomic_commands('i_\t')

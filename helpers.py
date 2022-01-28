@@ -52,13 +52,13 @@ class command:
 v_sa_header = """
     This command is part of visual mode «stand-alone commands» commands.
 
-    [SYNTAX]    needs definition %s 
+    [SYNTAX]    MAY BE LATER DEFINED %s 
     aliases: %s
     -------------------------------------------------------------------- """
 i_sa_header = """
     This command is part of insert mode «stand-alone commands» commands.
 
-    [SYNTAX]    needs definition %s 
+    [SYNTAX]    MAY BE LATER DEFINED %s 
     aliases: %s
     -------------------------------------------------------------------- """
 c_sa_header = """
@@ -79,13 +79,13 @@ sa_commands = command(c_sa_header, n_sa_header, v_sa_header, i_sa_header, "stand
 v_full_header = """
     This command is part of visual mode «full» commands.
 
-    [SYNTAX]    needs definition %s 
+    [SYNTAX]    MAY BE LATER DEFINED %s 
     aliases: %s
     -------------------------------------------------------------------- """
 i_full_header = """
     This command is part of insert mode «full» commands.
 
-    [SYNTAX]    needs definition %s
+    [SYNTAX]    MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 c_full_header = """
@@ -133,13 +133,13 @@ atomic_commands = command(c_atomic_header, n_sa_header, v_sa_header, i_sa_header
 v_with_args_header = """
     This command is part of visual mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 i_with_args_header = """
     This command is part of insert mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 c_with_args_header = """
@@ -151,7 +151,7 @@ c_with_args_header = """
 n_with_args_header = """
     This command is part of normal mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 with_args_commands = command(c_with_args_header, n_with_args_header, v_with_args_header, i_with_args_header, "with_args")
@@ -160,13 +160,13 @@ with_args_commands = command(c_with_args_header, n_with_args_header, v_with_args
 v_with_args_header = """
     This command is part of visual mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 i_with_args_header = """
     This command is part of insert mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 c_with_args_header = """
@@ -178,7 +178,7 @@ c_with_args_header = """
 n_with_args_header = """
     This command is part of normal mode «with args» commands.
 
-    [SYNTAX]      needs definition %s
+    [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
 with_args_commands = command(c_with_args_header, n_with_args_header, v_with_args_header, i_with_args_header, "with_args")

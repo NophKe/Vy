@@ -2,10 +2,6 @@ from .. import keys as k
 from pathlib import Path
 from .basefile import BaseFile
 
-eader = ( '#' * 1000 + '\n'
-           + " Vy internal File Browser \n" 
-           + '#' * 500 + '\n')
-
 def DO_open_file(editor):
     file = editor.current_buffer.value[editor.current_buffer.cursor_line]
     try:
@@ -21,12 +17,10 @@ class Folder(BaseFile):
     actions = {'\r':    DO_open_file}
     unsaved = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        value = [self.path.resolve(), (self.path/'..').resolve()]
-        value.extend(sorted(x for x in self.path.iterdir() if not x.name.startswith('.') ))
-        self.value = value
-
+    @property
+    def _value(self):
+        return [self.path.resolve(), (self.path/'..').resolve() ].extend(
+                    sorted(x for x in self.path.iterdir() if not x.name.startswith('.') ))
     @property
     def _string(self):
         return '\n'.join(str(line) for line in self.value)

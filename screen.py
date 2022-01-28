@@ -193,7 +193,6 @@ class Window():
         self._v_split_flag: bool = False
         self.v_split_shift: int = 0
         self._focused: Window = self 
-        self._true_lines: int = 0
 
     def set_focus(self):
         if self.parent is self:
@@ -343,17 +342,6 @@ class Window():
                 for on_lin in range(min_lin, max_lin):
                     index, pretty_line = self.buff.get_lexed_line(on_lin)
                     assert index == on_lin
-        #           for trying in range(MAGIC_VALUE):  #
-        #               index, pretty_line = self.buff.get_lexed_line(on_lin)
-        #               if index == on_lin:
-        #                   break
-        #           else:
-        #               Screen.original_screen()
-        #               print('You are probably editing a file that is too big for Vy')
-        #               print('Or your computer lacks of power to fully use this soft')
-        #               print('This has to be corrected in next version')
-        #               input('   HIT [RETURN]')
-        #               raise
                     if number:
                         to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
                     else:
@@ -369,7 +357,6 @@ class Window():
 
 class Screen(Window):
     def __init__(self, buff):
-        self._true_lines = 0
         self._minibar_flag = 2
         self.buff = buff
         self._v_split_flag = False
@@ -391,20 +378,19 @@ class Screen(Window):
         self.hide_cursor()
         curwin = self.focused
         lin, col = curwin.buff.cursor_lin_col
-        if lin < curwin.shift_to_lin:
-            curwin.shift_to_lin = lin
-        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-            curwin.shift_to_lin = lin - self.number_of_lin + 1
+        self.recenter()
+#        if lin < curwin.shift_to_lin:
+#            curwin.shift_to_lin = lin
+#        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+#            curwin.shift_to_lin = lin - self.number_of_lin + 1
 
         self._old_term_size = get_terminal_size()
         for line, index in zip(self.gen_window(), range(1, self.number_of_lin + 1)):
             if self._old_screen[index] != line or renew:
                 self.go_line(index)
-                #self.clear_line()
                 stdout.write(line)
                 self._old_screen[index] = line
         self.bottom()
-        #self.show_cursor()
         self.show_cursor()
         stdout.flush()
 
@@ -416,9 +402,6 @@ class Screen(Window):
             return
         if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
             curwin.shift_to_lin = lin - self.number_of_lin + 1
-
-        fake = self.number_of_lin - self._true_lines
-        self._true_lines = 0
 
     def minibar(self, txt):
         #self.save_cursor()

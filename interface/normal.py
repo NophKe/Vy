@@ -44,13 +44,13 @@ def loop(self):
             screen = Thread(target=self.show)
 
     show = lambda : None
-    show.join = lambda x: None
+    show.join = show
     with stdin_no_echo():
         while True:
             update_globals()
             new_show = Thread(target=self.show_screen, args=(True,), daemon=True)
+            show.join()
             new_show.start()
-            show.join(0.05)
             show = new_show
 
             key = REG = CMD = RANGE = MOTION_COUNT = ''

@@ -14,6 +14,8 @@ from vy.interface import Interface
 from vy.console import get_a_key
 from vy.filetypes import Open_path
 
+from threading import Thread
+
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
@@ -229,13 +231,10 @@ class _Editor:
         assert self._running
         screen = self.screen
         screen.infobar('( Screen Rendering )')
-        try:
-            if screen.needs_redraw or renew:
-                screen.show(True)
-            else:
-                screen.show()
-        except RuntimeError:
-            raise RuntimeError('Lexing is too Slow')
+        if screen.needs_redraw or renew:
+            screen.show(True)
+        else:
+            screen.show()
         screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
     def warning(self, msg):

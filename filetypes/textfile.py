@@ -30,78 +30,35 @@ class TextFile(BaseFile):
         super().__init__(self, *args, **kwargs)
 
     def update_properties(self):
-        if self.PROC is not None:
-            self.PROC.kill()
         if self.lexer is None:
             self.lexer = set_lexer(self, self.path) 
         self._lexed_lines = list()
-        self._lexer_request = Queue(1)
-        self._lexed_away = Queue(1)
-        self._lexer_request.cancel_join_thread()
-        self._lexed_away.cancel_join_thread()
-        self.PROC = Process(target=self.PROC_lexed_string,
-                            args=(self._lexed_away, self._lexer_request),
-                            daemon=True)
-        self.PROC.start()
-
-    def PROC_lexed_string(self, send_queue, recv_queue):
-        retval = list()
-        line = list()
-        for offset, tok, val in self.lexer():
-            if '\n' in val:
-                for token_line in val.splitlines(True):
-                    if token_line.endswith('\n'):
-                        token_line = token_line[:-1] + ' '
-                        line.append((token_line, repr(tok)))
-                        retval.append(line)
-                        line = list()
-                    else:
-                        line.append((token_line, repr(tok)))
-            else:
-                line.append((val, repr(tok)))
-        if line: #No eof
-            retval.append(line)
-        while True:
-            lexed_string = ''
-            index = recv_queue.get()
-            try:
-                line = retval[index]
-            except IndexError:
-                send_queue.put((index, None))
-                continue
-            for text, token in line:
-                lexed_string = f'{lexed_string}{get_prefix(token)}{text}\x1b[0m'
-            send_queue.put((index,lexed_string))
 
     def get_lexed_line(self, index):
-        #assert self.PROC.is_alive()
-        self._lexer_request.put(index)
-        idx, ret = self._lexed_away.get()
-        if ret is None:
-            raise IndexError
-        return idx, ret
-#       if not self._post_lexed_lines:
-#           self._post_lexed_lines = [None for _ in range(self.number_of_lin)]
-#       if self._post_lexed_lines[index]:
-#       return lexed_string
+        lexed_string = ''
+        line = self.lexed_lines[index]
+        for text, token in line:
+            lexed_string = f'{lexed_string}{get_prefix(token)}{text}\x1b[0m'
+        return index, lexed_string
     
     @property
     def lexed_lines(self) :
-        retval = list()
-        line = list()
-        for offset, tok, val in self.lexer():
-            if '\n' in val:
-                for token_line in val.splitlines(True):
-                    if token_line.endswith('\n'):
-                        token_line = token_line[:-1] + ' '
-                        line.append((token_line, repr(tok)))
-                        retval.append(line)
-                        line = list()
-                    else:
-                        line.append((token_line, repr(tok)))
-            else:
-                line.append((val, repr(tok)))
-        if line: #No eof
-            retval.append(line)
-        self._lexed_lines = retval
-        return self.lexed_lines
+        if not self._lexed_lines:
+            retval = list()
+            line = list()
+            for offset, tok, val in self.lexer():
+                if '\n' in val:
+                    for token_line in val.splitlines(True):
+                        if token_line.endswith('\n'):
+                            token_line = token_line[:-1] + ' '
+                            line.append((token_line, repr(tok)))
+                            retval.append(line)
+                            line = list()
+                        else:
+                            line.append((token_line, repr(tok)))
+                else:
+                    line.append((val, repr(tok)))
+            if line: #No eof
+                retval.append(line)
+            self._lexed_lines = retval
+        return self._lexed_lines
