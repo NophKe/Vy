@@ -2,85 +2,6 @@
 from os import get_terminal_size
 from sys import stdout
 
-from vy.global_config import DONT_USE_PYGMENTS_LIB 
-
-MAGIC_VALUE = 100
-
-try:
-    if DONT_USE_PYGMENTS_LIB:
-        raise ImportError
-
-    from pygments.token import (Keyword, Name, Comment, 
-                                String, Error, Number, Operator, 
-                                Generic, Token, Whitespace, Text)
-    colorscheme = {
-        Token:              '',
-        Whitespace:         'gray',         Comment:            '/gray/',
-        Comment.Preproc:    'cyan',         Keyword:            '*blue*',
-        Keyword.Type:       'cyan',         Operator.Word:      'magenta',
-        Name.Builtin:       'cyan',         Name.Function:      'green',
-        Name.Namespace:     '_cyan_',       Name.Class:         '_green_',
-        Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
-        Name.Variable:      'red',          Name.Constant:      'red',
-        Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
-        String:             'yellow',       Number:             'blue',
-        Generic.Deleted:    'brightred',    Text:               '',
-        Generic.Inserted:   'green',        Generic.Heading:    '**',
-        Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
-        Generic.Error:      'brightred',    Error:              '_brightred_',
-    }
-except ImportError:
-    colorscheme = {'': ''}
-
-codes = {
-        ""          : "",
-# Text Formatting Attributes
-        "reset"     : "\x1b[39;49;00m", "bold"      : "\x1b[01m",
-        "faint"     : "\x1b[02m",       "standout"  : "\x1b[03m",
-        "underline" : "\x1b[04m",       "blink"     : "\x1b[05m",
-        "overline"  : "\x1b[06m",
-# Dark Colors
-        "black"     :  "\x1b[30m",      "red"       :  "\x1b[31m",
-        "green"     :  "\x1b[32m",      "yellow"    :  "\x1b[33m",
-        "blue"      :  "\x1b[34m",      "magenta"   :  "\x1b[35m",
-        "cyan"      :  "\x1b[36m",      "gray"      :  "\x1b[37m",
-# Light Colors
-        "brightblack"   :  "\x1b[90m",  "brightred"     :  "\x1b[91m",
-        "brightgreen"   :  "\x1b[92m",  "brightyellow"  :  "\x1b[93m",
-        "brightblue"    :  "\x1b[94m",  "brightmagenta" :  "\x1b[95m",
-        "brightcyan"    :  "\x1b[96m",  "white"         :  "\x1b[97m",
-    }
-
-def get_prefix(token):
-    if token in colorscheme:
-        return colorscheme[token]
-    accu = ''
-    for ttype in token.split('.'):
-        if ttype in colorscheme:
-            colorscheme[token] = colorscheme[ttype]
-        accu = f'{accu}{"." if accu else ""}{ttype}'
-        if accu in colorscheme:
-            colorscheme[token] = colorscheme[accu]
-    if token in colorscheme:
-        return colorscheme[token]
-
-def _resolve_prefix(color_string):
-    result: str = ''
-    if color_string[:1] == color_string[-1:] == '/':
-        result += "\x1b[02m"
-        color_string = color_string[1:-1]
-    if color_string[:1] == color_string[-1:] == '*':
-        result += "\x1b[01m"
-        color_string = color_string[1:-1]
-    if color_string[:1] == color_string[-1:] == '_':
-        result += "\x1b[04m"
-        color_string = color_string[1:-1]
-    result += codes[color_string]
-    return result
-
-colorscheme = {repr(key): _resolve_prefix(value) for key, value in colorscheme.items()}
-
-
 def get_rows_needed(number):
     if number < 800: return 3
     elif number < 9800: return 4
@@ -119,7 +40,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
             on_col = len(number)
             esc_flag = False
 
-        cursor_flag = bool((on_col, on_lin) == (cursor_col, cursor_lin))
+        cursor_flag = on_col == cursor_col and on_lin == cursor_lin
         if cursor_flag:
             line += '\x1b[5;7m'
 
@@ -166,7 +87,7 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             on_col = 1
             esc_flag = False
 
-        cursor_flag = bool((on_col, on_lin) == (cursor_col, cursor_lin))
+        cursor_flag = on_col == cursor_col and on_lin == cursor_lin
         if cursor_flag:
             line += '\x1b[5;7m'
 
@@ -186,6 +107,8 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
 
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
+        self.left_panel = None
+        self.right_panel = None
         self.parent: Window = parent
         self.shift_to_col: int = shift_to_col
         self.shift_to_lin: int = shift_to_lin
@@ -263,8 +186,7 @@ class Window():
             return
         else:
             self.buff = self.right_panel.buff
-            del self.right_panel
-            del self.left_panel
+            self.right_panel = self.left_panel = None
             self._v_split_flag = False
             self._focused = self
 
@@ -327,8 +249,10 @@ class Window():
         if self.vertical_split:
             left_panel = self.left_panel.gen_window()
             right_panel = self.right_panel.gen_window()
+            rv = list()
             for _ in range(self.number_of_lin):
-                yield next(left_panel) + '|' + next(right_panel)
+                rv.append(next(left_panel) + '|' + next(right_panel))
+            return rv
 
         else:
             max_col = self.number_of_col
@@ -338,26 +262,34 @@ class Window():
             wrap = self.buff.set_wrap
             number = self.buff.set_number
             tab_size = self.buff.set_tabsize
-            try:
-                for on_lin in range(min_lin, max_lin):
-                    index, pretty_line = self.buff.get_lexed_line(on_lin)
-                    assert index == on_lin
-                    if number:
-                        to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                    else:
-                        to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                    if wrap:
-                        yield from to_print
-                    else: 
-                        yield to_print[0]
-            except IndexError:
-                default = f"{'~':{max_col}}"
-                while True:
-                    yield default
+            default = f"~{' ':{max_col- 1}}"
+            true_cursor = 0
+
+            line_list = list()
+            for on_lin in range(min_lin, max_lin):
+                if on_lin == cursor_lin and true_cursor == 0:
+                    true_cursor = len(line_list)
+                try:
+                    pretty_line = self.buff.get_lexed_line(on_lin)
+                except IndexError:
+                    line_list.append(default)
+                    continue
+                if number:
+                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                else:
+                    to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                if wrap:
+                    line_list.extend(to_print)
+                else:
+                    line_list.append(to_print[0])
+            if true_cursor >= self.number_of_lin:
+                to_remove = 1 + true_cursor - self.number_of_lin
+                line_list = line_list[to_remove:]
+            return line_list 
+            #yield from line_list
 
 class Screen(Window):
     def __init__(self, buff):
-        self._minibar_flag = 2
         self.buff = buff
         self._v_split_flag = False
         self.v_split_shift = 0
@@ -365,151 +297,125 @@ class Screen(Window):
         self.parent = self
         self.shift_to_lin = 0
         self.shift_to_col = 0
-        self._old_screen = [None for _ in range(MAGIC_VALUE)]
-        self._old_term_size = (0, 0)
+        self._infobar_txt = ''
+        self._minibar_txt = ['']
+        self._minibar_completer = []
+        self.recenter()
 
     def vsplit(self):
         if self.focused != self:
             self.focused.vsplit()
         else:
             super().vsplit().set_focus()
-                
-    def show(self, renew=False):
-        self.hide_cursor()
-        curwin = self.focused
-        lin, col = curwin.buff.cursor_lin_col
-        self.recenter()
-#        if lin < curwin.shift_to_lin:
-#            curwin.shift_to_lin = lin
-#        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-#            curwin.shift_to_lin = lin - self.number_of_lin + 1
-
-        self._old_term_size = get_terminal_size()
-        for line, index in zip(self.gen_window(), range(1, self.number_of_lin + 1)):
-            if self._old_screen[index] != line or renew:
-                self.go_line(index)
-                stdout.write(line)
-                self._old_screen[index] = line
-        self.bottom()
-        self.show_cursor()
-        stdout.flush()
 
     def recenter(self):
+        columns, lines = get_terminal_size()
+        self._number_of_col = columns
+        self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
         curwin = self.focused
         lin, col = curwin.buff.cursor_lin_col
         if lin < curwin.shift_to_lin:
             curwin.shift_to_lin = lin
-            return
-        if lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+        elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
             curwin.shift_to_lin = lin - self.number_of_lin + 1
-
-    def minibar(self, txt):
-        #self.save_cursor()
-        self.bottom()
-        self.clear_line()
-        if txt.endswith('\n'):
-            stdout.write('\x1b[0m\r' + txt[:-1] + '\r' )
-        else:
-            stdout.write('\x1b[0m\r' + txt + '\r')
-        #self.restore_cursor()
-
-    def infobar(self, right='', left=''):
-        middle = int(self.number_of_col / 2)
-
-        if len(left) + 5 > middle:
-            left = left[:middle - 5] + '....'
-
-        if len(right) + 5 > middle:
-            right = right[:middle - 5] + '....'
-
-        right = '\x1b[7m\x1b[1m' + right + '\x1b[0m'
-
-        self.go_line(self.number_of_lin + 1)
-
-        stdout.write(f"\r\x1b[0m{right.ljust(middle, ' ')}{left.rjust(middle, ' ')}")
-        self.bottom()
-
-    @staticmethod
-    def hide_cursor():
-        stdout.write('\x1b[25l')
-
-    @staticmethod
-    def show_cursor():
-        stdout.write('\x1b[25h')
-
-
-    @staticmethod
-    def insert(text):
-#        stdout.write(f'\x1b[@{text}')
-        stdout.write(f'\x1b[@\x1b[7m{text}\x1b[27m')
-        stdout.flush()
-
-    @staticmethod 
-    def clear():
-        stdout.write('\x1b\[2J\x1b[09b3J')
-
-    @staticmethod
-    def save_cursor():
-        stdout.write('\x1b\u009bs')
-    
-    @staticmethod
-    def restore_cursor():
-        stdout.write('\x1b8')
-    
-    @staticmethod
-    def top_left():
-        stdout.write('\x1b[1;1H')
-    
-    @staticmethod
-    def bottom():
-        col, lin = get_terminal_size()
-        stdout.write(f'\x1b[{col}H')
-    
-    @staticmethod
-    def bold():
-        stdout.write('\x1b[1m')
-
-    @staticmethod
-    def go_line(number):
-        stdout.write(f'\x1b[{number};1H')
-
-    @staticmethod
-    def underline():
-        stdout.write('\x1b[4m')
-
-    @staticmethod
-    def reversed():
-        stdout.write('\x1b[7m')
-
-    @staticmethod
-    def clear_line():
-        stdout.write('\x1b[2K')
-    
-    @staticmethod
-    def alternative_screen():
-        stdout.write('\x1b[?47h')
-
-    @staticmethod
-    def original_screen():
-        stdout.write('\x1b[?47l')
-
-    @staticmethod
-    def clear_screen():
-        stdout.write('\x1b[2J')
 
     @property
     def number_of_col(self):
-        columns, lines = get_terminal_size()
-        return columns
+        return self._number_of_col
 
     @property
     def number_of_lin(self):
-        columns, lines = get_terminal_size()
-        return lines - self._minibar_flag
+        return self._number_of_lin
+
+    def get_line_list(self):
+        self.recenter()
+        rv = [line for line, _ in zip(self.gen_window(), 
+                            range(self.number_of_lin))]
+        rv.append(self._infobar_txt)
+        rv.extend(self.minibar_banner)
+        return rv 
+
+    def minibar_completer(self, *lines):
+        self._minibar_completer.clear()
+        self._minibar_completer.extend(lines)
+
+    def minibar(self, *lines):
+        self._minibar_txt.clear()
+        self._minibar_txt.extend(lines)
 
     @property
-    def needs_redraw(self):
-        actual_size = get_terminal_size()
-        if actual_size != self._old_term_size:
-            return True
-        return False
+    def minibar_banner(self):
+        rv = list()
+        for line in self._minibar_completer:
+            rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+        for line in self._minibar_txt:
+            rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+        return rv
+
+    def infobar(self, left='', right=''):
+        middle = int(self.number_of_col / 2)
+        if len(right) + 5 > middle:
+            right = right[:middle - 5] + '....'
+        else:
+            right = right.rjust(middle, ' ')
+        if len(left) + 5 > middle:
+            left = left[:middle - 5] + '....'
+        else:
+            left = left.ljust(middle, ' ')
+        left = '\x1b[7m\x1b[1m' + left + '\x1b[0m'
+        self._infobar_txt = f"{left}{right}"
+
+    def hide_cursor(self):
+        stdout.write('\x1b[0m\x1b[?25l')
+
+    def show_cursor(self):
+        stdout.write('\x1b[?25h')
+
+    def insert(self, text):
+        stdout.write(f'\x1b[@\x1b[7m{text}\x1b[27m')
+        stdout.flush()
+
+    def clear(self):
+        stdout.write('\x1b\[2J\x1b[09b3J')
+
+    def save_cursor(self):
+        stdout.write('\x1b\u009bs')
+    
+    def restore_cursor(self):
+        stdout.write('\x1b8')
+    
+    def top_left(self):
+        stdout.write('\x1b[1;1H')
+    
+    def bottom(self):
+        col, _ = get_terminal_size()
+        stdout.write(f'\x1b[{col}H')
+    
+    def bold(self):
+        stdout.write('\x1b[1m')
+
+    def go_line(self, number):
+        stdout.write(f'\x1b[{number};1H')
+
+    def underline(self):
+        stdout.write('\x1b[4m')
+
+    def reversed(self):
+        stdout.write('\x1b[7m')
+
+    def clear_line(self):
+        stdout.write('\x1b[2K')
+    
+    def alternative_screen(self):
+        stdout.write('\x1b[?47h')
+
+    def original_screen(self):
+        stdout.write('\x1b[?47l')
+
+    def clear_screen(self):
+        stdout.write('\x1b[2J')
+    
+    def print(self, txt):
+        stdout.write(txt)
+        stdout.flush()
+

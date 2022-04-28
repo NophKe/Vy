@@ -1,6 +1,9 @@
-#from vy.interface.helpers cimport one_inside_dict_starts_with, resolver
-from vy.console cimport stdin_no_echo
-from vy.keys cimport _escape
+# For typing definitions
 from vy.editor cimport _Editor
 
-cdef loop(_Editor self)
+# For module namespace
+from vy.keys cimport _escape
+from vy.interface.helpers cimport one_inside_dict_starts_with
+
+# Module content definition
+cpdef loop(_Editor editor)

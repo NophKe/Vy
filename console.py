@@ -2,7 +2,7 @@
 """
 from termios import *
 from tty import *
-from sys import stdin, stdout, stderr
+from sys import stdin
 
 IFLAG = 0
 OFLAG = 1
@@ -12,64 +12,17 @@ ISPEED = 4
 OSPEED = 5
 CC = 6
 
-def stdout_no_cr():
-        mode = tcgetattr(stdin)
-#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
-#       mode[OFLAG] = mode[OFLAG] & ONOCR
-#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
-#       mode[IFLAG] = mode[IFLAG] & ~INLCR
-#       mode[IFLAG] = mode[IFLAG] & IGNCR
-        mode[LFLAG] = mode[LFLAG] & ~ECHONL
-        tcsetattr(stdin, TCSAFLUSH, mode)
+#class save_stdin_state:
+    #__slots__ = 'mode'
+    #def __enter__(self):
+        #self.mode = tcgetattr(stdin)
+    #def __exit__(self, *args):
+        #tcsetattr(stdin, TCSAFLUSH, self.mode)
 
-        mode = tcgetattr(stdout)
-#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
-#       mode[OFLAG] = mode[OFLAG] & ONOCR
-#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
-#       mode[IFLAG] = mode[IFLAG] & ~INLCR
-#       mode[IFLAG] = mode[IFLAG] & IGNCR
-        mode[LFLAG] = mode[LFLAG] & ~ECHONL
-        tcsetattr(stdout, TCSAFLUSH, mode)
-
-        mode = tcgetattr(stderr)
-#       mode[OFLAG] = mode[OFLAG] & ~OCRNL
-#       mode[OFLAG] = mode[OFLAG] & ONOCR
-#       mode[OFLAG] = mode[OFLAG] & ~ONLRET
-#       mode[IFLAG] = mode[IFLAG] & ~INLCR
-#       mode[IFLAG] = mode[IFLAG] & IGNCR
-        mode[LFLAG] = mode[LFLAG] & ~ECHONL
-        tcsetattr(stderr, TCSAFLUSH, mode)
-
-class stdin_no_echo_nl:
-    """use like:
-    with stdin_no_echo():
-        uifunction()
-    """
-    def __enter__(self):
-        mode = tcgetattr(stdin)
-        self.mode = mode[:]
-        mode[LFLAG] = mode[LFLAG] & ~ICANON
-        mode[LFLAG] = mode[LFLAG] & ~ECHONL
-        mode[LFLAG] = mode[LFLAG] & ECHO
-        tcsetattr(stdin, TCSAFLUSH, mode)
-    def __exit__(self, *args):
-        tcsetattr(stdin, TCSAFLUSH, self.mode)
-
-class stdin_no_echo:
-    """use like:
-    with stdin_no_echo():
-        uifunction()
-    """
-    def __enter__(self):
-        self.mode = tcgetattr(stdin)
-        setnoecho(stdin)
-    def __exit__(self, *args):
-        tcsetattr(stdin, TCSAFLUSH, self.mode)
-
-def setnoecho(fd, when=TCSAFLUSH):
-    mode = tcgetattr(fd)
-    mode[LFLAG] = mode[LFLAG] & ~ECHO
-    tcsetattr(fd, when, mode)
+#def setnoecho(fd, when=TCSAFLUSH):
+    #mode = tcgetattr(fd)
+    #mode[LFLAG] = mode[LFLAG] & ~ECHO
+    #tcsetattr(fd, when, mode)
 
 def setnonblocking(fd, when=TCSAFLUSH):
     mode = tcgetattr(fd)
@@ -78,10 +31,12 @@ def setnonblocking(fd, when=TCSAFLUSH):
     tcsetattr(fd, when, mode)
 
 def get_a_key():
-    """This function reads an only one key from the keyboard and returns it.
+    """
+    This function reads an only one key from the keyboard and returns it.
     if this key is the <ESCAPE> key however, it checks if there are things
     left to read in the stdin buffer. This way we read one char at a time,
-    but we steal collapse escape sequences."""
+    but we steal collapse escape sequences.
+    """
     mode = tcgetattr(stdin)
     setraw(stdin)
     rv = stdin.read(1)
@@ -93,7 +48,11 @@ def get_a_key():
     tcsetattr(stdin, TCSAFLUSH, mode)
     return rv
 
-def visit_stdin(vtime=0):
+def visit_stdin():
+    """
+    This is the couter-part of the get_a_key() function also defined in the
+    current module. visit_stdin() returns a generator yielding key strokes.
+    """
     old_mode = tcgetattr(stdin)
 
     mode = old_mode[:]
@@ -102,22 +61,26 @@ def visit_stdin(vtime=0):
     mode[CFLAG] = mode[CFLAG] & ~(CSIZE | PARENB)
     mode[CFLAG] = mode[CFLAG] | CS8
     mode[LFLAG] = mode[LFLAG] & ~(ECHO | ICANON | IEXTEN | ISIG)
-    mode[LFLAG] = mode[LFLAG] & ECHO
     mode[CC][VMIN] = 0
     mode[CC][VTIME] = 1
-    tcsetattr(stdin, TCSAFLUSH, mode)
     
-    esc_mode = old_mode[:]
+    esc_mode = mode[:]
     esc_mode[CC][VTIME] = 0
 
-    while True:
-        ret = stdin.read(1)
-        if not ret:
-            yield None
-        elif ret == '\x1b':
-            tcsetattr(stdin, TCSAFLUSH, esc_mode)
-            esc_seq = stdin.read()
-            if esc_seq:
-                ret += esc_seq
-            tcsetattr(stdin, TCSAFLUSH, old_mode)
+    try:
+        tcsetattr(stdin, TCSAFLUSH, mode)
+        while True:
+            ret = stdin.read(1)
+            if ret == '\x1b':
+                tcsetattr(stdin, TCSAFLUSH, esc_mode)
+                esc_seq = stdin.read(1)
+                while esc_seq:
+                    if esc_seq == '\x1b':
+                        yield ret
+                        ret = ''
+                    ret += esc_seq
+                    esc_seq = stdin.read(1)
+                tcsetattr(stdin, TCSAFLUSH, mode)
             yield ret
+    finally:
+        tcsetattr(stdin, TCSAFLUSH, old_mode)

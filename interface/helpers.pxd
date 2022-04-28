@@ -3,4 +3,4 @@
 #        cdef public object _old_complete
 #        cpdef str completer(self, str txt, int state)
 #
-cdef bint one_inside_dict_starts_with(dict dictio, str pattern)
+cpdef bint one_inside_dict_starts_with(dict dictio, str pattern)

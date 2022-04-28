@@ -5,7 +5,9 @@ from ..global_config import USER_DIR
 
 class CommandCompleter:
     def completer(self, txt, state):
+        '''This method must be overriden in concrete implementations.'''
         return ''
+
     def __init__(self, file):
         histfile = USER_DIR / file
         if not histfile.exists():
@@ -13,7 +15,11 @@ class CommandCompleter:
         restric = set(histfile.read_text().splitlines(True))
         histfile.write_text(''.join(restric))
         self.histfile = histfile
+
+class TUUU:
     def __enter__(self):
+        self._old_history = [ readline.get_history_item(idx) 
+                                for idx in range(readline.get_current_history_length())]
         self._old_complete = readline.get_completer() 
         readline.set_completer(lambda txt,state: self.completer(txt, state))
         readline.set_completer_delims(' \t')
@@ -25,6 +31,9 @@ class CommandCompleter:
     def __exit__(self, *args, **kwargs):
         readline.write_history_file(self.histfile)
         readline.set_completer(self._old_complete)
+        readline.clear_history()
+        for item in self._old_history:
+            readline.add_history(item)
         #readline.set_pre_input_hook(None)
 
 

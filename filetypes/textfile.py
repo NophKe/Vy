@@ -1,64 +1,154 @@
+from threading import Thread
+from queue import Queue, Empty
+
 from vy.filetypes.basefile import BaseFile
-from vy.screen import get_prefix
 
-from multiprocessing import Process, Manager, Queue
-# TODO should better use futures object than reimplement
-# single value processing
+from vy import global_config
+try:
+    if global_config.DONT_USE_PYGMENTS_LIB:
+        raise ImportError
+    from pygments.lexers import guess_lexer_for_filename as guess
+    from pygments.util import ClassNotFound
+    from pygments.token import (Keyword, Name, Comment, 
+                                String, Error, Number, Operator, 
+                                Generic, Token, Whitespace, Text)
+    colorscheme = {
+      '':                 '',
+      Token:              '',
+      Whitespace:         'gray',         Comment:            '/gray/',
+      Comment.Preproc:    'cyan',         Keyword:            '*blue*',
+      Keyword.Type:       'cyan',         Operator.Word:      'magenta',
+      Name.Builtin:       'cyan',         Name.Function:      'green',
+      Name.Namespace:     '_cyan_',       Name.Class:         '*green*',
+      Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
+      Name.Variable:      'red',          Name.Constant:      'red',
+      Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
+      String:             'yellow',       Number:             '*blue*',
+      Generic.Deleted:    'brightred',    Text:               '',
+      Generic.Inserted:   'green',        Generic.Heading:    '**',
+      Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
+      Generic.Error:      'brightred',    Error:              '_brightred_',
+    }
+except ImportError:
+    global_config.DONT_USE_PYGMENTS_LIB = True
+    colorscheme = {'': ''}
 
-def set_lexer(buffer, path):
-    from vy.global_config import DONT_USE_PYGMENTS_LIB
-    if DONT_USE_PYGMENTS_LIB:
-        return lambda: [(0, '', val) for val in buffer._string.splitlines(True)]
-    from pygments.lexers import guess_lexer_for_filename as guess_lexer
-    from pygments.util import  ClassNotFound
+codes = {
+        ""          : "",
+# Text Formatting Attributes
+        "reset"     : "\x1b[39;49;00m", "bold"      : "\x1b[01m",
+        "faint"     : "\x1b[02m",       "standout"  : "\x1b[03m",
+        "underline" : "\x1b[04m",       "blink"     : "\x1b[05m",
+        "overline"  : "\x1b[06m",
+# Dark Colors
+        "black"     :  "\x1b[30m",      "red"       :  "\x1b[31m",
+        "green"     :  "\x1b[32m",      "yellow"    :  "\x1b[33m",
+        "blue"      :  "\x1b[34m",      "magenta"   :  "\x1b[35m",
+        "cyan"      :  "\x1b[36m",      "gray"      :  "\x1b[37m",
+# Light Colors
+        "brightblack"   :  "\x1b[90m",  "brightred"     :  "\x1b[91m",
+        "brightgreen"   :  "\x1b[92m",  "brightyellow"  :  "\x1b[93m",
+        "brightblue"    :  "\x1b[94m",  "brightmagenta" :  "\x1b[95m",
+        "brightcyan"    :  "\x1b[96m",  "white"         :  "\x1b[97m",
+    }
+
+def get_prefix(token):
     try:
-        _lexer = guess_lexer(str(path), buffer._string).get_tokens_unprocessed
-    except ClassNotFound:
-        _lexer = guess_lexer('text.txt', buffer._string).get_tokens_unprocessed
-    return lambda : _lexer(buffer._string)
+        return colorscheme[token]
+    except KeyError:
+        accu = ''
+        for ttype in token.split('.'):
+            if ttype in colorscheme:
+                colorscheme[token] = colorscheme[ttype]
+            accu = f'{accu}{"." if accu else ""}{ttype}'
+            if accu in colorscheme:
+                colorscheme[token] = colorscheme[accu]
+    return colorscheme[token]
+
+def _resolve_prefix(color_string):
+    result: str = ''
+    if color_string[:1] == color_string[-1:] == '/':
+        result += "\x1b[02m"
+        color_string = color_string[1:-1]
+    if color_string[:1] == color_string[-1:] == '*':
+        result += "\x1b[01m"
+        color_string = color_string[1:-1]
+    if color_string[:1] == color_string[-1:] == '_':
+        result += "\x1b[04m"
+        color_string = color_string[1:-1]
+    result += codes[color_string]
+    return result
+
+colorscheme = {repr(key): _resolve_prefix(value) for key, value in colorscheme.items()}
 
 class TextFile(BaseFile):
     """This is the class that most of files buffers should use, 
     and should be preferably yielded by editor.cache[].
     Inherit from it to customize it.
-    there should be a callback register to come.
     """
     modifiable = True
     def __init__(self, *args, **kwargs):
-        self.PROC = None
-        self.lexer = None
-        super().__init__(self, *args, **kwargs)
-
-    def update_properties(self):
-        if self.lexer is None:
-            self.lexer = set_lexer(self, self.path) 
+        BaseFile.__init__(self, *args, **kwargs)
+        self.update_callbacks.append(TextFile._update_properties)
         self._lexed_lines = list()
+        self._control_queue = Queue(1)
+        if global_config.DONT_USE_PYGMENTS_LIB:
+            self._lexer = None
+        else:
+            try:
+                self._lexer = guess(str(self.path), self._string).get_tokens_unprocessed
+            except ClassNotFound:
+                self._lexer = None
+        self._lexer_proc = Thread(target=self._lex_away, daemon=True)
+        self._lexer_proc.start()
+
+    def lexer(self):
+        if self._lexer is None:
+            yield from [
+                    (0, '', f'\x1b[33m{val}\x1b[0m') if val.startswith('#')
+                else
+                    (0, '', val)
+                for val in self._string.splitlines(True)]
+        else:
+            yield from self._lexer(self._string)
+
+    def _update_properties(self):
+        self._control_queue.put_nowait(None)
+        self._control_queue.join()
+
+    def _lex_away(self):
+        while True:
+            self._lexed_lines.clear()
+            line = list()
+            for _, tok, val in self.lexer():
+                try:
+                    self._control_queue.get_nowait()
+                    self._control_queue.task_done()
+                    break
+                except Empty:
+                    tok = get_prefix(repr(tok))
+                    if '\n' in val:
+                        for token_line in val.splitlines(True):
+                            if token_line.endswith('\n'):
+                                token_line = token_line[:-1] + ' '
+                                line.append(f'{tok}{token_line}\x1b[0m')
+                                self._lexed_lines.append(''.join(line))
+                                line.clear()
+                            else:
+                                line.append(f'{tok}{token_line}\x1b[0m')
+                    else:
+                        line.append(f'{tok}{val}\x1b[0m')
+            else:
+                if line: #No eof
+                    self._lexed_lines.append(line)
+                self._control_queue.get(block=True)
+                self._control_queue.task_done()
 
     def get_lexed_line(self, index):
-        lexed_string = ''
-        line = self.lexed_lines[index]
-        for text, token in line:
-            lexed_string = f'{lexed_string}{get_prefix(token)}{text}\x1b[0m'
-        return index, lexed_string
-    
-    @property
-    def lexed_lines(self) :
-        if not self._lexed_lines:
-            retval = list()
-            line = list()
-            for offset, tok, val in self.lexer():
-                if '\n' in val:
-                    for token_line in val.splitlines(True):
-                        if token_line.endswith('\n'):
-                            token_line = token_line[:-1] + ' '
-                            line.append((token_line, repr(tok)))
-                            retval.append(line)
-                            line = list()
-                        else:
-                            line.append((token_line, repr(tok)))
-                else:
-                    line.append((val, repr(tok)))
-            if line: #No eof
-                retval.append(line)
-            self._lexed_lines = retval
-        return self._lexed_lines
+        if len(self._lexed_lines) >= index:
+            try:
+                return self._lexed_lines[index]
+            except IndexError:
+                # ignore error if lenght changed in another thread 
+                pass
+        return self.splited_lines[index]

@@ -47,12 +47,12 @@ C_D = '\x04'
 C_E = '\x05'
 C_F = '\x06'
 C_G = '\x07'
-C_H = backspace = '\x08'
+C_H = backspace = BS = '\x08'
 C_I = '\x09'
 C_J = '\x0a'
 C_K = '\x0b'
 C_L = '\x0c'
-C_M = '\x0d'
+C_M = CR = '\x0d'
 C_N = '\x0e'
 C_O = '\x0f'
 C_P = '\x10'
@@ -67,8 +67,6 @@ C_X = '\x18'
 C_Y = '\x19'
 C_Z = '\x1a'
 
-
-backspace = '\x08'
 
 #Alt + function key
 A_f4 = '\x1b\x5b\x31\x3b\x33\x53'
@@ -108,7 +106,7 @@ def _escape(text):
     
 
 if __name__ == '__main__':
-    from console import get_a_key
+    from vy.console import get_a_key
     file_out = input('write to a file? give it a name or just type [enter] : ')
     if file_out:
         file_out = open(file_out, "w+")

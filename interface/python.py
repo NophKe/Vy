@@ -4,8 +4,6 @@ import readline
 from pathlib import Path
 from code import InteractiveConsole
 
-
-
 name_space = None
 
 class Console(InteractiveConsole):
@@ -15,15 +13,12 @@ class Console(InteractiveConsole):
         if not self.histfile.exists():
             self.histfile.touch()
         InteractiveConsole.__init__(self, locals, filename)
-        readline.parse_and_bind("tab: complete")
-        readline.clear_history()
-        readline.read_history_file(self.histfile)
+        return
+
+    def raw_input(self, prompt=''):
+        return self.editor.read_stdin_line(prompt)
     
     def save_history(self):
-        try:
-            readline.set_history_length(1000)
-            readline.write_history_file(self.histfile)
-        except FileNotFoundError:
             pass
         
     def push(self, line):
@@ -42,12 +37,8 @@ def loop(editor):
         print()
         print('\tBuffer correctly evaluated.')
         print()
-    readline.set_completer(Completer(name_space).complete)
+    #readline.set_completer(Completer(name_space).complete)
     console = Console(locals= name_space, editor=editor)
-
-    old_screen_minibar_ = editor.screen._minibar_flag
-    editor.screen._minibar_flag = editor.screen.number_of_lin // 2
-    editor.screen.minibar('')
 
     try:
         console.interact()
@@ -56,6 +47,4 @@ def loop(editor):
 
     name_space = None
     console.save_history()
-    editor.screen._minibar_flag = old_screen_minibar_
-
     return 'normal'

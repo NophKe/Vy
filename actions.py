@@ -17,6 +17,31 @@ def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
     editor.screen.minibar(str(Path('.').resolve()))
 
+
+@atomic_commands(f'i_{k.left}')
+def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
+    '''Move to ...'''
+    editor.current_buffer.move_cursor('h')
+    return 'insert'
+
+@atomic_commands(f'i_{k.down}')
+def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
+    '''Move to ...'''
+    editor.current_buffer.move_cursor('j')
+    return 'insert'
+
+@atomic_commands(f'i_{k.up}')
+def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
+    '''Move to ...'''
+    editor.current_buffer.move_cursor('k')
+    return 'insert'
+
+@atomic_commands(f'i_{k.right}')
+def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
+    '''Move to ...'''
+    editor.current_buffer.move_cursor('l')
+    return 'insert'
+
 @atomic_commands('I')
 def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer.move_cursor('#.')
@@ -95,6 +120,10 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     return 'insert'
 
 
+@atomic_commands('U')
+def do_normal_U(editor, reg=None, part=None, arg=None, count=1):
+    editor.current_buffer.undo()
+
 @atomic_commands('A')
 def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -107,7 +136,6 @@ def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
 
 
 @atomic_commands('u :u :un :undo')
-#@with_args_commands('u :u :un :undo')
 def undo(editor, reg=None, part=None, arg=None, count=1):
     """
     Undo last action in the current buffer.
@@ -117,7 +145,7 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
         try:
             count = int(arg)
         except ValueError:
-            editor.screen.minibar(f'Wrong coount argument: {arg}')
+            editor.screen.minibar(f'Wrong count argument: {arg}')
             return
     for _ in range(count):
         editor.current_buffer.undo()
@@ -319,9 +347,11 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
     from os import system
     if not arg:
         editor.screen.minibar('Commmand needs arg!')
-        return
-    err = system(arg)
-    editor.warning(f'Command Finished with status: {err}')
+    else:
+        editor.stop_async_io()
+        err = system(arg)
+        editor.start_async_io()
+        editor.warning(f'Command Finished with status: {err}')
 
 
 @with_args_commands(":chdir :chd :cd")
@@ -728,7 +758,7 @@ def do_zb(editor, reg=None, part=None, arg=None, count=1):
         curwin.shift_to_lin = new_pos
 
 
-@atomic_commands(f'{k.page_down} {k.C_B}')
+@atomic_commands(f'{k.page_down} i{k.page_down} {k.C_B}')
 def do_page_down(editor, reg=None, part=None, arg=None, count=1):
     """
     First keystrike puts the cursor on the beginning of last line shown
@@ -752,7 +782,7 @@ def do_page_down(editor, reg=None, part=None, arg=None, count=1):
 
 
 
-@atomic_commands(f'{k.page_up} {k.C_F}')
+@atomic_commands(f'{k.page_up} i{k.page_up} {k.C_F}')
 def do_page_up(editor, reg=None, part=None, arg=None, count=1):
     """
     First keystrike puts the cursor on the beginning of first line shown
@@ -767,8 +797,6 @@ def do_page_up(editor, reg=None, part=None, arg=None, count=1):
 
     if lin > line_shift:
         curbuf.cursor = lines_offsets[line_shift]
-    #elif (newline := (lin - page_size)) > 0:   No := in cython
-    #    curbuf.cursor = lines_offsets[newline]
     elif lin - page_size > 0:
         newline = lin - page_size
         curbuf.cursor = lines_offsets[newline]

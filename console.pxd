@@ -1,19 +1,20 @@
-from cython import locals
+from cython cimport locals, final
 
-cdef class stdin_no_echo:
-    cdef list mode
-#
-cdef class stdin_no_echo_nl:
-    cdef dict __dict__
+cdef:
+   int IFLAG
+   int OFLAG
+   int CFLAG
+   int LFLAG
+   int ISPEED
+   int OSPEED
+   int CC
 
-@locals(mode=list)
-cdef setnoecho(fd, when=*)
+#@locals(mode=list)
+#cdef setnoecho(fd, when=*)
 
 @locals(mode=list)
 cdef setnonblocking(fd, when=*)
 
 @locals(rv=str, esc_seq=str)
-cpdef str get_a_key()
+cdef str get_a_key()
 
-@locals(rv=str, esc_seq=str)
-cdef stdout_no_cr()

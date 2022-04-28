@@ -2,49 +2,19 @@ from vy import keys as k
 
 DELIMS = ' .{}()[]():\n'
 
-class BaseFile:
-    modifiable = False
-    actions = {}
-
-    def __init__(self, set_number=True, set_wrap=False, set_tabsize=4, 
-                cursor=0, init_text='', path=None):
-        #### UNDO MECANISME ####
-        self._no_undoing = False
-        self.redo_list = list()
-        self.undo_list = list()
-
-        #### CACHED PROPERTIES ####
-        self._splited_lines = list()
-        self._lexed_lines = list()
-        self._lines_offsets = list()
-
-        self.path = path
+class InputBuffer:
+    modifiable = True
+    def __init__(self, init_text='', cursor=0):
+        self.update_callbacks = list()
         self.cursor = cursor
-        #self.string = init_text
-
-        self.set_wrap = set_wrap
-        self.set_number = set_number
-        self.set_tabsize = set_tabsize
-
-        self.string = init_text
-
-        self.motion_commands = {
-           'b'         : self.find_previous_delim, k.S_left    : self.find_previous_delim,
-           'h'         : self.find_normal_h, k.left      : self.find_normal_h,
-           'j'         : self.find_normal_j,     '\r'        : self.find_normal_j,
-           k.down      : self.find_normal_j, 'k':    self.find_normal_k,
-           k.up:   self.find_normal_k, 'l':    self.find_normal_l,
-           k.right:    self.find_normal_l, ' ':    self.find_normal_l,
-           'w':    self.find_next_delim, k.S_right: self.find_next_delim,
-           'W':    self.find_next_WORD, k.C_right: self.find_next_WORD,
-           'G':    lambda: len(self), 'gg':   lambda: 0,
-           'cursor': lambda self: self.cursor, 'e':    self.find_end_of_word,
-           'E':    self.find_end_of_WORD, '$':    self.find_end_of_line,
-           '0':    self.find_begining_of_line, '_':    self.find_first_non_blank_char_in_line,
-           }
+        self._string = init_text
 
     @property
     def string(self):
+        """String is a property returning the internal 
+        buffer. Modifying its value triggers the registered
+        callbacks.
+        """
         return self._string
 
     @string.setter
@@ -52,18 +22,90 @@ class BaseFile:
         if not self.modifiable:
             return
         self._string = value
-        self._update_properties()
-        self.update_properties()
+        for func in self.update_callbacks:
+            func(self)
 
-    def _update_properties(self):
+    def suppr(self):
+        """Like the key strike, deletes the character under the cursor."""
+        string = self.string
+        cur = self.cursor
+        self.string  = f'{string[:cur]}{string[cur + 1:]}'
+
+    def backspace(self):
+        """Like the key strike, deletes the left character at the cursor."""
+        if self.cursor > 0:
+            self.cursor -= 1
+            self.suppr() 
+
+    def insert(self, text):
+        """Inserts text at the cursor position.
+        Cursor will move at the and of it."""
+        string = self.string
+        cur = self.cursor
+        self.string = f'{string[:cur]}{text}{string[cur:]}'
+        self.cursor += len(text)
+
+class BaseFile(InputBuffer):
+    modifiable = True
+    actions = {}
+    def __init__(self, set_number=True, set_wrap=False, set_tabsize=4, 
+                cursor=0, init_text='', path=None):
+        InputBuffer.__init__(self, init_text, cursor)
+        #### UNDO MECANISME ####
+        self._no_undoing = False
+        self.redo_list = list()
+        self.undo_list = list()
+
         self._lines_offsets = list()
-        if self.redo_list:
-            self.redo_list = list()
         self._splited_lines = list()
 
-    def update_properties(self):
-        """ To be overridden """
+        self.update_callbacks.append(lambda self: (self.set_undo_point(),
+                                                   self._lines_offsets.clear(), 
+                                                   self._splited_lines.clear()))
+        self.path = path
+        self.set_wrap = set_wrap
+        self.set_number = set_number
+        self.set_tabsize = set_tabsize
 
+        self.motion_commands = {
+           'b'          : self.find_previous_delim,
+           k.S_left     : self.find_previous_delim,
+           'h'          : self.find_normal_h,
+           k.left       : self.find_normal_h,
+           'j'          : self.find_normal_j,
+           '\r'         : self.find_normal_j,
+           k.down       : self.find_normal_j,
+           'k'          : self.find_normal_k,
+           k.up         : self.find_normal_k,
+           'l'          : self.find_normal_l,
+           k.right      : self.find_normal_l,
+           ' '          : self.find_normal_l,
+           'w'          : self.find_next_delim,
+           k.S_right    : self.find_next_delim,
+           'W'          : self.find_next_WORD,
+           k.C_right    : self.find_next_WORD,
+           'G'          : lambda: len(self),
+           'gg'         : lambda: 0,
+           'cursor'     : lambda self: self.cursor,
+           'e'          : self.find_end_of_word,
+           'E'          : self.find_end_of_WORD,
+           '$'          : self.find_end_of_line,
+           '0'          : self.find_begining_of_line,
+           '_'          : self.find_first_non_blank_char_in_line,
+           }
+
+    def find_normal_l(self):
+        if self[self.cursor] == '\n':
+            return self.cursor
+        elif self.cursor < len(self):
+            return self.cursor + 1
+
+    def find_normal_h(self):
+        if self.cursor == 0:
+            return 0
+        if self.string[self.cursor - 1] == '\n':
+            return self.cursor
+        return self.cursor - 1
 
     def compress_undo_list(self):
         self.undo_list = [item 
@@ -79,26 +121,12 @@ class BaseFile:
         self.set_undo_point()
 
     def set_undo_point(self):
-        actual_txt, actual_cur = self._string, self.cursor
-        actual_off = self.lines_offsets
-
-        if not self.undo_list:
-            self.undo_list.append((actual_txt, actual_cur, actual_off))
-            return
-        last_txt, _x, _y = self.undo_list[-1]
-        if actual_txt != last_txt:
-            self.undo_list.append((actual_txt, actual_cur, actual_off))
+        if (not self.undo_list) or (self.undo_list and self.undo_list[-1][0] != self.string):
+            self.undo_list.append((self.string, self.cursor, self.lines_offsets))
 
     def undo(self):
-        if not self.undo_list:
-            return
-        txt, pos, off = self.undo_list.pop()
-        self.redo_list.append((self._string, self.cursor,
-                                self.lines_offsets))
-        self.string = txt
-        self.cursor = pos
-        self._lines_offsets = off
-    
+        self._string, self.cursor, self._lines_offsets = self.undo_list.pop()
+
     def redo(self):
         if not self.redo_list:
             return
@@ -135,7 +163,7 @@ class BaseFile:
         if key == '_'       : return self.find_first_non_blank_char_in_line()
 
     def find_end_of_line(self):
-        offset = self._string.find('\n', self.cursor)
+        offset = self.string.find('\n', self.cursor)
         if offset == -1:
             return len(self)
         return offset
@@ -204,7 +232,7 @@ class BaseFile:
 
     def find_next_non_blank_char(self):
         pos = self.cursor
-        while self._string[pos].isspace():
+        while self.string[pos].isspace():
             if pos == len(self):
                 break
             pos += 1
@@ -244,26 +272,16 @@ class BaseFile:
 
     def find_normal_j(self):
         lin, col = self.cursor_lin_col
-        if lin+1 >= len(self.lines_offsets):
+        next_line = lin + 1
+        if next_line > self.number_of_lin:
             return self.cursor
-        next_lin_offset = self.lines_offsets[lin+1]
-        max_offset = next_lin_offset + len(self.splited_lines[lin+1])
+
+        next_lin_offset = self.lines_offsets[next_line]
+        max_offset = next_lin_offset + len(self.splited_lines[next_line])
         if next_lin_offset + col > max_offset:
             return max_offset
         return next_lin_offset + col - 1
 
-    def find_normal_l(self):
-        if self[self.cursor] == '\n':
-            return self.cursor
-        elif self.cursor < len(self):
-            return self.cursor + 1
-
-    def find_normal_h(self):
-        if self.cursor == 0:
-            return 0
-        if self._string[self.cursor - 1] == '\n':
-            return self.cursor
-        return self.cursor - 1
 
     def find_next_WORD(self):
         cursor = self.cursor +1
@@ -310,7 +328,7 @@ class BaseFile:
     def find_next_non_delim(self):
         global DELIMS
         cursor = self.cursor
-        while self._string[cursor] in DELIMS:
+        while self.string[cursor] in DELIMS:
             if cursor == len(self):
                 return cursor
             cursor +=1
@@ -323,11 +341,11 @@ class BaseFile:
         if self[cursor] in DELIMS:
             return self.find_next_non_delim()
 
-        while self._string[cursor] not in DELIMS:
+        while self.string[cursor] not in DELIMS:
             if cursor == len(self):
                 return cursor
             cursor +=1
-        while self._string[cursor].isspace():
+        while self.string[cursor].isspace():
             if cursor == len(self):
                 return cursor
             cursor +=1
@@ -336,9 +354,9 @@ class BaseFile:
     def find_previous_delim(self):
         global DELIMS
         cursor = self.cursor
-        while self._string[cursor] in DELIMS:
+        while self.string[cursor] in DELIMS:
             cursor -= 1
-        while self._string[cursor] not in DELIMS:
+        while self.string[cursor] not in DELIMS:
             if cursor == 0:
                 return cursor
             cursor -=1
@@ -353,7 +371,7 @@ class BaseFile:
             start = 0
         else:
             start +=1
-        stop = self._string.find(' ', self.cursor + 1)
+        stop = self.string.find(' ', self.cursor + 1)
         if stop == -1:
             stop = len(self.string)
         return slice(start, stop)
@@ -365,41 +383,22 @@ class BaseFile:
             stop +=1
         return slice(start, stop)
 
-    def suppr(self):
-        """Like the key strike, deletes the character under the cursor."""
-        string = self._string
-        cur = self.cursor
-        self.string  = f'{string[:cur]}{string[cur + 1:]}'
-
-    def backspace(self):
-        """Like the key strike, deletes the left character at the cursor."""
-        if self.cursor > 0:
-            self.cursor -= 1
-            self.suppr() 
-
-    def insert(self, text):
-        """Inserts text at the cursor position.
-        Cursor will move at the and of it."""
-        string = self._string
-        cur = self.cursor
-        self.string = f'{string[:cur]}{text}{string[cur:]}'
-        self.cursor += len(text)
 
     def write(self, text):
         assert isinstance(text, str)
         if text:
-            self.string = self._string[:self.cursor] + text + self._string[self.cursor + len(text):]
+            self.string = self.string[:self.cursor] + text + self.string[self.cursor + len(text):]
             self.cursor = self.cursor + len(text)
 
     def getvalue(self):
-        return self._string
+        return self.string
 
     def read(self, nchar= -1):
         if nchar == -1:
-            rv = self._string[self.cursor:]
+            rv = self.string[self.cursor:]
             self.cursor = len(self.string)
         else:
-            rv = self._string[self.cursor:(self.cursor + nchar)]
+            rv = self.string[self.cursor:(self.cursor + nchar)]
             self.cursor = self.cursor + nchar
         return rv
 
@@ -457,37 +456,37 @@ class BaseFile:
     @property
     def lines_offsets(self):
         if not self._lines_offsets:
+            linesOffsets = list()
             offset = 0
-            linesOffsets = self._lines_offsets
-            for line in self._string.splitlines(True):
+            for line in self.splited_lines:
                 linesOffsets.append(offset)
-                offset += len(line)
-            #self._lines_offsets = linesOffsets
+                offset += len(line) + 1
+            self._lines_offsets = linesOffsets
         return self._lines_offsets
 
     @property
     def splited_lines(self):
         if not self._splited_lines:
-            self._splited_lines = self._string.splitlines()
+            self._splited_lines = self.string.splitlines()
         return self._splited_lines
 
     @property
     def number_of_lin(self):
         """Number of lines in the buffer"""
-        return len(self.lines_offsets)
+        return len(self.splited_lines)
 
     def move_cursor(self, offset_str):
         self.cursor = self._get_offset(offset_str)
     
     def __len__(self):
-        if self._string:
-            return len(self._string) - 1
+        if self.string:
+            return len(self.string) - 1
         return 0
 
     def __getitem__(self, key):
         if isinstance(key, str):
             key = self._get_range(key)
-        return self._string.__getitem__(key)
+        return self.string.__getitem__(key)
 
     def _get_range(self,key):
         if ':' in key:
@@ -533,15 +532,15 @@ class BaseFile:
     def __delitem__(self, key):
         if isinstance(key, int):
             if key >=0 and key < len(self):
-                self.string = self._string[0:key] + self._string[key+1:]
+                self.string = self.string[0:key] + self.string[key+1:]
             else: raise IndexError('Vy Runtime: string index out of range')
 
         elif isinstance(key, slice):
             if not key.start:   start = 0
             else:               start = key.start
-            if not key.stop:    stop = len(self._string) - 1
+            if not key.stop:    stop = len(self.string) - 1
             else:               stop = key.stop
-            self.string = f'{self._string[:start]}{self._string[stop:]}'
+            self.string = f'{self.string[:start]}{self.string[stop:]}'
             if key.start < self.cursor <= key.stop:
                 self.cursor = key.start
 
@@ -549,7 +548,8 @@ class BaseFile:
             key = self._get_range(key)
             self.__delitem__(key)
             return
-        else: raise TypeError
+        else:
+            raise TypeError
 
     def __setitem__(self, key, value):
         if isinstance(key, str):
@@ -560,7 +560,7 @@ class BaseFile:
         elif isinstance(key, int):
             start = key
             stop = start + 1
-        self.string = f'{self._string[:start]}{value}{self._string[stop:]}'
+        self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
 
     def __repr__(self):
         return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
@@ -568,7 +568,7 @@ class BaseFile:
 # Saving mechanism
     def save(self):
         assert self.path is not None
-        self.path.write_text(self._string)
+        self.path.write_text(self.string)
 
     def save_as(self, new_path=None, override=False):
         from pathlib import Path
@@ -594,7 +594,7 @@ class BaseFile:
     @property
     def unsaved(self):
         if self.path is None or not self.path.exists():
-            if self.string and self._string != '\n':
+            if self.string and self.string != '\n':
                 return True
         elif self.path.read_text() != self.string != '\n':
             return True

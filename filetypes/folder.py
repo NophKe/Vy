@@ -14,16 +14,21 @@ def DO_open_file(editor):
 
 class Folder(BaseFile):
     motion_commands = { }
-    actions = {'\r':    DO_open_file}
+    actions = {'\r': DO_open_file,
+               k.C_J: DO_open_file,
+        }
     unsaved = False
 
     @property
-    def _value(self):
-        return [self.path.resolve(), (self.path/'..').resolve() ].extend(
-                    sorted(x for x in self.path.iterdir() if not x.name.startswith('.') ))
-    @property
-    def _string(self):
-        return '\n'.join(str(line) for line in self.value)
+    def string(self):
+        value =[ self.path.resolve(),
+                (self.path/'..').resolve() ]
+        value.extend(sorted(x for x in self.path.iterdir() if not x.name.startswith('.') ))
+        return '\n'.join(str(line) for line in value)
+
+    @string.setter
+    def string(self, value):
+        return
 
     def get_lexed_line(self, index):
         retval = ''
@@ -32,5 +37,5 @@ class Folder(BaseFile):
         if index == self.cursor_line:
             retval += '\x1b[2m'
         retval += self.splited_lines[index] + '\x1b[0m' 
-        return index, retval 
+        return retval 
 

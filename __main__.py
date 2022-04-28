@@ -52,35 +52,35 @@ if not global_config.USER_DIR.exists() and not global_config.DONT_USE_USER_CONFI
 
 ########    SIGNAL HANDLING    #######################################
 
-from signal import signal, SIGWINCH, SIGINT
-
-signal(SIGWINCH, lambda a, b: Editor.show_screen(False))
+#from signal import signal, SIGWINCH, SIGINT
+#
+#signal(SIGWINCH, lambda a, b: Editor.show_screen(False))
 
 
 ########    DEBUG MODE     ###########################################
 
-if cmdline.debug:
-    """ Be Aware that debug mode is buggy !!! """
-    import sys
-    from pprint import pp
-    import faulthandler
-
-    def dump_infos(a, b):
-        Editor.screen.original_screen()
-        sys.stdout.flush()
-        items = [ Editor.current_buffer, 
-                Editor.screen, Editor.cache, Editor.registr ]
-        for item in items:
-            pp(item.__dict__)
-            input(repr(item) + 'ok?  ')
-        print(repr(a) + 'ok?  ')
-        print(repr(b) + 'ok?  ')
-        faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
-        sys.stdin.readline()
-    signal(SIGINT, dump_infos)
-
-
-########    START THE EDITOR #########################################
+#if cmdline.debug:
+    #""" Be Aware that debug mode is buggy !!! """
+    #import sys
+    #from pprint import pp
+    #import faulthandler
+#
+    #def dump_infos(a, b):
+        #Editor.screen.original_screen()
+        #sys.stdout.flush()
+        #items = [ Editor.current_buffer, 
+                #Editor.screen, Editor.cache, Editor.registr ]
+        #for item in items:
+            #pp(item.__dict__)
+            #input(repr(item) + 'ok?  ')
+        #print(repr(a) + 'ok?  ')
+        #print(repr(b) + 'ok?  ')
+        #faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+        #sys.stdin.readline()
+    #signal(SIGINT, dump_infos)
+#
+#
+#########    START THE EDITOR #########################################
 
 from vy.editor import _Editor as Editor
 Editor = Editor(*cmdline.files, command_line=cmdline)

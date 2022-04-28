@@ -1,3 +1,5 @@
+#cdef object sa_commands, full_commands, with_args_commands, atomic_commands 
+#cdef object k, Path
 #from vy.editor cimport Editor
 #
 #cpdef join_lines(Editor editor, reg=*, part=*, arg=*, count=*)

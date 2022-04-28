@@ -4,17 +4,22 @@ When importing Vy as a whole package, an instance of Editor is the only
 thing you get. And when executing (python -m), an Editor *instance* shall
 be the unique thing in the global dict.
 """
+
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
 from functools import partial
+from itertools import repeat, chain
+from time import sleep
+from threading import Thread
+from queue import Queue
 
 from vy.screen import Screen
 from vy.interface import Interface
-from vy.console import get_a_key
 from vy.filetypes import Open_path
+from vy.console import visit_stdin
 
-from threading import Thread
+
 
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
@@ -144,23 +149,18 @@ class _Register:
         elif key == '!':
             self.dico[key] = exec(value)
 
-########## end of class _Register ##########
-
-class _BoundNameSpace:
-    def __init__(self, instance):
-        super().__setattr__("_instance", instance) 
-
-    def __setattr__(self, key, value):
-        pass
-            
-
-    def __repr__(self):
-        return self.__dict__.__repr__()
-
-    def __iter__(self):
-        return iter(self.__dict__)
-
-########## end of _BoundNameSpace ##########
+########### end of class _Register ##########
+#
+#class _BoundNameSpace:
+#    def __init__(self, instance):
+#        super().__setattr__("_instance", instance) 
+#    def __setattr__(self, key, value):
+#        pass
+#    def __repr__(self):
+#        return self.__dict__.__repr__()
+#    def __iter__(self):
+#        return iter(self.__dict__)
+########### end of _BoundNameSpace ##########
 
 class _Actions:
     def __init__(self, instance):
@@ -210,32 +210,25 @@ class _Editor:
         self.command_line = command_line
         self._macro_keys = str()
         self._running = False
+        self._async_io_flag = False
         self._work_stack = [self.cache[buff].path for buff in buffers]
         self.command_list = list()
         self.current_mode = ''
+        self._input_queue = Queue()
     
-# TODO make read_stdin recognize escape chars, or maybe use a list instead of
-# of a string ???
     def read_stdin(self):
         if self._macro_keys:
             rv = self._macro_keys[0]
             self._macro_keys = self._macro_keys[1:]
             return rv
-        return get_a_key()
-    
+        key_press = self._input_queue.get(block=True)
+        self._input_queue.task_done()
+        return key_press
+
+
     def push_macro(self, string):
         assert isinstance(string, str)
         self._macro_keys = f'{string}{self._macro_keys}'
-    
-    def show_screen(self, renew=False, curbuf_queue=None):
-        assert self._running
-        screen = self.screen
-        screen.infobar('( Screen Rendering )')
-        if screen.needs_redraw or renew:
-            screen.show(True)
-        else:
-            screen.show()
-        screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
     def warning(self, msg):
         """Displays a warning message to the user. This should be the main way to cast
@@ -245,16 +238,13 @@ class _Editor:
         access to the editor variable ) you should raise an exception.
         """
         if self._macro_keys:
-            print('this happened during the execution of a macro that is still running')
-            print('left to evaluate: {self._macro_keys}')
-
-        self.screen.minibar(f"{msg}\r\n\tpress any key to continue (or ^c to debug...)")
-        key = get_a_key()
-        if key == '\x03':
-            print("\nyou are now in debugger. use 'up' to go back to the origin of this erros")
-            print("'cont' to resume")
-            breakpoint()
+            self.screen.minibar_completer(
+             'this happened during the execution of a macro that is still running',
+             f'left to evaluate: {self._macro_keys}')
+        self.screen.minibar(*msg.splitlines(), '\tpress any key to continue')
+        self.read_stdin()
         self.screen.minibar('')
+        self.screen.minibar_completer()
 
     def edit(self, location):
         """
@@ -271,8 +261,56 @@ class _Editor:
 
     @property
     def current_buffer(self): 
-        return self.current_window.buff
+        return self.screen.focused.buff
 
+    def print_loop(self):
+        old_screen = list()
+        self.screen.hide_cursor()
+
+        while self._async_io_flag:
+            if self._input_queue.unfinished_tasks:
+                sleep(0.1) # not more thant 10/sec 
+                self.screen.infobar(f'__ SCREEN NOT RENDERED __ ', 'typing too fast or slow machine?')
+            else:
+                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+
+            new_screen = self.screen.get_line_list()
+            filtered = list()
+            for index, (line, old_line) in enumerate(zip(new_screen, chain(old_screen, repeat(''))),start=1):
+                 if line and line != old_line:
+                     filtered.append(f'\x1b[{index};1H{line}')
+                 else:
+                     filtered.append('')
+            to_print = ''.join(filtered)  
+            if to_print:
+                self.screen.print(to_print)
+                old_screen = new_screen
+            sleep(0.03) # don't try more than 33/sec
+        self.screen.show_cursor()
+
+    def input_loop(self):
+        stdin_reader = visit_stdin()
+        while self._async_io_flag:
+            key_press = next(stdin_reader) 
+            if key_press:
+                self._input_queue.put(key_press)
+            sleep(0)
+
+    def start_async_io(self):
+        assert not self._async_io_flag
+        self._async_io_flag = True
+        self.input_thread = Thread(target=self.input_loop,)
+        self.print_thread = Thread(target=self.print_loop,)
+        self.input_thread.start()
+        self.print_thread.start()
+
+    def stop_async_io(self):
+        assert self._async_io_flag
+        self._async_io_flag = False
+        self.print_thread.join()
+        self.input_thread.join()
+        #self._input_queue.join()
+        
     def __call__(self,buff=None, mode='normal'):
         """
         Calling the editor launches the command loop interraction.
@@ -281,16 +319,19 @@ class _Editor:
         (Changes the current buffer and current window to edit location)
 
         """
-        if self._running is True:
+        if self._running:
             return self.edit(buff)
         self._running = True
+
         self.edit(buff if buff 
                     else self._work_stack.pop(0) if self._work_stack 
                     else None)
-
+        
         self.screen.alternative_screen()
         self.screen.clear_screen()
+        self.screen.hide_cursor()
         print('  Vy is starting. Please wait.')
+        self.start_async_io()
         try:
             while True:
                 try:
@@ -299,8 +340,8 @@ class _Editor:
                 except BdbQuit:
                     mode = 'normal'
                     continue
-                    
                 except Exception as exc:
+                    self.stop_async_io()
                     self.screen.original_screen()
                     print('The following *unhandled* exception was encountered:\n  >  ' + repr(exc))
                     print('indicating:\n  >  ' + str(exc))
@@ -311,15 +352,12 @@ class _Editor:
                     try:
                         input('Press [ENTER] to resume  (or [CTRL+C] to close)')
                     except KeyboardInterrupt:
-                        try:
-                            input('\rPress [ENTER] to resume  (or [CTRL+C] (ONE MORE TIME) to close)')
-                        except KeyboardInterrupt:
-                            raise SystemExit
+                        raise SystemExit
                     self.screen.alternative_screen()
                     mode = 'normal'
+                    self.start_async_io()
                     continue
-                except SystemExit:
-                    break
         finally:
             self._running = False
+            self.stop_async_io()
             self.screen.original_screen()

@@ -1,5 +1,7 @@
 from vy.keys cimport _escape
+from cython import locals, final
 
+@final
 cdef class command:
     cdef:
         str c_header 
