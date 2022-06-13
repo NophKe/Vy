@@ -21,7 +21,7 @@ class command:
             elif item.startswith(':')   : c_alias.append(item.removeprefix(':'))
             else                        : n_alias.append(item)
 
-        header = ''
+        header = '-' * 64 + '\n'
         if c_alias:
             header += self.c_header % (c_alias[0] ,
                                     ' '.join(_escape(item) for item in c_alias).ljust(60))

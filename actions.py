@@ -12,6 +12,28 @@ from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
 from vy import keys as k
 
+@atomic_commands('µ')
+def print_some(editor, reg=None, part=None, arg=None, count=1):
+    """
+    This command is used to print variables to debug.
+    It looks to a file called "debugging_values" from the user 
+    config directory. This file should contain a list of newline
+    separated variables from the editor object namespace.
+    """
+    from vy.global_config import USER_DIR
+    from pprint import pformat
+    debug_file = USER_DIR / "debugging_values"
+    to_print = ''
+    for line in debug_file.read_text().splitlines():
+        parent = editor
+        for part in line.split('.'):
+            if not part or part == '.':
+                continue
+            parent = getattr(parent, part) #, f'no {part} in {parent}')
+        to_print += f'{line} = {pformat(parent)}\n'
+    editor.warning(to_print)
+    #repr(editor.current_buffer.cursor_lin_col))
+
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
@@ -53,6 +75,7 @@ def join_lines(editor, reg=None, part=None, arg=None, count=1):
     Joins the {count} next lines together.
     """
     curbuf = editor.current_buffer
+    curbuf.stop_undo_record()
     for _ in range(count):
         try:
             newline = curbuf.lines_offsets[curbuf.cursor_line + 1]
@@ -63,6 +86,7 @@ def join_lines(editor, reg=None, part=None, arg=None, count=1):
             del curbuf[newline - 1]
         else:
             curbuf[newline - 1] = ' '
+    curbuf.start_undo_record()
 
 
 @sa_commands(f'{k.C_W}>')
@@ -94,7 +118,6 @@ def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
 def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
     return 'search_forward'
 
-
 @atomic_commands('o')
 def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -119,11 +142,6 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     curbuf.move_cursor('k')
     return 'insert'
 
-
-@atomic_commands('U')
-def do_normal_U(editor, reg=None, part=None, arg=None, count=1):
-    editor.current_buffer.undo()
-
 @atomic_commands('A')
 def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -133,9 +151,7 @@ def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer.move_cursor('$')
     return 'insert'
 
-
-
-@atomic_commands('u :u :un :undo')
+@atomic_commands('U u :u :un :undo')
 def undo(editor, reg=None, part=None, arg=None, count=1):
     """
     Undo last action in the current buffer.
@@ -372,16 +388,14 @@ def do_chdir(editor, reg=None, part=None, arg=None, count=1):
 @with_args_commands(":set :se")
 def do_set(editor, reg=None, part=None, arg=None, count=1):
     """
-    [SYNTAX]        :set {argument}   >>> set to True
-    [SYNTAX]        :set no{argument} >>> set to False
-    [SYNTAX]        :set {argument}!  >>> toggle True/False
+    [SYNTAX]      :set {argument}          >>> set to True
+    [SYNTAX]      :set no{argument}        >>> set to False
+    [SYNTAX]      :set {argument}!         >>> toggle True/False
+    [SYNTAX]      :set {argument} {number} >>> set to integer value
     """
 
     if not arg:
-        editor.warning("""
-    [SYNTAX]        :set {argument}   >>> set to True
-    [SYNTAX]        :set no{argument} >>> set to False
-    [SYNTAX]        :set {argument}!  >>> toggle True/False""")
+        editor.warning(do_set.__doc__)
         return
 
     toggle = object()
@@ -418,12 +432,7 @@ def do_edit(editor, reg=None, part=None, arg=None, count=1):
     being visited, the file is not read again and the cached version in served
     """
     if arg:
-        try:
-            editor.edit(arg)
-        except UnicodeDecodeError:
-            editor.warning("Vy cannot deal with this encoding")
-        except PermissionError:
-            editor.warning("You do not seem to have enough rights to read " + arg)
+        editor.edit(arg)
 
 
 @atomic_commands(":enew :ene")
@@ -698,6 +707,20 @@ def do_z__DOT__(editor, reg=None, part=None, arg=None, count=1):
     curbuf.move_cursor('_')
 
 
+@atomic_commands(f'{k.C_D}')
+def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Scrolls one line down. Ajust cursor position so that it is keeps on
+    the top line, if it were to escape the current window.
+    """
+    curwin = editor.current_window
+    curbuf = editor.current_buffer
+    curwin.shift_to_lin = max(curwin.number_of_lin, ( curwin.shift_to_lin
+                                                    + curwin.number_of_lin))
+    cursor_line = curbuf.cursor_line
+    if curwin.shift_to_lin > cursor_line:
+        curbuf.move_cursor(f'{curwin.shift_to_lin}')
+
 @atomic_commands(f'{k.C_E}')
 def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -924,7 +947,7 @@ def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
 
 # TODO Add k.F1 and i_k.F1( but set value in keys.py first ) 
 @with_args_commands(':help :h')
-def do_help(editor, reg=None, part=None, arg=None, count=1):
+def do_help(editor, reg=None, part=None, arg=':help', count=1):
     """
     [SYNTAX] :help TOPIC
 
@@ -942,9 +965,6 @@ def do_help(editor, reg=None, part=None, arg=None, count=1):
 
     To enter a "special key" prepend [CTRL+V].
     """
-    if not arg:
-        help(do_help)
-        return 'normal'
     try:
         if arg.startswith(':'):
             arg = editor.actions.command[arg[1:]].func
@@ -958,9 +978,9 @@ def do_help(editor, reg=None, part=None, arg=None, count=1):
         editor.warning(f'{arg} not found in help.')
         return 'normal'
 
-    editor.screen.original_screen()
+    editor.stop_async_io()
     help(arg)
-    editor.screen.alternative_screen()
+    editor.start_async_io()
     return 'normal'
 
 

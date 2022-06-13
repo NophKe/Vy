@@ -1,6 +1,5 @@
 from pathlib import Path
 import readline
-import rlcompleter
 from ..global_config import USER_DIR
 
 class CommandCompleter:
@@ -16,12 +15,10 @@ class CommandCompleter:
         histfile.write_text(''.join(restric))
         self.histfile = histfile
 
-class TUUU:
     def __enter__(self):
         self._old_history = [ readline.get_history_item(idx) 
                                 for idx in range(readline.get_current_history_length())]
         self._old_complete = readline.get_completer() 
-        readline.set_completer(lambda txt,state: self.completer(txt, state))
         readline.set_completer_delims(' \t')
         readline.set_history_length(1000)
         readline.clear_history()

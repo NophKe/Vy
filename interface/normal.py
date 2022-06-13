@@ -62,7 +62,9 @@ def loop(editor):
             editor.screen.minibar(f' ( Invalid command: {_escape(key)} )')
             continue
 
-        action = dictionary[key]
+        if key in local_actions:
+            return local_actions[key](editor)
+
         if key in motion_cmd:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
             for _ in range(COUNT):
@@ -71,13 +73,11 @@ def loop(editor):
             continue
         
         editor.current_buffer.set_undo_point()
-
-        if key in local_actions:
-            return action(editor)
+        action = dictionary[key]
 
         if action.atomic:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
-            rv = action()
+            rv = action(editor)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv
@@ -85,7 +85,7 @@ def loop(editor):
 
         elif action.stand_alone:
             editor.screen.minibar(f' ( Processing Command: {_escape(key)} )')
-            rv = action(reg=REG if REG else '"', count=COUNT)
+            rv = action(editor, reg=REG if REG else '"', count=COUNT)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv
@@ -104,7 +104,7 @@ def loop(editor):
                 COUNT = COUNT * MOTION_COUNT
                 editor.screen.minibar(f'( Processing Command: {_escape(CMD)} on {COUNT} lines )')
                 RANGE = curbuf._get_range(f'#.:#+{COUNT}')
-                rv = action(reg=REG if REG else '"', part=RANGE)
+                rv = action(editor, reg=REG if REG else '"', part=RANGE)
                 editor.screen.minibar('')
                 if rv and rv != 'normal':
                     return rv
@@ -132,7 +132,7 @@ def loop(editor):
 
             RRANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
-            rv = action(reg=REG if REG else '"', part=RANGE)
+            rv = action(editor, reg=REG if REG else '"', part=RANGE)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv

@@ -69,7 +69,8 @@ class Completer:
         finally:
             self.give_up()
             screen.minibar_completer()
-            screen.minibar(' ')
+            screen.minibar()
+        assert False
         return buffer.string
 
     def update_minibar(self):
@@ -172,7 +173,6 @@ def loop(self):
 
     if user_input.isdigit():
         self.current_buffer.move_cursor(f'#{user_input}')
-        #self.command_list.append(f':{user_input}<CR>')
         return 'normal'
 
     if ' ' in user_input:
@@ -185,7 +185,5 @@ def loop(self):
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
-
-    #self.command_list.append(':{user_input}<CR>')
     self.screen.infobar(f'( Processing Command: {user_input} )')
-    return action(arg=ARG, part=PART, reg=REG) or 'normal'
+    return action(self, arg=ARG, part=PART, reg=REG) or 'normal'

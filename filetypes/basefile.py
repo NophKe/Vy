@@ -1,13 +1,36 @@
 from vy import keys as k
 
-DELIMS = ' .{}()[]():\n'
+
+DELIMS = ' ,;:/!%.{}()[]():\n'
 
 class InputBuffer:
+    """
+    >>> x = InputBuffer()
+    >>> x.insert('FOO')
+    >>> x.string
+    'FOO'
+    """
     modifiable = True
     def __init__(self, init_text='', cursor=0):
         self.update_callbacks = list()
-        self.cursor = cursor
+        self.pre_update_callbacks = list()
         self._string = init_text
+        self.cursor = cursor
+        self._lines_offsets = list()
+        self._splited_lines = list()
+
+    def __len__(self):
+        return len(self.string)
+
+    @property
+    def cursor(self):
+        return self._cursor
+
+    @cursor.setter
+    def cursor(self, value):
+        assert value <= len(self)
+        assert value >= 0
+        self._cursor = value
 
     @property
     def string(self):
@@ -19,53 +42,124 @@ class InputBuffer:
 
     @string.setter
     def string(self, value):
+        assert isinstance(value, str)
         if not self.modifiable:
             return
+        self.lines_offsets.clear()
+        self.splited_lines.clear()
+        for func in self.pre_update_callbacks:
+            func()
         self._string = value
         for func in self.update_callbacks:
-            func(self)
+            func()
+
+    @property
+    def cursor_lin_col(self):
+        """A tupple representing the actual cursor (line, collumn),
+        lines are 0 based indexed, and cols are 1-based.
+        """
+        lin, off = self.cursor_lin_off
+        assert lin < self.number_of_lin
+        col = self.cursor - off + 1
+        return lin, col
+
+    @property
+    def cursor_lin_off(self):
+        """A tupple (cursor_line, ),
+        lines are 0 based indexed, and cols are 1-based.
+        """
+        cursor = self.cursor
+        lin = offset = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin, offset
+            if offset > cursor:
+                return lin - 1, self.lines_offsets[lin - 1 ]
+        else:
+            return lin, offset
+
+    @property
+    def cursor_line(self):
+        """The zero-based number indexing the current line."""
+        cursor = self.cursor
+        #lin = offset = 0
+        for lin, offset in enumerate(self.lines_offsets):
+            if offset == cursor:
+                return lin
+            if offset > cursor:
+                return lin - 1
+        else:
+            return lin
+
+    @property
+    def lines_offsets(self):
+        if not self._lines_offsets:
+            offset = 0
+            for line in self.splited_lines:
+                self._lines_offsets.append(offset)
+                offset += len(line)# + 1
+        return self._lines_offsets
+
+    @property
+    def splited_lines(self):
+        if not self._splited_lines:
+            self._splited_lines = self.string.splitlines(True)
+        return self._splited_lines
+
+    @property
+    def number_of_lin(self):
+        """Number of lines in the buffer"""
+#        assert len(self.splited_lines) == len(self.lines_offsets)
+        return len(self.splited_lines)
+
 
     def suppr(self):
-        """Like the key strike, deletes the character under the cursor."""
+        """
+        Like the key strike, deletes the character under the cursor.
+        """
         string = self.string
         cur = self.cursor
         self.string  = f'{string[:cur]}{string[cur + 1:]}'
 
     def backspace(self):
-        """Like the key strike, deletes the left character at the cursor."""
+        """
+        Like the key strike, deletes the left character at the cursor.
+        """
         if self.cursor > 0:
             self.cursor -= 1
             self.suppr() 
 
     def insert(self, text):
-        """Inserts text at the cursor position.
-        Cursor will move at the and of it."""
+        """
+        Inserts text at the cursor position.
+        Cursor will move at the and of it.
+        """
         string = self.string
         cur = self.cursor
         self.string = f'{string[:cur]}{text}{string[cur:]}'
         self.cursor += len(text)
 
 class BaseFile(InputBuffer):
-    modifiable = True
     actions = {}
-    def __init__(self, set_number=True, set_wrap=False, set_tabsize=4, 
-                cursor=0, init_text='', path=None):
-        InputBuffer.__init__(self, init_text, cursor)
-        #### UNDO MECANISME ####
-        self._no_undoing = False
-        self.redo_list = list()
-        self.undo_list = list()
-
-        self._lines_offsets = list()
-        self._splited_lines = list()
-
-        self.update_callbacks.append(lambda self: (self.set_undo_point(),
-                                                   self._lines_offsets.clear(), 
-                                                   self._splited_lines.clear()))
+    def __init__(self, set_number=True, set_wrap=False, 
+                set_tabsize=4, cursor=0, init_text='', 
+                path=None):
         self.path = path
         self.set_wrap = set_wrap
         self.set_number = set_number
         self.set_tabsize = set_tabsize
+
+        InputBuffer.__init__(self, init_text, cursor)
+
+        self._no_undoing = False
+        self.redo_list = list()
+        self.undo_list = list()
+
+
+        #self.pre_update_callbacks.append(self.set_undo_point)
+        self.pre_update_callbacks.append(self._lines_offsets.clear) 
+        self.pre_update_callbacks.append(self._splited_lines.clear)
+
 
         self.motion_commands = {
            'b'          : self.find_previous_delim,
@@ -94,23 +188,11 @@ class BaseFile(InputBuffer):
            '_'          : self.find_first_non_blank_char_in_line,
            }
 
-    def find_normal_l(self):
-        if self[self.cursor] == '\n':
-            return self.cursor
-        elif self.cursor < len(self):
-            return self.cursor + 1
-
-    def find_normal_h(self):
-        if self.cursor == 0:
-            return 0
-        if self.string[self.cursor - 1] == '\n':
-            return self.cursor
-        return self.cursor - 1
 
     def compress_undo_list(self):
-        self.undo_list = [item 
-                            for index, item in enumerate(self.undo_list) 
-                                if index % 2 == 0]
+        self.undo_list = [
+            item for index, item in enumerate(self.undo_list) 
+            if index % 2 == 0]
         
     def start_undo_record(self):
         self._no_undoing = False
@@ -121,8 +203,10 @@ class BaseFile(InputBuffer):
         self.set_undo_point()
 
     def set_undo_point(self):
+        if self._no_undoing:
+            return
         if (not self.undo_list) or (self.undo_list and self.undo_list[-1][0] != self.string):
-            self.undo_list.append((self.string, self.cursor, self.lines_offsets))
+            self.undo_list.append((self.string[:], int(self.cursor), self.lines_offsets[:]))
 
     def undo(self):
         self._string, self.cursor, self._lines_offsets = self.undo_list.pop()
@@ -163,12 +247,34 @@ class BaseFile(InputBuffer):
         if key == '_'       : return self.find_first_non_blank_char_in_line()
 
     def find_end_of_line(self):
+        r"""
+        >>> x.string = "0____5\n___"
+        >>> x.cursor = 0
+        >>> x.find_end_of_line()
+        6
+        >>> x.find_end_of_line()
+        6
+        >>> x.cursor = 7
+        >>> x.find_end_of_line()
+        9
+        """
         offset = self.string.find('\n', self.cursor)
         if offset == -1:
             return len(self)
         return offset
 
     def find_end_of_word(self):
+        r"""
+        This should correspond to normal mode 'e' motion.
+
+        >>> x.cursor = 0
+        >>> x.string = "foo,bar;baz.foo,bar/baz!foo%bar"
+        >>> # breaks      ||  ||  ||  ||  ||  ||  ||  |             
+        >>> # breaks      2|  6| 10| 14| 18| 22| 26| 30             
+        >>> # breaks       3   7  11  15  19  23  27                
+        >>> for expected in [2,3,6,7,10,11,14,15,18,19,22,23,26,27,30]:
+        ...     assert _t(x, x.find_end_of_word()) == expected, f' *** {expected = } *** { x.cursor = }'
+        """
         places = set()
         #if (start :self.cursor + 2) > len(self): # Not Allowed in Cython
         start = self.cursor + 2
@@ -190,9 +296,8 @@ class BaseFile(InputBuffer):
             while self[start].isspace():
                 start += 1
 
-            #if (start :) > len(self): # Not Allowed in Cython
             start = self.cursor + 2
-            if start > len(self): # Allowing Cython
+            if start > len(self):
                 return self.cursor
             sp_offset = self[start:].find(' ')
             nl_offset = self[start:].find('\n')
@@ -241,7 +346,6 @@ class BaseFile(InputBuffer):
     def find_normal_k(self):
         cursor = self.cursor
         on_col=1
-        #while (line_start := cursor - on_col ) >= 0: # Allowing Cython
         line_start = cursor - on_col
         while line_start >= 0:
             if self[line_start] == '\n':
@@ -276,7 +380,10 @@ class BaseFile(InputBuffer):
         if next_line > self.number_of_lin:
             return self.cursor
 
-        next_lin_offset = self.lines_offsets[next_line]
+        try:
+            next_lin_offset = self.lines_offsets[next_line]
+        except IndexError:
+            return self.cursor
         max_offset = next_lin_offset + len(self.splited_lines[next_line])
         if next_lin_offset + col > max_offset:
             return max_offset
@@ -416,73 +523,9 @@ class BaseFile(InputBuffer):
         elif 0 <= offset <= max_offset:
             self.cursor = offset
 
-    @property
-    def cursor_lin_col(self):
-        """A tupple representing the actual cursor (line, collumn),
-        lines are 0 based indexed, and cols are 1-based.
-        """
-        lin, off = self.cursor_lin_off
-        col = self.cursor - off + 1
-        return lin, col
-
-    @property
-    def cursor_lin_off(self):
-        """A tupple (cursor_line, ),
-        lines are 0 based indexed, and cols are 1-based.
-        """
-        cursor = self.cursor
-        lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
-                return lin, offset
-            if offset > cursor:
-                return lin - 1, self.lines_offsets[lin - 1 ]
-        else:
-            return lin, offset
-
-    @property
-    def cursor_line(self):
-        """The zero-based number indexing the current line."""
-        cursor = self.cursor
-        lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
-                return lin
-            if offset > cursor:
-                return lin - 1
-        else:
-            return lin
-
-    @property
-    def lines_offsets(self):
-        if not self._lines_offsets:
-            linesOffsets = list()
-            offset = 0
-            for line in self.splited_lines:
-                linesOffsets.append(offset)
-                offset += len(line) + 1
-            self._lines_offsets = linesOffsets
-        return self._lines_offsets
-
-    @property
-    def splited_lines(self):
-        if not self._splited_lines:
-            self._splited_lines = self.string.splitlines()
-        return self._splited_lines
-
-    @property
-    def number_of_lin(self):
-        """Number of lines in the buffer"""
-        return len(self.splited_lines)
-
     def move_cursor(self, offset_str):
         self.cursor = self._get_offset(offset_str)
     
-    def __len__(self):
-        if self.string:
-            return len(self.string) - 1
-        return 0
-
     def __getitem__(self, key):
         if isinstance(key, str):
             key = self._get_range(key)
@@ -599,3 +642,51 @@ class BaseFile(InputBuffer):
         elif self.path.read_text() != self.string != '\n':
             return True
         return False
+
+    def find_normal_l(self):
+        r"""
+        >>> x.string = "0____5\n_"
+        >>> x.cursor = 0
+        >>> x.find_normal_l()
+        1
+        >>> x.cursor = 5
+        >>> x.find_normal_l()
+        5
+        >>> x.cursor = 7
+        >>> _t(x, x.find_normal_l())
+        7
+        """
+        if self.cursor < len(self):
+            try:
+                if self[self.cursor+1] != '\n':
+                    return self.cursor + 1
+            except IndexError:
+                pass 
+        return self.cursor
+
+
+    def find_normal_h(self):
+        r"""
+        >>> x.string = "0____5\n___"
+        >>> x.cursor = 0
+        >>> x.find_normal_h()
+        0
+        >>> x.cursor = 7
+        >>> x.find_normal_h()
+        7
+        """
+        if self.cursor == 0:
+            return 0
+        if self.string[self.cursor - 1] == '\n':
+            return self.cursor
+        return self.cursor - 1
+
+if __name__ == '__main__':
+    x = BaseFile()
+    def _t(result):
+        global x
+        x.cursor = result
+        return result
+    import doctest
+    doctest.testmod()
+

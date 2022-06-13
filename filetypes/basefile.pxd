@@ -24,7 +24,6 @@ cdef class BaseFile(InputBuffer):
         public object cache_id
         public object path
 
-    cdef void _update_properties(self)
     cpdef _get_range(self,key)
     cdef int _get_offset(self, key)
 

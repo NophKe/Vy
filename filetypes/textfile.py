@@ -2,8 +2,10 @@ from threading import Thread
 from queue import Queue, Empty
 
 from vy.filetypes.basefile import BaseFile
-
 from vy import global_config
+
+FAKE_ASYNC = True
+
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
@@ -89,9 +91,12 @@ class TextFile(BaseFile):
     modifiable = True
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
-        self.update_callbacks.append(TextFile._update_properties)
+
         self._lexed_lines = list()
         self._control_queue = Queue(1)
+        self.update_callbacks.append(lambda: self._control_queue.put_nowait(None))
+        self.update_callbacks.append(self._control_queue.join)
+
         if global_config.DONT_USE_PYGMENTS_LIB:
             self._lexer = None
         else:
@@ -111,10 +116,6 @@ class TextFile(BaseFile):
                 for val in self._string.splitlines(True)]
         else:
             yield from self._lexer(self._string)
-
-    def _update_properties(self):
-        self._control_queue.put_nowait(None)
-        self._control_queue.join()
 
     def _lex_away(self):
         while True:
@@ -145,10 +146,8 @@ class TextFile(BaseFile):
                 self._control_queue.task_done()
 
     def get_lexed_line(self, index):
-        if len(self._lexed_lines) >= index:
-            try:
-                return self._lexed_lines[index]
-            except IndexError:
-                # ignore error if lenght changed in another thread 
-                pass
-        return self.splited_lines[index]
+        try:
+            return self._lexed_lines[index]
+        except IndexError:
+            pass
+        return self.splited_lines[index].replace('\n', ' ')

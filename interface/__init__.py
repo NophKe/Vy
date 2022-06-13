@@ -9,9 +9,6 @@ class Interface():
         self.mode_dict = {}
     
     def __call__(self, name=None):
-        curbuf = self.inst.current_buffer
-        if hasattr(curbuf, "interract") and callable(curbuf.interract):
-            return curbuf.interract(self.inst)
         loop = None
         if name is None: 
             try: loop = self.mode_dict[self.last].loop

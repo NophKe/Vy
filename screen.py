@@ -10,6 +10,7 @@ def get_rows_needed(number):
     return len(str(number))
 
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
+    #assert '/n' not in text
     number = f'{on_lin:{get_rows_needed(on_lin)}}: '
     line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
 
@@ -59,6 +60,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
     return retval
 
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
+    #assert '/n' not in text
     retval: list = list()
     line: str = '\x1b[39;49m'
     on_col: int = 1
@@ -329,8 +331,7 @@ class Screen(Window):
 
     def get_line_list(self):
         self.recenter()
-        rv = [line for line, _ in zip(self.gen_window(), 
-                            range(self.number_of_lin))]
+        rv = self.gen_window()
         rv.append(self._infobar_txt)
         rv.extend(self.minibar_banner)
         return rv 
@@ -414,8 +415,3 @@ class Screen(Window):
 
     def clear_screen(self):
         stdout.write('\x1b[2J')
-    
-    def print(self, txt):
-        stdout.write(txt)
-        stdout.flush()
-

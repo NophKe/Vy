@@ -19,8 +19,6 @@ from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import visit_stdin
 
-
-
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
@@ -34,6 +32,7 @@ class _Cache():
     >> '../nono/test.txt' in x
     False
     """
+    __slots__ = ("_dic", "_counter")
     def __init__(self):
         self._dic: dict = dict()
         self._counter: int = 1
@@ -63,11 +62,13 @@ class _Cache():
         key = self._make_key(key)
         if key in self._dic:
             return self._dic[key]
-            
-        self._dic[key] = Open_path(key)
-        rv = self._dic[key]
-        rv.cache_id = key
-        return rv
+        else:
+            new_buffer = Open_path(key)
+            self._dic[key] = new_buffer
+            assert new_buffer is not None
+            rv = self._dic[key]
+            rv.cache_id = key
+            return rv
 
 #    @staticmethod
     def _make_key(self, key):
@@ -172,26 +173,18 @@ class _Actions:
 
         for name, action in action_dict.items():
             if callable(action) and not name.startswith('_'):
-                final = partial(action, instance)
-
-                final.atomic = action.atomic
-                final.stand_alone = action.stand_alone
-                final.with_args = action.with_args
-                final.full = action.full
-                final.__doc__ = action.__doc__ 
-
                 if action.v_alias:
                     for k in action.v_alias:
-                        self.visual[k]= final
+                        self.visual[k]= action
                 if action.n_alias:
                     for k in action.n_alias:
-                        self.normal[k]= final
+                        self.normal[k]= action
                 if action.i_alias:
                     for k in action.i_alias: 
-                        self.insert[k]= final
+                        self.insert[k]= action
                 if action.c_alias:
                     for k in action.c_alias: 
-                        self.command[k]= final
+                        self.command[k]= action
                 
 ########## end of class _Actions ##########
 
@@ -250,10 +243,18 @@ class _Editor:
         """
         Changes the current buffer to edit location and set the interface accordingly.
         """
-        if self.screen:
-            self.current_window.change_buffer(self.cache[location])
-            return
-        self.screen = Screen(self.cache[location])
+        try:
+            buffer = self.cache[location]
+        except UnicodeDecodeError:
+            self.warning(f"Vy cannot deal with encoding of file {location}")
+        except PermissionError:
+            self.warning(f"You do not seem to have enough rights to read {location}")
+        else:
+            buffer = self.cache[location]
+            if self.screen:
+                self.current_window.change_buffer(buffer)
+            else:
+                self.screen = Screen(buffer)
     
     @property
     def current_window(self):
@@ -265,28 +266,27 @@ class _Editor:
 
     def print_loop(self):
         old_screen = list()
-        self.screen.hide_cursor()
-
         while self._async_io_flag:
             if self._input_queue.unfinished_tasks:
-                sleep(0.1) # not more thant 10/sec 
                 self.screen.infobar(f'__ SCREEN NOT RENDERED __ ', 'typing too fast or slow machine?')
+                sleep(0.03)
             else:
                 self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
             new_screen = self.screen.get_line_list()
+            #for line in new_screen:
+                #assert '\n' not in line
+            #if new_screen == old_screen:
+                #sleep(0.03)
+                #continue
             filtered = list()
-            for index, (line, old_line) in enumerate(zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                 if line and line != old_line:
+            for index, (line, old_line) in \
+              enumerate(zip(new_screen, chain(old_screen, repeat(''))),start=1):
+                 if line != old_line:
                      filtered.append(f'\x1b[{index};1H{line}')
-                 else:
-                     filtered.append('')
-            to_print = ''.join(filtered)  
-            if to_print:
-                self.screen.print(to_print)
-                old_screen = new_screen
+            print(''.join(filtered), end='', flush=True)
+            old_screen = new_screen
             sleep(0.03) # don't try more than 33/sec
-        self.screen.show_cursor()
 
     def input_loop(self):
         stdin_reader = visit_stdin()
@@ -298,6 +298,9 @@ class _Editor:
 
     def start_async_io(self):
         assert not self._async_io_flag
+        self.screen.alternative_screen()
+        self.screen.clear_screen()
+        self.screen.hide_cursor()
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop,)
         self.print_thread = Thread(target=self.print_loop,)
@@ -309,9 +312,12 @@ class _Editor:
         self._async_io_flag = False
         self.print_thread.join()
         self.input_thread.join()
+        self.screen.original_screen()
+        self.screen.show_cursor()
         #self._input_queue.join()
+
         
-    def __call__(self,buff=None, mode='normal'):
+    def __call__(self, buff=None, mode='normal'):
         """
         Calling the editor launches the command loop interraction.
 
@@ -326,11 +332,6 @@ class _Editor:
         self.edit(buff if buff 
                     else self._work_stack.pop(0) if self._work_stack 
                     else None)
-        
-        self.screen.alternative_screen()
-        self.screen.clear_screen()
-        self.screen.hide_cursor()
-        print('  Vy is starting. Please wait.')
         self.start_async_io()
         try:
             while True:
@@ -342,18 +343,15 @@ class _Editor:
                     continue
                 except Exception as exc:
                     self.stop_async_io()
-                    self.screen.original_screen()
-                    print('The following *unhandled* exception was encountered:\n  >  ' + repr(exc))
-                    print('indicating:\n  >  ' + str(exc))
-                    print()
+                    print(  'The following *unhandled* exception was encountered:\n  >  ' + repr(exc),
+                            'indicating:\n  >  ' + str(exc) + '\n')
                     print_tb(exc.__traceback__)
-                    print()
-                    print('The program may be corrupted, save all and restart quickly.')
+                    print('\nThe program may be corrupted, save all and restart quickly.')
                     try:
                         input('Press [ENTER] to resume  (or [CTRL+C] to close)')
                     except KeyboardInterrupt:
-                        raise SystemExit
-                    self.screen.alternative_screen()
+                        return 1
+                        #raise SystemExit
                     mode = 'normal'
                     self.start_async_io()
                     continue
@@ -361,3 +359,4 @@ class _Editor:
             self._running = False
             self.stop_async_io()
             self.screen.original_screen()
+            return 0 # exit_code
