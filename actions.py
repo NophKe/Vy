@@ -30,7 +30,8 @@ def print_some(editor, reg=None, part=None, arg=None, count=1):
             if not part or part == '.':
                 continue
             parent = getattr(parent, part) #, f'no {part} in {parent}')
-        to_print += f'{line} = {pformat(parent)}\n'
+        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
     editor.warning(to_print)
     #repr(editor.current_buffer.cursor_lin_col))
 
@@ -301,7 +302,7 @@ def delete(editor, reg='"', part=None, arg=None, count=1):
     By default, if no register is specified the default "" register is used.
     """
     to_be_del = editor.current_buffer[part]
-    editor.current_buffer.__delitem__(part)
+    del editor.current_buffer[part]
     editor.registr[reg] = to_be_del
 
 

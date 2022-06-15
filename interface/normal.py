@@ -72,7 +72,7 @@ def loop(editor):
             editor.screen.minibar('')
             continue
         
-        editor.current_buffer.set_undo_point()
+        #editor.current_buffer.set_undo_point()
         action = dictionary[key]
 
         if action.atomic:
@@ -132,7 +132,7 @@ def loop(editor):
 
             RRANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
-            rv = action(editor, reg=REG if REG else '"', part=RANGE)
+            rv = action(editor, reg=REG if REG else '"', part=RRANGE)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv

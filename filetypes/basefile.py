@@ -1,4 +1,5 @@
 from vy import keys as k
+from threading import Condition, Event, Lock, RLock
 
 
 DELIMS = ' ,;:/!%.{}()[]():\n'
@@ -11,16 +12,21 @@ class InputBuffer:
     'FOO'
     """
     modifiable = True
+    ending = ''
     def __init__(self, init_text='', cursor=0):
-        self.update_callbacks = list()
-        self.pre_update_callbacks = list()
-        self._string = init_text
-        self.cursor = cursor
         self._lines_offsets = list()
         self._splited_lines = list()
+        self._string_lock = RLock()
+        self._splited_lines_lock = Lock()
+        self._lines_offsets_lock = Lock()
+        self.update_callbacks = list()
+        self.pre_update_callbacks = list()
+        self.string = init_text
+        self.cursor = cursor
 
     def __len__(self):
-        return len(self.string)
+        with self._string_lock:
+            return len(self._string) - len(self.ending)
 
     @property
     def cursor(self):
@@ -28,9 +34,10 @@ class InputBuffer:
 
     @cursor.setter
     def cursor(self, value):
-        assert value <= len(self)
-        assert value >= 0
-        self._cursor = value
+        with self._string_lock:
+            assert value <= len(self)
+            assert value >= 0
+            self._cursor = value
 
     @property
     def string(self):
@@ -38,18 +45,27 @@ class InputBuffer:
         buffer. Modifying its value triggers the registered
         callbacks.
         """
-        return self._string
+        with self._string_lock:
+            return self._string
 
     @string.setter
     def string(self, value):
         assert isinstance(value, str)
-        if not self.modifiable:
-            return
-        self.lines_offsets.clear()
-        self.splited_lines.clear()
+        assert self.modifiable
         for func in self.pre_update_callbacks:
             func()
-        self._string = value
+        with self._string_lock:
+            self._number_of_lin = 0
+            self._splited_lines.clear()
+            self._lines_offsets.clear()
+            #with self._splited_lines_lock:
+                #self._splited_lines.clear()
+            #with self._lines_offsets_lock:
+                #self._lines_offsets.clear()
+            if not value.endswith(self.ending):
+                self._string = value + self.ending
+            else:
+                self._string = value
         for func in self.update_callbacks:
             func()
 
@@ -58,89 +74,111 @@ class InputBuffer:
         """A tupple representing the actual cursor (line, collumn),
         lines are 0 based indexed, and cols are 1-based.
         """
-        lin, off = self.cursor_lin_off
-        assert lin < self.number_of_lin
-        col = self.cursor - off + 1
-        return lin, col
+        with self._string_lock:
+            lin, off = self.cursor_lin_off
+            #assert lin < self.number_of_lin
+            col = self.cursor - off + 1
+            return lin, col
 
     @property
     def cursor_lin_off(self):
         """A tupple (cursor_line, ),
         lines are 0 based indexed, and cols are 1-based.
         """
-        cursor = self.cursor
-        lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
+        with self._string_lock:
+            cursor = self.cursor
+            lin = offset = 0
+            for lin, offset in enumerate(self.lines_offsets):
+                if offset == self.cursor:
+                    return lin, offset
+                if offset > self.cursor:
+                    #assert lin >= 1
+                    return lin - 1, self.lines_offsets[lin - 1 ]
+            else:
                 return lin, offset
-            if offset > cursor:
-                return lin - 1, self.lines_offsets[lin - 1 ]
-        else:
-            return lin, offset
 
+    #@property
+    #def cursor_line(self):
+        #"""The zero-based number indexing the current line."""
+        #cursor = self.cursor
+        ##lin = offset = 0
+        #for lin, offset in enumerate(self.lines_offsets):
+            #if offset == cursor:
+                #return lin
+            #if offset > cursor:
+                #return lin - 1
+        #else:
+            #return lin
     @property
     def cursor_line(self):
-        """The zero-based number indexing the current line."""
-        cursor = self.cursor
-        #lin = offset = 0
-        for lin, offset in enumerate(self.lines_offsets):
-            if offset == cursor:
-                return lin
-            if offset > cursor:
-                return lin - 1
-        else:
+        with self._string_lock:
+            lin, _ = self.cursor_lin_off
             return lin
 
     @property
     def lines_offsets(self):
-        if not self._lines_offsets:
-            offset = 0
-            for line in self.splited_lines:
-                self._lines_offsets.append(offset)
-                offset += len(line)# + 1
-        return self._lines_offsets
+        with self._string_lock:
+            if not self._lines_offsets:
+                final = list()
+                offset = 0
+                for line in self.splited_lines:
+                    final.append(offset)
+                    offset += len(line)
+                with self._lines_offsets_lock:
+                    self._lines_offsets = final
+            return self._lines_offsets
 
     @property
     def splited_lines(self):
-        if not self._splited_lines:
-            self._splited_lines = self.string.splitlines(True)
-        return self._splited_lines
+        with self._string_lock:
+            if not self._splited_lines:
+                with self._splited_lines_lock:
+                    self._splited_lines = self._string.splitlines(True)
+            return self._splited_lines
 
     @property
     def number_of_lin(self):
         """Number of lines in the buffer"""
-#        assert len(self.splited_lines) == len(self.lines_offsets)
-        return len(self.splited_lines)
-
+        with self._string_lock:
+            if not self._number_of_lin:
+                rv = self._string.count('\n')
+                assert rv == len(self.splited_lines), f'{len(self.splited_lines) = } {rv = }'
+                assert rv == len(self.lines_offsets), f'{len(self._lines_offsets) = } {rv = }'
+                self._number_of_lin = rv
+            return self._number_of_lin
 
     def suppr(self):
         """
         Like the key strike, deletes the character under the cursor.
         """
-        string = self.string
-        cur = self.cursor
-        self.string  = f'{string[:cur]}{string[cur + 1:]}'
+        with self._string_lock:
+            string = self.string
+            cur = self.cursor
+            self.string  = f'{string[:cur]}{string[cur + 1:]}'
 
     def backspace(self):
         """
         Like the key strike, deletes the left character at the cursor.
         """
-        if self.cursor > 0:
-            self.cursor -= 1
-            self.suppr() 
+        with self._string_lock:
+            if self.cursor > 0:
+                self.cursor -= 1
+                self.suppr() 
 
     def insert(self, text):
         """
         Inserts text at the cursor position.
         Cursor will move at the and of it.
         """
-        string = self.string
-        cur = self.cursor
-        self.string = f'{string[:cur]}{text}{string[cur:]}'
-        self.cursor += len(text)
+        with self._string_lock:
+            string = self.string
+            cur = self.cursor
+            self.string = f'{string[:cur]}{text}{string[cur:]}'
+            self.cursor += len(text)
 
 class BaseFile(InputBuffer):
     actions = {}
+    ending = '\n'
     def __init__(self, set_number=True, set_wrap=False, 
                 set_tabsize=4, cursor=0, init_text='', 
                 path=None):
@@ -154,12 +192,7 @@ class BaseFile(InputBuffer):
         self._no_undoing = False
         self.redo_list = list()
         self.undo_list = list()
-
-
         #self.pre_update_callbacks.append(self.set_undo_point)
-        self.pre_update_callbacks.append(self._lines_offsets.clear) 
-        self.pre_update_callbacks.append(self._splited_lines.clear)
-
 
         self.motion_commands = {
            'b'          : self.find_previous_delim,
@@ -187,7 +220,6 @@ class BaseFile(InputBuffer):
            '0'          : self.find_begining_of_line,
            '_'          : self.find_first_non_blank_char_in_line,
            }
-
 
     def compress_undo_list(self):
         self.undo_list = [
@@ -237,7 +269,7 @@ class BaseFile(InputBuffer):
         if key == k.S_right : return self.find_next_delim()
         if key == 'W'       : return self.find_next_WORD()
         if key == k.C_right : return self.find_next_WORD()
-        if key == 'G'       : return len(self)
+        if key == 'G'       : return len(self) - 1
         if key == 'gg'      : return 0
         if key == 'cursor'  : return self.cursor
         if key == 'e'       : return self.find_end_of_word()
@@ -245,6 +277,7 @@ class BaseFile(InputBuffer):
         if key == '$'       : return self.find_end_of_line()
         if key == '0'       : return self.find_begining_of_line()
         if key == '_'       : return self.find_first_non_blank_char_in_line()
+        raise RuntimeError(f'{key = } not a valid motion')
 
     def find_end_of_line(self):
         r"""
@@ -524,86 +557,93 @@ class BaseFile(InputBuffer):
             self.cursor = offset
 
     def move_cursor(self, offset_str):
-        self.cursor = self._get_offset(offset_str)
+        with self._string_lock:
+            self.cursor = self._get_offset(offset_str)
     
     def __getitem__(self, key):
-        if isinstance(key, str):
-            key = self._get_range(key)
-        return self.string.__getitem__(key)
+        with self._string_lock:
+            if isinstance(key, str):
+                assert key, f'{key = }'
+                key = self._get_range(key)
+            assert ( isinstance(key, int) and key >= 0
+                   or isinstance(key, slice)) , f'{key = } {type(key) = }'
+            return self.string[key]
 
     def _get_range(self,key):
-        if ':' in key:
-            start, stop = key.split(':', maxsplit=1)
-            start = start.lstrip(':')
-            stop = stop.rstrip(':')
-            if not start:
-                start = 0
-            if not stop:
-                stop = len(self)
-            return slice(self._get_offset(start), self._get_offset(stop))
-        return self._get_offset(key)
+        with self._string_lock:
+            if ':' in key:
+                start, stop = key.split(':', maxsplit=1)
+                start = start.lstrip(':')
+                stop = stop.rstrip(':')
+                if not start:
+                    start = 0
+                if not stop:
+                    stop = len(self)
+                return slice(self._get_offset(start), self._get_offset(stop))
+            return self._get_offset(key)
 
     def _get_offset(self, key):
-        if isinstance(key, int):
-            return key
-        elif isinstance(key, str) and key.startswith('#'):
-            current_line_start = self.lines_offsets[self.cursor_line]
-            # now that .lines_offsets is computed, will use ._lines_offsets instead
-
-            if key == '#.':
-                return current_line_start
-            elif key.startswith('#+'):
-                try:
-                    entry = self._lines_offsets.index(current_line_start) + int(key[2:])
-                    return self._lines_offsets[entry]
-                except (IndexError, ValueError):
-                    return len(self)
-            elif key.startswith('#-'):
-                try:
-                    entry = self._lines_offsets.index(current_line_start) - int(key[2:])
-                    return self._lines_offsets[entry]
-                except (IndexError, ValueError):
-                    return len(self)
-
-            try:
-                return self.lines_offsets[int(key[1:])]
-            except IndexError:
-                return len(self) # is this ever reached ?
-        #return self.motion_commands[key](self)
-        return self.offset_finder(key)
+        with self._string_lock:
+### TODO this function should be protected against passsing string like '+-2'
+            if isinstance(key, int):
+                assert key >= 0
+                assert key < len(self)
+                return key
+            if isinstance(key, str):
+                current_line_start = self.lines_offsets[self.cursor_line]
+                if not key:
+                    raise TypeError(f'{key =}')
+                    return None
+                elif key == '#.':
+                    return current_line_start
+                elif key.startswith('#+'):
+                    entry = self.lines_offsets.index(current_line_start) + int(key[2:])
+                    return self.lines_offsets[entry]
+                elif key.startswith('#-'):
+                    entry = self.lines_offsets.index(current_line_start) - int(key[2:])
+                    return self.lines_offsets[entry]
+                elif key.startswith('#'):
+                    index = int(key[2:])
+                    return self.lines_offsets[index]
+                else:
+                    return self.offset_finder(key)
+                    raise RuntimeError(f'{key = }')
+            raise RuntimeError(f'unrecognized offset {key = } {type(key) = }')
 
     def __delitem__(self, key):
-        if isinstance(key, int):
-            if key >=0 and key < len(self):
-                self.string = self.string[0:key] + self.string[key+1:]
-            else: raise IndexError('Vy Runtime: string index out of range')
+        with self._string_lock:
+            if isinstance(key, int):
+                if key >=0 and key < len(self):
+                    self.string = self.string[0:key] + self.string[key+1:]
+                else:
+                    raise IndexError('Vy Runtime: string index out of range')
 
-        elif isinstance(key, slice):
-            if not key.start:   start = 0
-            else:               start = key.start
-            if not key.stop:    stop = len(self.string) - 1
-            else:               stop = key.stop
-            self.string = f'{self.string[:start]}{self.string[stop:]}'
-            if key.start < self.cursor <= key.stop:
-                self.cursor = key.start
+            elif isinstance(key, slice):
+                if not key.start:   start = 0
+                else:               start = key.start
+                if not key.stop:    stop = len(self.string) - 1
+                else:               stop = key.stop
+                self.string = f'{self.string[:start]}{self.string[stop:]}'
+                if key.start < self.cursor <= key.stop:
+                    self.cursor = key.start
 
-        elif isinstance(key, str):
-            key = self._get_range(key)
-            self.__delitem__(key)
-            return
-        else:
-            raise TypeError
+            elif isinstance(key, str):
+                key = self._get_range(key)
+                del self[key]
+            else:
+                raise TypeError(f'{key = } {type(key) = }')
 
     def __setitem__(self, key, value):
-        if isinstance(key, str):
-            key = self._get_range(key)
-        if isinstance(key, slice):
-            start = key.start
-            stop = key.stop
-        elif isinstance(key, int):
-            start = key
-            stop = start + 1
-        self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
+        with self._string_lock:
+            if isinstance(key, str):
+                key = self._get_range(key)
+            if isinstance(key, slice):
+                start = key.start
+                stop = key.stop
+            elif isinstance(key, int):
+                start = key
+                stop = start + 1
+            self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
 
     def __repr__(self):
         return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
@@ -663,7 +703,6 @@ class BaseFile(InputBuffer):
             except IndexError:
                 pass 
         return self.cursor
-
 
     def find_normal_h(self):
         r"""

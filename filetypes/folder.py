@@ -27,6 +27,7 @@ class Folder(BaseFile):
 
     @string.setter
     def string(self, value):
+        self._string = ''
         return
 
     def get_lexed_line(self, index):

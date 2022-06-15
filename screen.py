@@ -260,35 +260,39 @@ class Window():
             max_col = self.number_of_col
             min_lin = self.shift_to_lin
             max_lin = self.number_of_lin + self.shift_to_lin
-            cursor_lin, cursor_col = self.buff.cursor_lin_col
-            wrap = self.buff.set_wrap
-            number = self.buff.set_number
-            tab_size = self.buff.set_tabsize
-            default = f"~{' ':{max_col- 1}}"
-            true_cursor = 0
+            if hasattr(self.buff, "_lex_away_may_run"):
+                self.buff._lex_away_may_run.wait()
+            with self.buff._string_lock:
+                max_idx_expect = self.buff.number_of_lin
+                cursor_lin, cursor_col = self.buff.cursor_lin_col
+                wrap = self.buff.set_wrap
+                number = self.buff.set_number
+                tab_size = self.buff.set_tabsize
+                default = f"~{' ':{max_col- 1}}"
+                true_cursor = 0
 
-            line_list = list()
-            for on_lin in range(min_lin, max_lin):
-                if on_lin == cursor_lin and true_cursor == 0:
-                    true_cursor = len(line_list)
-                try:
-                    pretty_line = self.buff.get_lexed_line(on_lin)
-                except IndexError:
-                    line_list.append(default)
-                    continue
-                if number:
-                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                else:
-                    to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                if wrap:
-                    line_list.extend(to_print)
-                else:
-                    line_list.append(to_print[0])
-            if true_cursor >= self.number_of_lin:
-                to_remove = 1 + true_cursor - self.number_of_lin
-                line_list = line_list[to_remove:]
+                line_list = list()
+                for on_lin in range(min_lin, max_lin):
+                    if on_lin == cursor_lin and true_cursor == 0:
+                        true_cursor = len(line_list)
+                    try:
+                        pretty_line = self.buff.get_lexed_line(on_lin)
+                    except IndexError:
+                        for _ in range(on_lin, max_lin):
+                            line_list.append(default)
+                        break
+                    if number:
+                        to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                    else:
+                        to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                    if wrap:
+                        line_list.extend(to_print)
+                    else:
+                        line_list.append(to_print[0])
+                if wrap and true_cursor >= self.number_of_lin:
+                    to_remove = 1 + true_cursor - self.number_of_lin
+                    line_list = line_list[to_remove:]
             return line_list 
-            #yield from line_list
 
 class Screen(Window):
     def __init__(self, buff):

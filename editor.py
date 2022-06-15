@@ -8,7 +8,7 @@ be the unique thing in the global dict.
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
-from functools import partial
+#from functools import partial
 from itertools import repeat, chain
 from time import sleep
 from threading import Thread
@@ -18,6 +18,8 @@ from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import visit_stdin
+
+from vy.global_config import DEBUG
 
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
@@ -64,8 +66,8 @@ class _Cache():
             return self._dic[key]
         else:
             new_buffer = Open_path(key)
-            self._dic[key] = new_buffer
             assert new_buffer is not None
+            self._dic[key] = new_buffer
             rv = self._dic[key]
             rv.cache_id = key
             return rv
@@ -266,27 +268,33 @@ class _Editor:
 
     def print_loop(self):
         old_screen = list()
+        stop_flag = False
         while self._async_io_flag:
+            sleep(0.05) # don't try more than 25/sec
             if self._input_queue.unfinished_tasks:
-                self.screen.infobar(f'__ SCREEN NOT RENDERED __ ', 'typing too fast or slow machine?')
-                sleep(0.03)
+                if stop_flag:
+                    self._input_queue.join()
+                    stop_flag = False
+                else:
+                    self.screen.infobar(f'__ SCREEN NOT RENDERED __ ', '---- WAIT AND STOP TOUCHING KEYBOARD ---')
+                    sleep(0.1)
+                    stop_flag = True
             else:
                 self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                stop_flag = False
 
             new_screen = self.screen.get_line_list()
-            #for line in new_screen:
-                #assert '\n' not in line
-            #if new_screen == old_screen:
-                #sleep(0.03)
-                #continue
+            for line in new_screen: assert '\n' not in line
+            if new_screen == old_screen:
+                sleep(0.03)
+                continue
             filtered = list()
             for index, (line, old_line) in \
               enumerate(zip(new_screen, chain(old_screen, repeat(''))),start=1):
                  if line != old_line:
                      filtered.append(f'\x1b[{index};1H{line}')
-            print(''.join(filtered), end='', flush=True)
             old_screen = new_screen
-            sleep(0.03) # don't try more than 33/sec
+            print(''.join(filtered), end='', flush=True)
 
     def input_loop(self):
         stdin_reader = visit_stdin()
@@ -294,13 +302,15 @@ class _Editor:
             key_press = next(stdin_reader) 
             if key_press:
                 self._input_queue.put(key_press)
-            sleep(0)
+            #sleep(0)
+        del stdin_reader # help garbage collector
 
     def start_async_io(self):
         assert not self._async_io_flag
-        self.screen.alternative_screen()
-        self.screen.clear_screen()
-        self.screen.hide_cursor()
+        if not DEBUG:
+            self.screen.alternative_screen()
+            self.screen.clear_screen()
+            self.screen.hide_cursor()
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop,)
         self.print_thread = Thread(target=self.print_loop,)
@@ -312,8 +322,9 @@ class _Editor:
         self._async_io_flag = False
         self.print_thread.join()
         self.input_thread.join()
-        self.screen.original_screen()
-        self.screen.show_cursor()
+        if not DEBUG:
+            self.screen.original_screen()
+            self.screen.show_cursor()
         #self._input_queue.join()
 
         
@@ -351,12 +362,10 @@ class _Editor:
                         input('Press [ENTER] to resume  (or [CTRL+C] to close)')
                     except KeyboardInterrupt:
                         return 1
-                        #raise SystemExit
                     mode = 'normal'
                     self.start_async_io()
                     continue
         finally:
             self._running = False
             self.stop_async_io()
-            self.screen.original_screen()
             return 0 # exit_code

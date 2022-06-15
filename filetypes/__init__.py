@@ -1,5 +1,5 @@
 from pathlib import Path
-from os import access, R_OK, W_OK
+from os import access, W_OK, X_OK
 
 from .folder import Folder
 from .textfile import TextFile
@@ -17,9 +17,8 @@ def Open_path(location):
         init_text = location.read_text() 
         return TextFile(path=location, init_text=init_text)
     except FileNotFoundError:
-        if access(location, W_OK):
-            return TextFile(path=location, init_text='\n')
-        #raise PermissionError
+        if not access(location.parent, W_OK):
+            raise PermissionError
+        return TextFile(path=location, init_text='\n')
     except IsADirectoryError:
         return Folder(path=location)
-                        

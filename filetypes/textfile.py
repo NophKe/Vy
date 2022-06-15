@@ -1,10 +1,8 @@
-from threading import Thread
+from threading import Thread, Condition, Event
 from queue import Queue, Empty
 
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
-
-FAKE_ASYNC = True
 
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
@@ -92,10 +90,18 @@ class TextFile(BaseFile):
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
 
+        #self._lex_away_waiting = Event()
+        #self._lex_away_waiting.set()
+        self._lex_away_may_run = Event()
+        self._lex_away_should_stop = Event()
         self._lexed_lines = list()
-        self._control_queue = Queue(1)
-        self.update_callbacks.append(lambda: self._control_queue.put_nowait(None))
-        self.update_callbacks.append(self._control_queue.join)
+
+        self.pre_update_callbacks.append(self._lex_away_may_run.clear)
+        self.pre_update_callbacks.append(self._lex_away_should_stop.set)
+
+        #self.update_callbacks.append(self._lex_away_waiting.wait)
+        self.update_callbacks.append(self._lex_away_should_stop.clear)
+        self.update_callbacks.append(self._lex_away_may_run.set)
 
         if global_config.DONT_USE_PYGMENTS_LIB:
             self._lexer = None
@@ -104,50 +110,67 @@ class TextFile(BaseFile):
                 self._lexer = guess(str(self.path), self._string).get_tokens_unprocessed
             except ClassNotFound:
                 self._lexer = None
+        self._lex_away_may_run.set()
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
         self._lexer_proc.start()
 
     def lexer(self):
-        if self._lexer is None:
-            yield from [
-                    (0, '', f'\x1b[33m{val}\x1b[0m') if val.startswith('#')
-                else
-                    (0, '', val)
-                for val in self._string.splitlines(True)]
-        else:
-            yield from self._lexer(self._string)
+            if self._lexer is None:
+                yield from [ (0, '', f'\x1b[33m{val}\x1b[0m') 
+                                if val.startswith('#')
+                            else (0, '', val)
+                    for val in self.splited_lines]
+            else:
+                with self._string_lock:
+                    yield from self._lexer(self.string)
 
     def _lex_away(self):
         while True:
             self._lexed_lines.clear()
+            #self._lex_away_waiting.set()
+            self._lex_away_may_run.wait()
+            #self._lex_away_waiting.clear()
             line = list()
             for _, tok, val in self.lexer():
-                try:
-                    self._control_queue.get_nowait()
-                    self._control_queue.task_done()
+                if self._lex_away_should_stop.is_set():
                     break
-                except Empty:
-                    tok = get_prefix(repr(tok))
-                    if '\n' in val:
-                        for token_line in val.splitlines(True):
-                            if token_line.endswith('\n'):
-                                token_line = token_line[:-1] + ' '
-                                line.append(f'{tok}{token_line}\x1b[0m')
-                                self._lexed_lines.append(''.join(line))
-                                line.clear()
-                            else:
-                                line.append(f'{tok}{token_line}\x1b[0m')
-                    else:
-                        line.append(f'{tok}{val}\x1b[0m')
+                tok = get_prefix(repr(tok))
+                if '\n' in val:
+                    for token_line in val.splitlines(True):
+                        if token_line.endswith('\n'):
+                            token_line = token_line[:-1] + ' '
+                            line.append(f'{tok}{token_line}\x1b[0m')
+                            self._lexed_lines.append(''.join(line))
+                            line.clear()
+                        else:
+                            line.append(f'{tok}{token_line}\x1b[0m')
+                else:
+                    line.append(f'{tok}{val}\x1b[0m')
             else:
                 if line: #No eof
                     self._lexed_lines.append(line)
-                self._control_queue.get(block=True)
-                self._control_queue.task_done()
+                self._lex_away_should_stop.wait()
 
     def get_lexed_line(self, index):
-        try:
-            return self._lexed_lines[index]
-        except IndexError:
-            pass
-        return self.splited_lines[index].replace('\n', ' ')
+        # if lexer has not yet reached this line use uncolored line
+        #if len(self._splited_lines) > len(self.splited_lines):
+            #return self.splited_lines[index].replace('\n', ' ')
+        #if 0 <= index < self.number_of_lin:
+                #if index < len(self._lexed_lines):
+                    #return self._lexed_lines[index]
+                #else:
+                    #return self.splited_lines[index].replace('\n', ' ')
+                #raise IndexError
+        #with self._string_lock:
+            try:
+                return self._lexed_lines[index]
+            except IndexError:
+                if self.number_of_lin > index >= 0:
+                    if self._lex_away_may_run.is_set():
+                        try:
+                            return self.splited_lines[index].replace('\n', ' ')
+                        except IndexError:
+                            raise InternalError
+                    else:
+                        raise RuntimeError
+                raise

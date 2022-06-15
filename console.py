@@ -73,8 +73,8 @@ def visit_stdin():
             ret = stdin.read(1)
             if ret == '\x1b':
                 tcsetattr(stdin, TCSAFLUSH, esc_mode)
-                esc_seq = stdin.read(1)
-                while esc_seq:
+                esc_seq = stdin.read(1) # not sure if this part is useful
+                while esc_seq:          # maybe just act as in get_a_key()
                     if esc_seq == '\x1b':
                         yield ret
                         ret = ''
