@@ -11,6 +11,7 @@ class Folder(BaseFile):
     motion_commands = { }
     actions = { k.CR: DO_open_file, }
     unsaved = False
+    modifiable = False
 
     @property
     def string(self):
@@ -27,10 +28,9 @@ class Folder(BaseFile):
 
     @string.setter
     def string(self, value):
-        self._string = ''
         return
 
-    def get_lexed_line(self, index):
+    def get_lexed_line(self, index, flash_screen=False):
         retval = ''
         if index == 1 or index == 0: #current or parent dir (., ..)
             retval = '\x1b[00;25;35m'

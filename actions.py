@@ -127,7 +127,7 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     curbuf.move_cursor('$')
-    curbuf.insert('\n')
+    curbuf.insert_newline()
     return 'insert'
 
 
@@ -138,8 +138,8 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     And starts «Insert» mode.
     """
     curbuf = editor.current_buffer
-    curbuf.move_cursor('0')
-    curbuf.insert('\n')
+    curbuf.move_cursor('#.') # current line, first char
+    curbuf.insert_newline()
     curbuf.move_cursor('k')
     return 'insert'
 
@@ -968,13 +968,13 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
     """
     try:
         if arg.startswith(':'):
-            arg = editor.actions.command[arg[1:]].func
+            arg = editor.actions.command[arg[1:]]
         elif arg.startswith('i_'):
-            arg = editor.actions.insert[arg[2:]].func
+            arg = editor.actions.insert[arg[2:]]
         elif arg.startswith('v_'):
-            arg = editor.actions.visual[arg[2:]].func
+            arg = editor.actions.visual[arg[2:]]
         else:
-            arg = editor.actions.normal[arg].func
+            arg = editor.actions.normal[arg]
     except KeyError:
         editor.warning(f'{arg} not found in help.')
         return 'normal'

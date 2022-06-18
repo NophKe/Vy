@@ -26,7 +26,7 @@ cdef class Completer:
         InputBuffer buffer
 
     cdef str get_history(self)
-    cdef list get_completion(self)
+    cdef list get_complete(self)
     cdef void complete(self)
     cdef void give_up(self)
     cdef void move_left(self)

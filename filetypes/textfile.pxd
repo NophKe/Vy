@@ -14,6 +14,8 @@ cdef str _resolve_prefix(str color_string)
 @final
 cdef class TextFile(BaseFile):
     cdef:
+        object _lex_away_may_run
+        object _lex_away_should_stop
         list _lexed_lines
         object _control_queue
         object _lexer_proc 
@@ -28,4 +30,4 @@ cdef class TextFile(BaseFile):
     cpdef void _lex_away(self)
 
     @locals(index=int)
-    cdef str get_lexed_line(self, int index) 
+    cdef str get_lexed_line(self, int index, bint flash_screen) 

@@ -2,7 +2,7 @@ from vy.interface.helpers import one_inside_dict_starts_with
 from vy.keys import _escape
 
 dictionary = dict()
-curbuf_hash = curbuf = motion_cmd = local_actions = None
+last_buffer = curbuf = motion_cmd = local_actions = None
 valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
                         'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                         '+-*/.:%#"=' )
@@ -12,12 +12,14 @@ def loop(editor):
 
     def update_globals():
         """if the current buffer has changed, update the action dictionnary"""
-        global curbuf_hash, curbuf, dictionary, motion_cmd, local_actions
-        if not curbuf or curbuf_hash != curbuf:
+        global curbuf, dictionary, motion_cmd, local_actions, last_buffer
+
+        if last_buffer is not editor.current_buffer:
             curbuf = editor.current_buffer
             motion_cmd = curbuf.motion_commands
             local_actions = curbuf.actions 
 
+            dictionary.clear()
             dictionary.update(editor.actions.normal)
             dictionary.update(motion_cmd)
             dictionary.update(local_actions)

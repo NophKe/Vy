@@ -13,10 +13,11 @@ class Completer:
         restric = set(histfile.read_text().splitlines(True))
         histfile.write_text(''.join(restric))
         self.histfile = histfile
+        self.history = [ item.removesuffix('\n') for item in restric ]
         self.state = ''
         self.max_selected = 0
         self.selected = 0
-        self.last_print = list()
+        self.completion = list()
         self.prompt = '\x1b[39;49;1m:\x1b[39;49;22m'
         self.editor = None
         self.buffer = InputBuffer()
@@ -57,8 +58,11 @@ class Completer:
                 elif key == k.C_C or key == '\x1b':
                     raise KeyboardInterrupt
                 elif key == k.CR and self.state:
-                    return self.select_item()
+                    rv = self.select_item()
+                    self.history.append(rv)
+                    return rv 
                 elif key == k.CR:
+                    self.history.append(buffer.string)
                     return buffer.string
                 else:
                     buffer.insert(key)
@@ -84,59 +88,62 @@ class Completer:
     def update_minibar_completer(self):
         if not self.state:
             self.screen.minibar_completer()
-            return
-        elif self.state == 'HISTORY':
-            self.screen.minibar_completer('')
-        elif self.state == 'COMPLETE':
-            completion = ''.join([f'| {k}' if index != self.selected
+        else:
+            completer = getattr(self, 'get_' + self.state)
+            completion = completer()
+            if completion != self.completion:
+                self.max_selected = len(completion) - 1
+                self.selected = 0
+                self.completion = completion
+            to_print = ''.join([f'| {k}' if index != self.selected
                    else f"|\x1b[7m {k} \x1b[27m" 
-                   for index, k in enumerate(self.get_completion())])
-            self.screen.minibar_completer(completion)
+                   for index, k in enumerate(completion)])
+            self.screen.minibar_completer(to_print)
 
     def get_history(self):
-        return ''
+        self.completion = [item for item in self.history if item.startswith(self.buffer.string)][-5:]
+        return self.completion
 
-    def get_completion(self):
+
+    def get_complete(self):
         user_input = self.buffer.string
-        to_print = list()
+        rv = list()
         if user_input in self.dictionary:
             self.buffer.insert(' ')
             
         if user_input.strip() in self.dictionary:
             if self.dictionary[user_input.strip()].with_args:
-                to_print.extend([str(k) for k in Path('.').iterdir()])
+                rv.extend([str(k) for k in Path('.').iterdir()])
             else:
                 pass
         elif one_inside_dict_starts_with(self.dictionary, user_input):
-            to_print.extend([k for k in self.dictionary if k.startswith(user_input)])
+            rv.extend([k for k in self.dictionary if k.startswith(user_input)])
 
-        if to_print != self.last_print:
-            self.max_selected = len(to_print) - 1
-            self.selected = 0
-            self.last_print = to_print
-        return to_print
+        return rv
 
     def complete(self):
         if not self.state:
-            self.state = 'COMPLETE'
+            self.state = 'complete'
         else: 
             self.move_cursor_up()
 
     def give_up(self):
         self.state = ''
         self.selected = 0
-        self.last_print = list()
+        self.completion = list()
 
     def move_left(self):
         if self.buffer.cursor > 0:
             self.buffer.cursor -= 1
 
     def move_right(self):
-        if self.buffer.cursor <= len(self.buffer.string):
+        if self.buffer.cursor < len(self.buffer.string):
             self.buffer.cursor += 1
 
     def move_cursor_up(self):
-        if self.selected < self.max_selected:
+        if not self.state:
+            self.state = 'history'
+        elif self.selected < self.max_selected:
             self.selected += 1
         else:
             self.selected = 0
@@ -148,10 +155,7 @@ class Completer:
             self.selected += 1
 
     def select_item(self):
-        if self.state:
-            if self.state == 'COMPLETE' and self.get_completion():
-                return self.buffer.string + self.last_print[self.selected] 
-        return self.buffer.string
+        return self.buffer.string + self.completion[self.selected] 
 
 readline = Completer('command_history')
 
@@ -185,5 +189,11 @@ def loop(self):
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
+
     self.screen.infobar(f'( Processing Command: {user_input} )')
-    return action(self, arg=ARG, part=PART, reg=REG) or 'normal'
+    if ARG:
+        rv = action(self, arg=ARG, part=PART, reg=REG)
+    else:
+        rv = action(self, part=PART, reg=REG)
+
+    return rv or 'normal'

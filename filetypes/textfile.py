@@ -1,3 +1,4 @@
+from time import sleep
 from threading import Thread, Condition, Event
 from queue import Queue, Empty
 
@@ -121,18 +122,18 @@ class TextFile(BaseFile):
                             else (0, '', val)
                     for val in self.splited_lines]
             else:
-                with self._string_lock:
                     yield from self._lexer(self.string)
 
     def _lex_away(self):
         while True:
             self._lexed_lines.clear()
-            #self._lex_away_waiting.set()
-            self._lex_away_may_run.wait()
-            #self._lex_away_waiting.clear()
             line = list()
+            self._lex_away_may_run.wait()
+            sleep(0)
+            self._lock.acquire()
             for _, tok, val in self.lexer():
                 if self._lex_away_should_stop.is_set():
+                    self._lock.release()
                     break
                 tok = get_prefix(repr(tok))
                 if '\n' in val:
@@ -149,28 +150,24 @@ class TextFile(BaseFile):
             else:
                 if line: #No eof
                     self._lexed_lines.append(line)
+                self._lock.release()
                 self._lex_away_should_stop.wait()
 
-    def get_lexed_line(self, index):
-        # if lexer has not yet reached this line use uncolored line
-        #if len(self._splited_lines) > len(self.splited_lines):
-            #return self.splited_lines[index].replace('\n', ' ')
-        #if 0 <= index < self.number_of_lin:
-                #if index < len(self._lexed_lines):
-                    #return self._lexed_lines[index]
-                #else:
-                    #return self.splited_lines[index].replace('\n', ' ')
-                #raise IndexError
-        #with self._string_lock:
-            try:
-                return self._lexed_lines[index]
-            except IndexError:
-                if self.number_of_lin > index >= 0:
-                    if self._lex_away_may_run.is_set():
-                        try:
-                            return self.splited_lines[index].replace('\n', ' ')
-                        except IndexError:
-                            raise InternalError
-                    else:
-                        raise RuntimeError
-                raise
+    def get_lexed_line(self, index, flash_screen):
+        try:
+            return self._lexed_lines[index]
+        except IndexError:
+            if flash_screen:
+                try:
+                    return self._splited_lines[index].replace('\n', ' ')
+                except IndexError:
+                    raise RuntimeError
+            
+            elif self.number_of_lin > index >= 0:
+                try:
+                    return self._lexed_lines[index]
+                except IndexError:
+                    return self.splited_lines[index].replace('\n', ' ')
+                raise RuntimeError
+
+            else: raise

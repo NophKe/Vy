@@ -11,9 +11,9 @@ def loop(self):
         screen.minibar('')
 
         if user_input in f'\r\n{C_J}':
-            curbuf.insert('\n')
-            screen.minibar(f'( Newline inserted, setting undo point )')
-            curbuf.set_undo_point()
+            curbuf.insert_newline()
+            #screen.minibar(f'( Newline inserted, setting undo point )')
+            #curbuf.set_undo_point()
 
         elif user_input in dictionary:
             screen.minibar(f' ( Processing command: {_escape(user_input)} )')

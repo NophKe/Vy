@@ -270,47 +270,45 @@ class _Editor:
         flash_screen = False
         old_screen = list()
         last_print = 0
-        infobar = self.screen.infobar
-
-        while self._async_io_flag:
-            tasks = self._input_queue.qsize()
-            delta = time() - last_print
-            if tasks and delta > 0.2:
-                infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
+        give_up = False
+        while self._async_io_flag or flash_screen or give_up:
+            if give_up:
+                flash_screen = False
+                self.screen.infobar(f'__ SCREEN NOT IN LIVE __ ', '---- slow computer or fast typist ---')
+                self._input_queue.join()
+            elif self._input_queue.unfinished_tasks and (time() - last_print) > 1:
                 flash_screen = True
-            #elif tasks and delta > 0.04:
-                #infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
-                #flash_screen = True
-            elif tasks:
-                start = time()
-                while time() - start < 0.04 and self._input_queue.qsize():
-                    sleep(0.0001)
+                give_up = True
+                self.screen.infobar(f'__ SCREEN NOT RENDERED __ ', '---- WAIT AND STOP TOUCHING KEYBOARD  !!! ---')
+            elif self._input_queue.unfinished_tasks:
+                sleep(0.1)
                 flash_screen = True
-            #elif delta < 0.04:
-                #sleep(0.1)
+                self.screen.infobar(f'__ SCREEN NOT IN LIVE __ ', '---- slow computer or fast typist ---')
             else:
-                infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                sleep(0.04)
+                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
                 flash_screen = False
 
             try:
                 new_screen = self.screen.get_line_list(flash_screen)
             except RuntimeError:
-                if flash_screen:
-                    continue
-                raise
+                continue
+            #for line in new_screen:
+                #assert '\n' not in line
             if new_screen == old_screen:
                 continue
-
             filtered = list()
-            for index, (line, old_line) in enumerate(
-            zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                if line != old_line:
-                    filtered.append(f'\x1b[{index};1H{line}')
-
+            for index, (line, old_line) in \
+              enumerate(zip(new_screen, chain(old_screen, repeat(''))),start=1):
+                 if line != old_line:
+                     filtered.append(f'\x1b[{index};1H{line}')
             old_screen = new_screen
             print(''.join(filtered), end='', flush=True)
-            if not flash_screen and not tasks:
+            if not flash_screen:
                 last_print = time()
+            if give_up:
+                give_up = False
+            #sleep(0.03)
 
     def input_loop(self):
         stdin_reader = visit_stdin()

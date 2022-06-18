@@ -11,18 +11,23 @@ class Interface():
     def __call__(self, name=None):
         loop = None
         if name is None: 
-            try: loop = self.mode_dict[self.last].loop
-            except KeyError: pass
+            try:
+                loop = self.mode_dict[self.last].loop
+            except KeyError:
+                pass
 
         if loop is None:
             try:
                 loop = self.mode_dict[name].loop
             except KeyError:
                 pass
+
         if loop is None:
             try:
-                self.mode_dict[name] = import_module(f'vy.interface.{name}', __package__)
-                loop = self.mode_dict[name].loop
+                module = import_module(f'vy.interface.{name}', __package__)
+                if hasattr(module, 'init'):
+                    module.init(self.inst)
+                loop = module.loop
             except ImportError:
                 self.inst.warning(f"Vy can't find the definition of {name} mode.")
                 return "normal"

@@ -3,9 +3,16 @@ from vy cimport keys as k
 
 cdef class InputBuffer:
     cdef:
-        public int cursor
+        object _string_lock
+        object _splited_lines_lock
+        object _lines_offsets_lock
+        int _number_of_lin
+        int _cursor
         str _string
         list update_callbacks
+        list pre_update_callbacks
+        list _splited_lines
+        list _lines_offsets
     cpdef void suppr(self)
     cpdef void backspace(self)
     cpdef void insert(self, str text)
@@ -15,8 +22,6 @@ cdef class BaseFile(InputBuffer):
         bint _no_undoing
         list undo_list
         list redo_list
-        list _splited_lines
-        list _lines_offsets
         public bint set_number
         public bint set_wrap
         public int set_tabsize
@@ -25,7 +30,7 @@ cdef class BaseFile(InputBuffer):
         public object path
 
     cpdef _get_range(self,key)
-    cdef int _get_offset(self, key)
+    cdef object _get_offset(self, key)
 
     cdef int find_end_of_line(self)
     cdef int find_end_of_word(self)

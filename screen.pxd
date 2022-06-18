@@ -44,7 +44,7 @@ cdef class Window:
     cdef public int shift_to_lin
     cdef bint _v_split_flag
     cdef int v_split_shift
-    cdef list gen_window(self)
+    cdef list gen_window(self, bint flash_screen)
 
 @final
 cdef class Screen(Window):
@@ -55,10 +55,10 @@ cdef class Screen(Window):
     cdef list _minibar_completer
 
     @locals(rv=list)
-    cpdef list get_line_list(self)
+    cpdef list get_line_list(self, bint flash_screen=*)
     cdef void alternative_screen(self)
     cdef void original_screen(self)
-    cdef void recenter(self)
+    cdef void recenter(self, Py_ssize_t discard_lines=*, bint flash_screen=*)
     #cdef void minibar_completer(self, str *lines)
     #cdef void minibar(self, str *lines)
     #cpdef void infobar(self, str right=*, str left=*)

@@ -1,4 +1,5 @@
 """This module is a mess that handles screen rendering"""
+from time import sleep
 from os import get_terminal_size
 from sys import stdout
 
@@ -247,10 +248,10 @@ class Window():
                 self.left_panel.set_focus()
         return self._focused
 
-    def gen_window(self):
+    def gen_window(self, flash_screen):
         if self.vertical_split:
-            left_panel = self.left_panel.gen_window()
-            right_panel = self.right_panel.gen_window()
+            left_panel = self.left_panel.gen_window(flash_screen)
+            right_panel = self.right_panel.gen_window(flash_screen)
             rv = list()
             for _ in range(self.number_of_lin):
                 rv.append(next(left_panel) + '|' + next(right_panel))
@@ -260,38 +261,55 @@ class Window():
             max_col = self.number_of_col
             min_lin = self.shift_to_lin
             max_lin = self.number_of_lin + self.shift_to_lin
-            if hasattr(self.buff, "_lex_away_may_run"):
-                self.buff._lex_away_may_run.wait()
-            with self.buff._string_lock:
+            wrap = self.buff.set_wrap
+            number = self.buff.set_number
+            tab_size = self.buff.set_tabsize
+            default = f"~{' ':{max_col- 1}}"
+            true_cursor = 0
+            
+            if flash_screen and hasattr(self.buff, "_lex_away_may_run"):
+                if not self.buff._lex_away_may_run.is_set():
+                    raise RuntimeError
+
+            if flash_screen:
+                max_idx_expect, cursor_lin, cursor_col = self.buff.cursor_lin_col_unsafe
+            else:
+                if hasattr(self.buff, "_lock"):
+                    self.buff._lock.acquire()
                 max_idx_expect = self.buff.number_of_lin
                 cursor_lin, cursor_col = self.buff.cursor_lin_col
-                wrap = self.buff.set_wrap
-                number = self.buff.set_number
-                tab_size = self.buff.set_tabsize
-                default = f"~{' ':{max_col- 1}}"
-                true_cursor = 0
 
-                line_list = list()
-                for on_lin in range(min_lin, max_lin):
-                    if on_lin == cursor_lin and true_cursor == 0:
-                        true_cursor = len(line_list)
-                    try:
-                        pretty_line = self.buff.get_lexed_line(on_lin)
-                    except IndexError:
-                        for _ in range(on_lin, max_lin):
-                            line_list.append(default)
-                        break
-                    if number:
-                        to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                    else:
-                        to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
-                    if wrap:
-                        line_list.extend(to_print)
-                    else:
-                        line_list.append(to_print[0])
-                if wrap and true_cursor >= self.number_of_lin:
-                    to_remove = 1 + true_cursor - self.number_of_lin
-                    line_list = line_list[to_remove:]
+            raw_line_list = list()
+            for on_lin in range(min_lin, max_lin):
+                try:
+                    raw_line_list.append(self.buff.get_lexed_line(on_lin, flash_screen))
+                except IndexError:
+                    for _ in range(on_lin, max_lin):
+                        raw_line_list.append(None)
+                    break
+
+            if not flash_screen and hasattr(self.buff, "_lock"):
+                self.buff._lock.release()
+
+            line_list = list()
+            for on_lin, pretty_line in zip(range(min_lin, max_lin), raw_line_list):
+                if pretty_line is None:
+                    line_list.append(default)
+                    continue
+                if on_lin == cursor_lin and true_cursor == 0:
+                    true_cursor = len(line_list)
+                if number:
+                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                else:
+                    to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                if wrap:
+                    line_list.extend(to_print)
+                else:
+                    line_list.append(to_print[0])
+
+            if wrap and true_cursor >= self.number_of_lin:
+                to_remove = 1 + true_cursor - self.number_of_lin
+                line_list = line_list[to_remove:]
             return line_list 
 
 class Screen(Window):
@@ -306,7 +324,7 @@ class Screen(Window):
         self._infobar_txt = ''
         self._minibar_txt = ['']
         self._minibar_completer = []
-        self.recenter()
+        self.recenter(0)
 
     def vsplit(self):
         if self.focused != self:
@@ -314,16 +332,17 @@ class Screen(Window):
         else:
             super().vsplit().set_focus()
 
-    def recenter(self):
+    def recenter(self, discard_lines=0, flash_screen=False):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
+        self._number_of_lin = lines - discard_lines - 1 # 1 for infobar
         curwin = self.focused
-        lin, col = curwin.buff.cursor_lin_col
-        if lin < curwin.shift_to_lin:
-            curwin.shift_to_lin = lin
-        elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-            curwin.shift_to_lin = lin - self.number_of_lin + 1
+        if not flash_screen:
+            lin, col = curwin.buff.cursor_lin_col
+            if lin < curwin.shift_to_lin:
+                curwin.shift_to_lin = lin
+            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+                curwin.shift_to_lin = lin - self.number_of_lin + 1
 
     @property
     def number_of_col(self):
@@ -333,11 +352,12 @@ class Screen(Window):
     def number_of_lin(self):
         return self._number_of_lin
 
-    def get_line_list(self):
-        self.recenter()
-        rv = self.gen_window()
+    def get_line_list(self, flash_screen=False):
+        minibar = self.minibar_banner
+        self.recenter(discard_lines=len(minibar), flash_screen=flash_screen)
+        rv = self.gen_window(flash_screen)
         rv.append(self._infobar_txt)
-        rv.extend(self.minibar_banner)
+        rv.extend(minibar)
         return rv 
 
     def minibar_completer(self, *lines):
