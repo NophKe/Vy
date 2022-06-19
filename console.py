@@ -84,7 +84,3 @@ def visit_stdin():
             yield ret
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
-
-def visit_stdin():
-    while True:
-        yield get_a_key()

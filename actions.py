@@ -127,7 +127,7 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     curbuf.move_cursor('$')
-    curbuf.insert_newline()
+    curbuf.insert('\n')
     return 'insert'
 
 
@@ -138,8 +138,8 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     And starts «Insert» mode.
     """
     curbuf = editor.current_buffer
-    curbuf.move_cursor('#.') # current line, first char
-    curbuf.insert_newline()
+    curbuf.move_cursor('0')
+    curbuf.insert('\n')
     curbuf.move_cursor('k')
     return 'insert'
 

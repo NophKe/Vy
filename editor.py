@@ -266,6 +266,10 @@ class _Editor:
     def current_buffer(self): 
         return self.screen.focused.buff
 
+### TODO -- move this fonction to screen module
+###
+### - replace self._asyncio_flag by a threading.Condition
+###
     def print_loop(self):
         flash_screen = False # do not require lock
         old_screen = list()  
@@ -281,11 +285,11 @@ class _Editor:
             tasks = self._input_queue.qsize()
             delta = (start := time()) - last_print
 
-            if delta > 5:               # if screen is more than 5 seconds late
+            if delta > 2:               # if screen is more than 5 seconds late
                 stop = True             # draw it noexcept one last time
                 flash_screen = False
-                infobar(f' ___ SCREEN DISABLED ___ ', f'  {asctime()}  ')
-            elif delta > 1:
+                infobar(f' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', f' screen frozen since {asctime()}  ')
+            elif delta > 0.33:
                 while time() - start < 0.33:
                     if not self._input_queue.qsize():
                         break           # if screen is more than one second late
@@ -323,12 +327,12 @@ class _Editor:
                 if line != old_line:
                     filtered.append(f'\x1b[{index};1H{line}')
 
-            old_screen = new_screen
             print(''.join(filtered), end='', flush=True)
 
             if ((not flash_screen and not tasks) or 
                ((0.04 < delta < 0.33) and (new_screen == old_screen))):
                     last_print = time()
+            old_screen = new_screen
 
 
     def input_loop(self):

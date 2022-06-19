@@ -256,18 +256,17 @@ class BaseFile:
         with self._lock:
             if not self._cursor_lin_col:
                 lin, off = self.cursor_lin_off
-                assert lin < self.number_of_lin
+                #assert lin < self.number_of_lin
                 col = self.cursor - off + 1
                 self._cursor_lin_col = (lin, col)
             return self._cursor_lin_col
 
-    @cur_lin_col.setter
+    @cursor_lin_col.setter
     def cursor_lin_col(self, pair_value):
         """
         A tupple representing the actual cursor (line, collumn),
         lines are 0 based indexed, and cols are 1-based.
         """
-        assert 
         with self._lock:
             old_lin, old_col = self.cursor_lin_col
             new_lin, new_col = pair_value
@@ -281,10 +280,21 @@ class BaseFile:
                 self._cursor_lin_col = (old_lin, new_col)
 
             else:
-                max_cursor = len(self.lines_offsets[new_lin]) + len(self.splited_lines[new_lin])
-                try: assert self._lines_offsets[new_lin+1] == max_cursor
-                except IndexError: pass
-                self.splited_lines[new_lin]
+                max_col = len(self.splited_lines[new_lin])
+                line_off = self.lines_offsets[new_lin]
+                max_cursor = line_off + max_col
+                try:
+                    assert self._lines_offsets[new_lin+1] == max_cursor
+                except IndexError: 
+                    pass
+                
+                if new_col > max_col:
+                    self._cursor = max_cursor
+                    self._cursor_lin_col = (new_lin, max_col)
+                else:
+                    self._cursor = line_off + new_col
+                    self._cursor_lin_col = (new_lin, new_col)
+                self._current_line = self.splited_lines[new_lin]
 
     @property
     def cursor_lin_off(self):
@@ -497,29 +507,32 @@ class BaseFile:
         [func() for func in self.pre_update_callbacks]
         with self._lock:
             assert self._lenght is not None # test while triggering computation
+            assert self._splited_lines
 
             lin, col = self.cursor_lin_col
-            top = self.current_line[:col-1] + '\n'
-            bottom = self._current_line[col-1:]
+            top = (self._splited_lines[lin])[:col-1] + '\n'
+            bottom = (self._splited_lines[lin])[col-1:]
+            self._lines_offsets.clear()
+            self._string = ''
 
             self._splited_lines.insert(lin, top)
             self._splited_lines[lin+1] = bottom
             self._current_line = bottom
             self._cursor_lin_col = (lin+1, 1)
             self._cursor += 1
-            self._number_of_lin = self.number_of_lin + 1
+            self._number_of_lin = self._number_of_lin + 1
             self._lenght += 1
 
-            self._lines_offsets.clear()
-            self._string = ''
         [func() for func in self.update_callbacks]
 
+    def insert_newline(self):
+        return self.insert('\n')
     @property
     def current_line(self):
         with self._lock:
             if not self._current_line:
                 self._current_line = self.splited_lines[self.cursor_line]
-                assert self._current_line and self._current_line.endswith('\n')
+                assert self._current_line.endswith('\n')
                 assert '\n' not in self._current_line[:-1]
             return self._current_line
 
@@ -527,17 +540,16 @@ class BaseFile:
     def current_line(self, value):
         [func() for func in self.pre_update_callbacks]
         with self._lock:
-            #assert (old_val := self.current_line) and old_val.endswith('\n')
-            old_val = self.current_line
-#### HACK
             assert value and value.endswith('\n'), f'{value = }'
             assert '\n' not in value[:-1], f'{value = }'
-            cur_lin, _ = self.cursor_lin_col
+
+            lin, _ = self.cursor_lin_col
+            cur_lin = self._splited_lines[lin]
             if self._lenght is not None:
                 delta = len(old_val) - len(value)
                 self._lenght -= delta
 
-            self._splited_lines[cur_lin] = value
+            self._splited_lines[lin] = value
             self._string = ''
             self._current_line = value
             self._lines_offsets.clear()
@@ -556,12 +568,13 @@ class BaseFile:
     @cursor.setter
     def cursor(self, value):
         with self._lock:
-            if self._lenght is not None:
-                assert self._lenght >= value, f'{self._lenght =} {value =} {(self) = }'
-                assert value >= 0, f'{value =} {len(self)}'
-            self._current_line = ''
-            self._cursor_lin_col = ()
-            self._cursor = value
+            if self._cursor != value:
+                if self._lenght is not None:
+                    assert self._lenght >= value, f'{self._lenght =} {value =} {(self) = }'
+                    assert value >= 0, f'{value =} {len(self)}'
+                self._current_line = ''
+                self._cursor_lin_col = ()
+                self._cursor = value
 
 
     @string.setter
@@ -734,6 +747,8 @@ class BaseFile:
             lin, col = self.cursor_lin_col
             if lin == 0:
                 return self.cursor
+            else:
+                return (lin-1, col)
 
             current_line_start = self.lines_offsets[lin]
             previous_line = self._lines_offsets[lin-1]
@@ -897,7 +912,11 @@ class BaseFile:
 
     def move_cursor(self, offset_str):
         with self._lock:
-            self.cursor = self._get_offset(offset_str)
+            new_val = self._get_offset(offset_str)
+            if isinstance(new_val, int):
+                self.cursor = new_val
+            elif isinstance(new_val, tuple):
+                self.cursor_lin_col = new_val
     
     def __getitem__(self, key):
         with self._lock:
