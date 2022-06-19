@@ -266,30 +266,32 @@ class Window():
             tab_size = self.buff.set_tabsize
             default = f"~{' ':{max_col- 1}}"
             true_cursor = 0
+            locked = False
             
-            if flash_screen and hasattr(self.buff, "_lex_away_may_run"):
-                if not self.buff._lex_away_may_run.is_set():
-                    raise RuntimeError
-
-            if flash_screen:
-                max_idx_expect, cursor_lin, cursor_col = self.buff.cursor_lin_col_unsafe
-            else:
-                if hasattr(self.buff, "_lock"):
-                    self.buff._lock.acquire()
-                max_idx_expect = self.buff.number_of_lin
-                cursor_lin, cursor_col = self.buff.cursor_lin_col
-
             raw_line_list = list()
-            for on_lin in range(min_lin, max_lin):
-                try:
-                    raw_line_list.append(self.buff.get_lexed_line(on_lin, flash_screen))
-                except IndexError:
-                    for _ in range(on_lin, max_lin):
-                        raw_line_list.append(None)
-                    break
+            try:
+                if hasattr(self.buff, "_lock"):
+                    locked = self.buff._lock.acquire(blocking=True, timeout=0.001)
+                if locked:
+                    max_idx_expect = self.buff.number_of_lin
+                    cursor_lin, cursor_col = self.buff.cursor_lin_col
+                elif flash_screen:
+                    max_idx_expect, cursor_lin, cursor_col = self.buff.cursor_lin_col_unsafe
+                else:
+                    locked = self.buff._lock.acquire()
+                    max_idx_expect = self.buff.number_of_lin
+                    cursor_lin, cursor_col = self.buff.cursor_lin_col
 
-            if not flash_screen and hasattr(self.buff, "_lock"):
-                self.buff._lock.release()
+                for on_lin in range(min_lin, max_lin):
+                    try:
+                        raw_line_list.append(self.buff.get_lexed_line(on_lin, flash_screen))
+                    except IndexError:
+                        for _ in range(on_lin, max_lin):
+                            raw_line_list.append(None)
+                        break
+            finally:
+                if locked:
+                    self.buff._lock.release()
 
             line_list = list()
             for on_lin, pretty_line in zip(range(min_lin, max_lin), raw_line_list):

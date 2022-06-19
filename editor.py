@@ -10,7 +10,7 @@ from traceback import print_tb
 from bdb import BdbQuit
 #from functools import partial
 from itertools import repeat, chain
-from time import sleep, time
+from time import sleep, time, asctime
 from threading import Thread
 from queue import Queue
 
@@ -267,28 +267,46 @@ class _Editor:
         return self.screen.focused.buff
 
     def print_loop(self):
-        flash_screen = False
-        old_screen = list()
-        last_print = 0
+        flash_screen = False # do not require lock
+        old_screen = list()  
+        last_print = time()
         infobar = self.screen.infobar
+        stop = False
 
         while self._async_io_flag:
+            if stop:
+                self._input_queue.join()
+                stop = False
+                continue
             tasks = self._input_queue.qsize()
-            delta = time() - last_print
-            if tasks and delta > 0.2:
+            delta = (start := time()) - last_print
+
+            if delta > 5:               # if screen is more than 5 seconds late
+                stop = True             # draw it noexcept one last time
+                flash_screen = False
+                infobar(f' ___ SCREEN DISABLED ___ ', f'  {asctime()}  ')
+            elif delta > 1:
+                while time() - start < 0.33:
+                    if not self._input_queue.qsize():
+                        break           # if screen is more than one second late
+                    sleep(0.04)         # miss a frame as long as there are keystrokes
+                flash_screen = False    # to read, but draw it noexcept. 
                 infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
-                flash_screen = True
-            #elif tasks and delta > 0.04:
-                #infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
-                #flash_screen = True
-            elif tasks:
-                start = time()
-                while time() - start < 0.04 and self._input_queue.qsize():
+
+            elif delta < 0.04:
+                sleep(0.04 - delta)     # Never try more than 25 fps
+                continue
+
+            elif tasks:                 # if job to do spend this frame waiting
+                start = time()          # for it to complete
+                while time() - start < 0.04:
+                    if not self._input_queue.qsize():
+                        break
                     sleep(0.0001)
                 flash_screen = True
-            #elif delta < 0.04:
-                #sleep(0.1)
-            else:
+                infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+
+            else:                        # nothing to do. Draw screen synchronously.
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
                 flash_screen = False
 
@@ -298,8 +316,6 @@ class _Editor:
                 if flash_screen:
                     continue
                 raise
-            if new_screen == old_screen:
-                continue
 
             filtered = list()
             for index, (line, old_line) in enumerate(
@@ -309,8 +325,11 @@ class _Editor:
 
             old_screen = new_screen
             print(''.join(filtered), end='', flush=True)
-            if not flash_screen and not tasks:
-                last_print = time()
+
+            if ((not flash_screen and not tasks) or 
+               ((0.04 < delta < 0.33) and (new_screen == old_screen))):
+                    last_print = time()
+
 
     def input_loop(self):
         stdin_reader = visit_stdin()

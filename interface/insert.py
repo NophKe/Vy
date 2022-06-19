@@ -12,19 +12,22 @@ def loop(self):
 
         if user_input in f'\r\n{C_J}':
             curbuf.insert_newline()
+            continue
             #screen.minibar(f'( Newline inserted, setting undo point )')
             #curbuf.set_undo_point()
 
         elif user_input in dictionary:
             screen.minibar(f' ( Processing command: {_escape(user_input)} )')
-            rv = dictionary[user_input](self)
+            with curbuf:
+                rv = dictionary[user_input](self)
             screen.minibar('')
             if rv and rv != 'insert':
                 return rv
             continue
 
         elif user_input.isprintable() or user_input.isspace():
-            curbuf.insert(user_input)
+            with curbuf:
+                curbuf.insert(user_input)
             continue
 
         elif one_inside_dict_starts_with(dictionary, user_input):
@@ -32,15 +35,13 @@ def loop(self):
             while one_inside_dict_starts_with(dictionary, user_input):
                 if user_input in dictionary:
                     screen.minibar(f' ( Processing command: {_escape(user_input)} )')
-                    rv = dictionary[user_input](self)
+                    with curbuf:
+                        rv = dictionary[user_input](self)
                     screen.minibar('')
                     if rv and rv != 'insert':
                         return rv
                     break
             else:
-                if user_input.isprintable():
-                    curbuf.insert(user_input)
-                else:
-                    screen.minibar(f' ( Invalid command: {_escape(user_input)} )')
+                screen.minibar(f' ( Invalid command: {_escape(user_input)} )')
         else:
-            raise RuntimeError("This line should never be reached")
+            raise RuntimeError

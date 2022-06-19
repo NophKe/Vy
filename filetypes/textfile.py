@@ -126,11 +126,12 @@ class TextFile(BaseFile):
 
     def _lex_away(self):
         while True:
-            self._lexed_lines.clear()
-            line = list()
             self._lex_away_may_run.wait()
-            sleep(0)
-            self._lock.acquire()
+            line = list()
+            self._lexed_lines.clear()
+            sleep(0.04) #like eternity.... syntax coloring should never go first
+            if not (rv := self._lock.acquire()):
+                raise BaseException(f'{rv =}')
             for _, tok, val in self.lexer():
                 if self._lex_away_should_stop.is_set():
                     self._lock.release()
@@ -162,12 +163,9 @@ class TextFile(BaseFile):
                     return self._splited_lines[index].replace('\n', ' ')
                 except IndexError:
                     raise RuntimeError
-            
             elif self.number_of_lin > index >= 0:
                 try:
                     return self._lexed_lines[index]
                 except IndexError:
                     return self.splited_lines[index].replace('\n', ' ')
-                raise RuntimeError
-
-            else: raise
+            raise

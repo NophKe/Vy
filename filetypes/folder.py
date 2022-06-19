@@ -31,6 +31,8 @@ class Folder(BaseFile):
         return
 
     def get_lexed_line(self, index, flash_screen=False):
+
+        
         retval = ''
         if index == 1 or index == 0: #current or parent dir (., ..)
             retval = '\x1b[00;25;35m'
