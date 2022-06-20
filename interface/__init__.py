@@ -1,4 +1,5 @@
 from importlib import import_module
+from time import sleep
 
 class Interface():
     __slots__ = ('last', 'inst', 'mode_dict')
@@ -32,4 +33,6 @@ class Interface():
                 self.inst.warning(f"Vy can't find the definition of {name} mode.")
                 return "normal"
         self.last = name if name else self.last
+
+        sleep(0)
         return loop(self.inst)

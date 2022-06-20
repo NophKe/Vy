@@ -13,7 +13,7 @@ def loop(self):
         if user_input in f'\r\n{C_J}':
             curbuf.insert_newline()
             continue
-            #screen.minibar(f'( Newline inserted, setting undo point )')
+            screen.minibar(f'( Newline inserted )') #, setting undo point )')
             #curbuf.set_undo_point()
 
         elif user_input in dictionary:
@@ -26,8 +26,7 @@ def loop(self):
             continue
 
         elif user_input.isprintable() or user_input.isspace():
-            with curbuf:
-                curbuf.insert(user_input)
+            curbuf.insert(user_input)
             continue
 
         elif one_inside_dict_starts_with(dictionary, user_input):
@@ -44,4 +43,4 @@ def loop(self):
             else:
                 screen.minibar(f' ( Invalid command: {_escape(user_input)} )')
         else:
-            raise RuntimeError
+            screen.minibar(f' ( Invalid command: {_escape(user_input)} )')

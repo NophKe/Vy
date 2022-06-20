@@ -1,6 +1,17 @@
 Vy
 ===
 
+DISCLAIMER
+----------
+
+A lot of work have been put in this piece of sotware those las days.
+
+Some parts have become buggy, but most of it are because of api changes.
+
+This are minor bug, to be fixed soon.
+
+I hope to make a release during summer.
+
 What is Vy?
 -----------
 First, Vy is an experiment.

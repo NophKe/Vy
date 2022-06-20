@@ -69,9 +69,8 @@ def loop(editor):
 
         if key in motion_cmd:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
-            with curbuf:
-                for _ in range(COUNT):
-                    curbuf.move_cursor(key)
+            for _ in range(COUNT):
+                curbuf.move_cursor(key)
             editor.screen.minibar('')
             continue
         
@@ -80,8 +79,7 @@ def loop(editor):
 
         if action.atomic:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
-            with curbuf:
-                rv = action(editor)
+            rv = action(editor)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv
@@ -89,8 +87,7 @@ def loop(editor):
 
         elif action.stand_alone:
             editor.screen.minibar(f' ( Processing Command: {_escape(key)} )')
-            with curbuf:
-                rv = action(editor, reg=REG if REG else '"', count=COUNT)
+            rv = action(editor, reg=REG if REG else '"', count=COUNT)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv
@@ -109,8 +106,7 @@ def loop(editor):
                 COUNT = COUNT * MOTION_COUNT
                 editor.screen.minibar(f'( Processing Command: {_escape(CMD)} on {COUNT} lines )')
                 RANGE = curbuf._get_range(f'#.:#+{COUNT}')
-                with curbuf:
-                    rv = action(editor, reg=REG if REG else '"', part=RANGE)
+                rv = action(editor, reg=REG if REG else '"', part=RANGE)
                 editor.screen.minibar('')
                 if rv and rv != 'normal':
                     return rv
@@ -132,15 +128,13 @@ def loop(editor):
                 old_pos, new_pos = RRANGE.start, RRANGE.stop
             else:
                 old_pos = curbuf.cursor
-                with curbuf:
-                    for _ in range(COUNT):
-                        curbuf.cursor = func()
-                    new_pos = curbuf.cursor
+                for _ in range(COUNT):
+                    curbuf.cursor = func()
+                new_pos = curbuf.cursor
 
             RRANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
-            with curbuf:
-                rv = action(editor, reg=REG if REG else '"', part=RRANGE)
+            rv = action(editor, reg=REG if REG else '"', part=RRANGE)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv

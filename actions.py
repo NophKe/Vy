@@ -75,19 +75,17 @@ def join_lines(editor, reg=None, part=None, arg=None, count=1):
     """
     Joins the {count} next lines together.
     """
-    curbuf = editor.current_buffer
-    curbuf.stop_undo_record()
-    for _ in range(count):
-        try:
-            newline = curbuf.lines_offsets[curbuf.cursor_line + 1]
-        except IndexError:
-            return
-        curbuf.move_cursor('$')
-        if not curbuf[curbuf.cursor].isspace():
-            del curbuf[newline - 1]
-        else:
-            curbuf[newline - 1] = ' '
-    curbuf.start_undo_record()
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            try:
+                newline = curbuf.lines_offsets[curbuf.cursor_line + 1]
+            except IndexError:
+                return
+            curbuf.move_cursor('$')
+            if not curbuf[curbuf.cursor].isspace():
+                del curbuf[newline - 1]
+            else:
+                curbuf[newline - 1] = ' '
 
 
 @sa_commands(f'{k.C_W}>')
@@ -125,10 +123,10 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     Moves the cursor on a new empty line below the current line.
     And starts «Insert» mode.
     """
-    curbuf = editor.current_buffer
-    curbuf.move_cursor('$')
-    curbuf.insert('\n')
-    return 'insert'
+    with editor.current_buffer as curbuf:
+        curbuf.move_cursor('$')
+        curbuf.insert_newline()
+        return 'insert'
 
 
 @atomic_commands('O')
@@ -137,11 +135,11 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     Moves the cursor on a new empty line under the current line.
     And starts «Insert» mode.
     """
-    curbuf = editor.current_buffer
-    curbuf.move_cursor('0')
-    curbuf.insert('\n')
-    curbuf.move_cursor('k')
-    return 'insert'
+    with editor.current_buffer as curbuf:
+        curbuf.move_cursor('0')
+        curbuf.insert_newline()
+        curbuf.move_cursor('k')
+        return 'insert'
 
 @atomic_commands('A')
 def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
@@ -164,8 +162,9 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
         except ValueError:
             editor.screen.minibar(f'Wrong count argument: {arg}')
             return
-    for _ in range(count):
-        editor.current_buffer.undo()
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            editor.current_buffer.undo()
 
 
 #@with_args_commands(f'{k.C_R} :red :redo')
@@ -180,8 +179,9 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
         except ValueError:
             editor.screen.minibar(f'Wrong coount argument: {arg}')
             return
-    for _ in range(count):
-        editor.current_buffer.redo()
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            editor.current_buffer.redo()
 
 
 @atomic_commands(f'i {k.insert}')
@@ -236,7 +236,7 @@ def python_mode(editor, reg=None, part=None, arg=None, count=1):
 #        editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
 #        return
 #    key, value = arg.split(' ', maxsplit=1)
-#    editor.current_buffer.stand_alone_commands[key] = lambda ed,cmd: ed.push_macro(value)
+#    editor.current_buffer.stand_alone_commands[key] = lambda ed, reg, part, arg, count: ed.push_macro(value)
 
 @with_args_commands(':reg :registers :di :display')
 @atomic_commands(':reg :registers :di :display')
@@ -270,15 +270,15 @@ def change(editor, reg='_', part=None, arg=None, count=1):
     Then starts 'insert' mode.
     By default, if no register is specified the black hole "_ register is used.
     """
-    curbuf = editor.current_buffer
-    stop = part.stop
-    start = part.start
-    if curbuf[stop - 1] == '\n':
-        stop = stop - 1
-    editor.registr[reg] = curbuf[start:stop]
-    del curbuf[start:stop]
-    curbuf.cursor = part.start
-    return 'insert'
+    with editor.current_buffer as curbuf:
+        stop = part.stop
+        start = part.start
+        if curbuf[stop - 1] == '\n':
+            stop = stop - 1
+        editor.registr[reg] = curbuf[start:stop]
+        del curbuf[start:stop]
+        curbuf.cursor = part.start
+        return 'insert'
 
 
 @full_commands('y')
@@ -313,9 +313,9 @@ def lower_case(editor, reg='_', part=None, arg=None, count=1):
     or inside {movement} if it resolves to as slice of the text.
     {register} argument is ignored.
     """
-    curbuf = editor.current_buffer
-    curbuf[part] = curbuf[part].lower()
-    curbuf.cursor = part.stop
+    with editor.current_buffer as curbuf:
+        curbuf[part] = curbuf[part].lower()
+        curbuf.cursor = part.stop
 
 
 @full_commands('gU')
@@ -325,9 +325,9 @@ def upper_case(editor, reg='_', part=None, arg=None, count=1):
     or inside {movement} if it resolves to as slice of the text.
     {register} argument is ignored.
     """
-    curbuf = editor.current_buffer
-    curbuf[part] = curbuf[part].upper()
-    curbuf.cursor = part.stop
+    with editor.current_buffer as curbuf:
+        curbuf[part] = curbuf[part].upper()
+        curbuf.cursor = part.stop
 
 
 @full_commands('g~')
@@ -337,9 +337,9 @@ def swap_case(editor, reg='_', part=None, arg=None, count=1):
     or inside {movement} if it resolves to as slice of the text.
     {register} argument is ignored.
     """
-    curbuf = editor.current_buffer
-    curbuf[part] = curbuf[part].swapcase()
-    curbuf.cursor = part.stop
+    with editor.current_buffer as curbuf:
+        curbuf[part] = curbuf[part].swapcase()
+        curbuf.cursor = part.stop
 
 
 @with_args_commands(":read :re :r")
@@ -904,10 +904,11 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
     Deletes text from the cursor to the end of line. Text is copied to the
     specified register. If no register is specified, use default " register.
     """
-    curbuf = editor.current_buffer
-    editor.registr[reg] = curbuf['cursor:$']
-    del curbuf['cursor:$']
-    return 'normal'
+    with editor.current_buffer as curbuf:
+        lin, col = curbuf.cursor_col
+        editor.registr[reg] = curbuf.current_line[:col]
+        curbuf.current_line = curbuf.current_line[:col] + '\n' 
+        return 'normal'
 
 
 @atomic_commands(f'i_{k.suppr} x')
@@ -927,9 +928,9 @@ def do_normal_tilde(editor, reg=None, part=None, arg=None, count=1):
     one character right unless if on the last position of the line.
     Optionnal "{register} argument is ignored.
     """
-    curbuf = editor.current_buffer
-    curbuf[curbuf.cursor] = curbuf[curbuf.cursor].upper()
-    curbuf.move_cursor('l')
+    with editor.current_buffer as curbuf:
+        curbuf[curbuf.cursor] = curbuf[curbuf.cursor].upper()
+        curbuf.move_cursor('l')
 
 
 @sa_commands("C")
@@ -940,10 +941,10 @@ def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
     By default, if no register is specified the default "" register is used.
     Optionnal {count} argument is ignored.
     """
-    curbuf = editor.current_buffer
-    editor.registr[reg] = curbuf['cursor:$']
-    del curbuf['cursor:$']
-    return 'insert'
+    with editor.current_buffer as curbuf:
+        editor.registr[reg] = curbuf['cursor:$']
+        del curbuf['cursor:$']
+        return 'insert'
 
 
 # TODO Add k.F1 and i_k.F1( but set value in keys.py first ) 
@@ -1000,12 +1001,12 @@ def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     Inserts the necessery number of spaces to reach next level of indentation
 
     """
-    curbuf = editor.current_buffer
-    curbuf.insert('\t')
-    orig = curbuf['0:$']
-    after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-    curbuf['0:$'] = after
-    curbuf.cursor += len(after) - len(orig)
+    with curbuf:
+        curbuf.insert('\t')
+        orig = curbuf['0:$']   # TODO use current_line property
+        after = orig.expandtabs(tabsize=curbuf.set_tabsize)
+        curbuf['0:$'] = after
+        curbuf.cursor += len(after) - len(orig)
 
 
 @atomic_commands("gf")

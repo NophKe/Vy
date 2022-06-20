@@ -21,6 +21,8 @@ from vy.console import visit_stdin
 
 from vy.global_config import DEBUG
 
+
+
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
@@ -281,42 +283,33 @@ class _Editor:
             if stop:
                 self._input_queue.join()
                 stop = False
+                last_print = time() - 1
                 continue
             tasks = self._input_queue.qsize()
             delta = (start := time()) - last_print
 
-            if delta > 2:               # if screen is more than 5 seconds late
+            if delta > 3:               # if screen is more than 5 seconds late
                 stop = True             # draw it noexcept one last time
                 flash_screen = False
-                infobar(f' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', f' screen frozen since {asctime()}  ')
-            elif delta > 0.33:
-                while time() - start < 0.33:
-                    if not self._input_queue.qsize():
-                        break           # if screen is more than one second late
-                    sleep(0.04)         # miss a frame as long as there are keystrokes
-                flash_screen = False    # to read, but draw it noexcept. 
-                infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
+                infobar(f' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
 
-            elif delta < 0.04:
-                sleep(0.04 - delta)     # Never try more than 25 fps
+            elif delta < 0.05:
+                flash_screen = True
+                sleep(0.05 - delta)     # Never try more than 25 fps
                 continue
 
-            elif tasks:                 # if job to do spend this frame waiting
-                start = time()          # for it to complete
-                while time() - start < 0.04:
-                    if not self._input_queue.qsize():
-                        break
-                    sleep(0.0001)
+            elif tasks:                 # if job awaiting, spend this frame waiting
+                sleep(0.1)
                 flash_screen = True
-                infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
 
-            else:                        # nothing to do. Draw screen synchronously.
+            else:                        
+                flash_screen = False # nothing to do. Draw screen synchronously.
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
-                flash_screen = False
 
             try:
                 new_screen = self.screen.get_line_list(flash_screen)
-            except RuntimeError:
+            except (RuntimeError, AssertionError):
                 if flash_screen:
                     continue
                 raise
@@ -324,7 +317,7 @@ class _Editor:
             filtered = list()
             for index, (line, old_line) in enumerate(
             zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                if line != old_line:
+                if line != old_line or flash_screen:
                     filtered.append(f'\x1b[{index};1H{line}')
 
             print(''.join(filtered), end='', flush=True)
@@ -345,6 +338,8 @@ class _Editor:
         del stdin_reader # help garbage collector
 
     def start_async_io(self):
+        global BP
+        BP = lambda: (self.stop_async_io(), breakpoint())
         assert not self._async_io_flag
         if not DEBUG:
             self.screen.alternative_screen()
@@ -364,16 +359,13 @@ class _Editor:
         if not DEBUG:
             self.screen.original_screen()
             self.screen.show_cursor()
-        #self._input_queue.join()
-
+        #assert self._input_queue.join() // one key may get stuck there
+        #                                // what can we do ?
         
     def __call__(self, buff=None, mode='normal'):
         """
         Calling the editor launches the command loop interraction.
-
         If the editor is allready running it is equivalent to Editor.edit(filename)
-        (Changes the current buffer and current window to edit location)
-
         """
         if self._running:
             return self.edit(buff)
@@ -389,6 +381,7 @@ class _Editor:
                     self.current_mode = mode if mode else self.current_mode
                     mode = self.interface(mode)
                 except BdbQuit:
+                    self.start_async_io()
                     mode = 'normal'
                     continue
                 except Exception as exc:

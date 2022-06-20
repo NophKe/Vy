@@ -126,17 +126,29 @@ class TextFile(BaseFile):
 
     def _lex_away(self):
         while True:
-            self._lex_away_may_run.wait()
             line = list()
-            self._lexed_lines.clear()
-            sleep(0.04) #like eternity.... syntax coloring should never go first
-            if not (rv := self._lock.acquire()):
-                raise BaseException(f'{rv =}')
+            self._lex_away_may_run.wait()
+
+            #self._old_lexed_lines = self._lexed_lines
+
+            if not self._splited_lines: # if not yet computed help print loop
+                self.splited_lines
+
+            self._lock.acquire()
+            if self._lex_away_should_stop.is_set():
+                self._lock.release()
+                continue
+            self._lexed_lines = list()
+
             for _, tok, val in self.lexer():
                 if self._lex_away_should_stop.is_set():
                     self._lock.release()
                     break
-                tok = get_prefix(repr(tok))
+                tok = get_prefix(repr(tok))     ### Here I use the repr as it is
+                                                #   easier to use a string than an 
+                                                #   object for serializing
+                                                #   may be a good example of premature
+                                                # optimization (multiprocessing in mind)
                 if '\n' in val:
                     for token_line in val.splitlines(True):
                         if token_line.endswith('\n'):
@@ -155,17 +167,19 @@ class TextFile(BaseFile):
                 self._lex_away_should_stop.wait()
 
     def get_lexed_line(self, index, flash_screen):
-        try:
-            return self._lexed_lines[index]
-        except IndexError:
-            if flash_screen:
+        if flash_screen:
+            try:
+                return self._lexed_lines[index]
+            except IndexError:
                 try:
                     return self._splited_lines[index].replace('\n', ' ')
                 except IndexError:
+                    raise
+                except:
                     raise RuntimeError
-            elif self.number_of_lin > index >= 0:
-                try:
-                    return self._lexed_lines[index]
-                except IndexError:
-                    return self.splited_lines[index].replace('\n', ' ')
-            raise
+            except:
+                raise RuntimeError
+        try:
+            return self._lexed_lines[index]
+        except IndexError:
+            return self.splited_lines[index].replace('\n', ' ')
