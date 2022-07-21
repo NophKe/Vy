@@ -60,7 +60,7 @@ gcc-config:
 	${CC} $< -o $@
 
 %.c: %.py %.pxd
-	cython --fast-fail -Wextra -X warn.unused_result=True -X warn.undeclared=True -a -3 $<
+	cython --fast-fail -Wextra -X warn.unused_result=True -X warn.undeclared=True -X infer_types=True -a -3 $<
 # cython --fast-fail -a -3 $<
 #	cython -Werror --fast-fail -Wextra -a -3 -X warn.undeclared=True $<
 #	cythonize -a -3 $<

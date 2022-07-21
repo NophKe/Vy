@@ -44,13 +44,22 @@ cdef class Window:
     cdef public int shift_to_lin
     cdef bint _v_split_flag
     cdef int v_split_shift
+
+    @locals(rv=list,
+            max_lin=int,
+            to_remove=int,
+            default=str,
+            on_lin=int,
+            line_list=list,
+            cursor_line=list,
+            true_cursor=int)
     cdef list gen_window(self)
 
 @final
 cdef class Screen(Window):
     cdef int _number_of_lin
     cdef int _number_of_col
-    cdef list _infobar_txt
+    cdef str _infobar_txt
     cdef list _minibar_txt
     cdef list _minibar_completer
 

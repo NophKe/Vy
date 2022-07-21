@@ -1,3 +1,6 @@
 __pycache__
 interface/__pycache__
 textfile/__pycache__
+*.html
+*.c
+*.so

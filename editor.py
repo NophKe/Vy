@@ -186,6 +186,13 @@ class _Register:
                         #self.command[k]= action
                 #
 ########## end of class _Actions ##########
+class NameSpace:
+    def __init__(self):
+        self.insert = dict()
+        self.command= dict()
+        self.visual = dict()
+        self.normal = dict()
+
 
 class _Editor:
     """ This class is the data structure representing the state of the Vym editor.
@@ -193,29 +200,30 @@ class _Editor:
     It is design to be self contained: if you want your code to interract with
     the editor, just pass the «editor» variable to your function.
     """    
-    class actions: pass
-    from vy.actions import __dict__ as action_dict
-    actions.insert = dict()
-    actions.command= dict()
-    actions.visual = dict()
-    actions.normal = dict()
 
-    for name, action in action_dict.items():
-        if callable(action) and not name.startswith('_'):
-            if action.v_alias:
-                for k in action.v_alias:
-                    actions.visual[k]= action
-            if action.n_alias:
-                for k in action.n_alias:
-                    actions.normal[k]= action
-            if action.i_alias:
-                for k in action.i_alias: 
-                    actions.insert[k]= action
-            if action.c_alias:
-                for k in action.c_alias: 
-                    actions.command[k]= action
+    def _init_actions(self):
+        from vy.actions import __dict__ as action_dict
+
+        actions = NameSpace()
+
+        for name, action in action_dict.items():
+            if callable(action) and not name.startswith('_'):
+                if action.v_alias:
+                    for k in action.v_alias:
+                        actions.visual[k]= action
+                if action.n_alias:
+                    for k in action.n_alias:
+                        actions.normal[k]= action
+                if action.i_alias:
+                    for k in action.i_alias: 
+                        actions.insert[k]= action
+                if action.c_alias:
+                    for k in action.c_alias: 
+                        actions.command[k]= action
+        self.actions = actions
 
     def __init__(self, *buffers, command_line=''):
+        self._init_actions()
         #self.actions = _Actions(self)
         self.cache = _Cache()
         self.registr = _Register()
@@ -305,7 +313,7 @@ class _Editor:
                     left_keys = self._input_queue.qsize()
                     self.screen.clear_line()
                     print(f'there are {left_keys} keys left waiting to be interpreted', end='\r', flush=True)
-                    sleep(0.1)
+                    sleep(0.04)
                 old_screen.clear()
                 #self._input_queue.join()
                 stop = False
@@ -333,6 +341,8 @@ class _Editor:
             try:
                 new_screen = self.screen.get_line_list()
             except RuntimeError:
+                if stop:
+                    stop = False
                 continue
 
             filtered = list()
@@ -349,17 +359,12 @@ class _Editor:
 
 
     def input_loop(self):
-        #for key_press in visit_stdin():
-            #if not self._async_io_flag:
-                #break
-            #self._input_queue.put(key_press)
-        stdin_reader = visit_stdin()
-        while self._async_io_flag:
-            key_press = next(stdin_reader) 
-            if key_press:
-                self._input_queue.put(key_press)
-            #self._input_queue.task_done()
-        del stdin_reader # help garbage collector
+        for key_press in visit_stdin():
+            if not self._async_io_flag:
+                break
+            elif not key_press:
+                continue
+            self._input_queue.put(key_press)
 
     def start_async_io(self):
         #global BP

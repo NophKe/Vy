@@ -12,7 +12,7 @@ cdef class _Cache:
     cdef object _make_key(self, object key)
 
 @final
-cdef class _Actions:
+cdef class NameSpace:
     cdef public dict insert
     cdef public dict normal
     cdef public dict command
@@ -24,23 +24,23 @@ cdef class _Register:
 
 @final
 cdef class _Editor:
-    cdef public object input_thread
-    cdef public object print_thread
     cdef:
-        #dict __dict__
         bint _async_io_flag
+        bint _running
+        #dict __dict__
+        Interface interface
+        list command_list
+        list _work_stack
+        object command_line
         object _input_queue
         public _Cache cache
-        public Screen screen
-        public _Actions actions
+        public NameSpace actions
+        public object input_thread
+        public object print_thread
         public _Register registr
-        Interface interface
-        object command_line
-        str _macro_keys
-        bint _running
-        list _work_stack
-        list command_list
+        public Screen screen
         public str current_mode
+        str _macro_keys
     @locals(rv=str,
             key_press=str) 
     cpdef str read_stdin(self)
@@ -50,13 +50,19 @@ cdef class _Editor:
     cpdef void edit(self, location)
     cpdef void start_async_io(self)
     cpdef void stop_async_io(self)
+
     @locals(old_screen=list,
+            to_print=str,
+            index=Py_ssize_t,
             new_screen=list,
             filtered=list,
-            index=Py_ssize_t,
-            to_print=str,
+            last_print=int,
+            stop=bint,
+            delta=int,
+            tasks=int,
             line=str,
-            old_line=str
-            )
+            old_line=str)
     cpdef void print_loop(self)
     cpdef void input_loop(self)
+    cpdef void _init_actions(self)
+

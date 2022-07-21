@@ -6,9 +6,18 @@ from cython import final, locals
 cdef object Thread
 cdef object Empty
 cdef object Queue
+cdef dict colorscheme
+cdef dict codes
 
+#@final
+#cdef class IncList(list):
+    #pass
 
-cpdef str get_prefix(str token)
+@locals( accu=str,
+        ttype=str)
+cdef str get_prefix(str token)
+
+@locals(result=str)
 cdef str _resolve_prefix(str color_string)
 
 @final
@@ -29,5 +38,12 @@ cdef class TextFile(BaseFile):
             token_line=str,
             line=list)
     cpdef void _lex_away(self)
+    #cdef void _list_suppr(self)
+    #cdef void _list_insert(self, str value)
 
-    cdef get_raw_screen(self, int min_lin, int max_lin)
+    @locals(lexed_lines=list,
+            on_lin=int,
+            nb_lines=int,
+            cursor_lin=int,
+            cursor_col=int)
+    cdef tuple get_raw_screen(self, int min_lin, int max_lin)

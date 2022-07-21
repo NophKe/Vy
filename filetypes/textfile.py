@@ -5,14 +5,6 @@ from queue import Queue, Empty
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
 
-class IncList(list):
-    def __setitem__(self, index, value):
-        if index == len(self):
-            return self.append(value)
-        else:
-            return super().__setitem__(index, value)
-
-
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
@@ -104,7 +96,7 @@ class TextFile(BaseFile):
         self._lex_away_may_run = Event()
         self._lex_away_may_run.set()
         self._lex_away_should_stop = Event()
-        self._lexed_lines = IncList()
+        self._lexed_lines = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
@@ -147,7 +139,7 @@ class TextFile(BaseFile):
                     self._screen_can_visit_spl.set()
 
                     line = list()
-                    count = 0
+                    #count = 0
 
                     self._lexed_lines.clear()
 
@@ -160,9 +152,7 @@ class TextFile(BaseFile):
                                 if token_line.endswith('\n'):
                                     line.append(f'{tok}{token_line[:-1]} \x1b[0m')
                                     self._lexed_lines.append(''.join(line))
-                                    #self._lexed_lines[count] = ''.join(line)
                                     line.clear()
-                                    #count += 1
                                 else:
                                     line.append(f'{tok}{token_line}\x1b[0m')
                         else:
@@ -170,20 +160,17 @@ class TextFile(BaseFile):
                     else:
                         if line: #No eof
                             self._lexed_lines.append(line)
-                            #self._lexed_lines[count] = line
-                            #count +=1 
-                        #del self._lexed_lines[count:]
                     self._screen_can_visit_lexed.set()
                 self._lex_away_should_stop.wait()
         #except Exception as exc:
             #raise BaseException('error in lexer') from exc
 
     def _list_suppr(self):
-        super()._list_suppr()
+        BaseFile._list_suppr(self)
         self._screen_can_visit_spl.set()
 
     def _list_insert(self, value):
-        super()._list_insert(value)
+        BaseFile._list_insert(self, value)
         self._screen_can_visit_spl.set()
 
     def get_raw_screen(self, min_lin, max_lin):
@@ -205,11 +192,11 @@ class TextFile(BaseFile):
                 try:
                     raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
                 except IndexError:
-                    if nb_lines <= on_lin:
+                    if nb_lines <= on_lin and nb_lines:
                         for _ in range(on_lin, max_lin):
                             raw_line_list.append(None)
                         break
-                    raise RuntimeError
+                    raise 
             return cursor_lin, cursor_col, raw_line_list
         except Exception:
             raise RuntimeError

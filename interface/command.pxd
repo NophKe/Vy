@@ -14,6 +14,8 @@ cdef object Path
 @final
 cdef class Completer:
     cdef:
+        list history
+        list completion
         dict dictionary
         int max_selected
         object histfile
@@ -25,8 +27,8 @@ cdef class Completer:
         _Editor editor
         DummyLine buffer
 
-    cdef str get_history(self)
-    cdef list get_complete(self)
+    cpdef list get_history(self)
+    cpdef list get_complete(self)
     cdef void complete(self)
     cdef void give_up(self)
     cdef void move_left(self)
@@ -34,6 +36,8 @@ cdef class Completer:
     cdef void move_cursor_up(self)
     cdef void move_cursor_down(self)
     cdef str select_item(self)
+    #cdef list get_complete(self)
+    #cdef list get_history(self)
 
 cdef Completer readline 
 

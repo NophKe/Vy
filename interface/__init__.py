@@ -2,7 +2,7 @@ from importlib import import_module
 #from time import sleep
 
 class Interface():
-    __slots__ = ('last', 'inst', 'mode_dict')
+    __slots__ = ('inst', 'mode_dict')
 
     def __init__(self, inst): #, mode='normal'):
         #self.last = mode

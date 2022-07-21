@@ -11,6 +11,7 @@ cdef class DummyLine:
 
 cdef class BaseFile(DummyLine):
     cdef:
+        str _repr
         int _number_of_lin
         list update_callbacks
         list pre_update_callbacks
@@ -31,8 +32,14 @@ cdef class BaseFile(DummyLine):
         public object cache_id
         public object path
 
+    cdef void _list_insert(self, str value)
+    cdef void _string_insert(self, str value)
+    cdef void _list_suppr(self)
+    cdef void _string_suppr(self)
+    cdef void insert_newline(self)
+
     cpdef _get_range(self,key)
-    cdef object _get_offset(self, key)
+    cpdef object _get_offset(self, key)
 
     cdef int find_end_of_line(self)
     cdef int find_end_of_word(self)

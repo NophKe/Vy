@@ -304,7 +304,7 @@ class Screen(Window):
         self.parent = self
         self.shift_to_lin = 0
         self.shift_to_col = 0
-        self._infobar_txt = ['']
+        self._infobar_txt = ''
         self._minibar_txt = ['']
         self._minibar_completer = []
         self.recenter(0)
