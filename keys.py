@@ -37,9 +37,9 @@ escape = '\x1b'
 
 #text editing
 suppr = '\x1b\x5b\x33\x7e'
+space = '\x20'   # needs a hack in helpers.py to work
 
-#Control
-
+# Control keys and alias
 C_A = '\x01'
 C_B = '\x02'
 C_C = '\x03'

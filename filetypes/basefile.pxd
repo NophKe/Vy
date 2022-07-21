@@ -1,24 +1,26 @@
 from cython import locals
 from vy cimport keys as k
 
-cdef class InputBuffer:
+cdef class DummyLine:
     cdef:
-        object _string_lock
-        object _splited_lines_lock
-        object _lines_offsets_lock
-        int _number_of_lin
         int _cursor
         str _string
-        list update_callbacks
-        list pre_update_callbacks
-        list _splited_lines
-        list _lines_offsets
     cpdef void suppr(self)
     cpdef void backspace(self)
     cpdef void insert(self, str text)
 
-cdef class BaseFile(InputBuffer):
+cdef class BaseFile(DummyLine):
     cdef:
+        int _number_of_lin
+        list update_callbacks
+        list pre_update_callbacks
+        list _splited_lines
+        list _lines_offsets
+        object _lenght
+        int _recursion
+        tuple _cursor_lin_col
+        str _current_line
+        object _lock
         bint _no_undoing
         list undo_list
         list redo_list

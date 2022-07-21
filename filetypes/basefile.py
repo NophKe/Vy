@@ -97,6 +97,7 @@ class DummyLine:
     def __len__(self):
         return len(self._string) - len(self.ending)
 
+
 ########    END OF DummyLine        ########################################
 
 
@@ -107,23 +108,25 @@ class TextLine(DummyLine):
     """
     ending = '\n'
 
+
 ########    End of TextLine         ##################################
+
 
 class BaseFile:
     r"""
     BaseFile is... ( well... ) the basis for what is usually called a «buffer» 
     in the in the Vi-like editors jargon.
 
-    It mix the classical expected features of a mutable string with some traditionnal 
-    concepts of vim buffers, like mouvements.
+    It mix the classical expected features of a mutable string with some 
+    traditionnal concepts of vim buffers, like mouvements.
     
     >>> file = BaseFile(init_text='Hello World\n\t42\t\nno End-of-file?', cursor=0)
     >>> file.move_cursor('w')           # moves to next word ( regex \b )
     >>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
 
-    All of its public methods are atomic (using an internal threading.RLock object).
-    If you need to keep the object around, you can acquire its internal lock by 
-    using it as a context manager.
+    All of its public methods are atomic (using an internal threading.RLock 
+    object). If you need to modify the buffer, you can acquire its internal 
+    lock by using it as a context manager.
     
     >>> with file:
     ...     assert file.number_of_lin == len(file.splited_lines) \
@@ -152,17 +155,12 @@ class BaseFile:
     AssertionError
     >>> file.cursor_lin_col
     (0, 7)
-    >>> # Now lets modify it. Make the cursor take the offset of last line
-    >>> # Adding next line broke it all :-( and it's late....
-    >>> # seems cursor didn't move....
-    #>>> file.cursor = file.lines_offsets[file.number_of_lin - 1]  
-    #>>> file.insert('junk')
-    #>>> file.current_line
-    #'junk\n'                                ##### Here Was unexpectedly right !!!!
-    #>>> file.splited_lines
-    #['junk\n', '\t42\t\n', 'no End-of-file?\n']
-    #>>> file.cursor_lin_col
-    #(0, 11)
+    >>> file.cursor = file.lines_offsets[file.number_of_lin - 1]  
+    >>> file.insert('junk')
+    >>> file.current_line
+    'junk\n'                                ##### Here Was unexpectedly right !!!!
+    >>> file.splited_lines
+    >>> file.cursor_lin_col
 
     Properties being lazily evaluated, a few «fast paths» are provided 
     to speed up common operations upon the internal data structure. Do 
@@ -229,62 +227,6 @@ class BaseFile:
             return self._string
 
     @property
-    def cursor_lin_col_unsafe(self):
-        r"""
-        A tupple representing the actual the lenght and the cursor 
-        (len, line, collumn), lines are 0 based indexed, and cols are 1-based.
-
-        This method does not acquire the internal lock as it does not
-        modify anything. Any inconsistency caused by the interference
-        of another thread (if noticed) will cause the raising of a RuntimeError
-        exception, as this Exception is silently ignored by the thread
-        in charge of screen printing.
-        
-        NOTE: See TextFile.get_lexed_line() parameters.
-        
-        """
-        try:
-            cursor = self._cursor
-            line_off = self._lines_offsets
-
-            if lin_off and cursor:
-                lin, offset = lin_off
-                return len(line_off), lin, cursor - offset +1
-
-            splited_line = self._splited_lines
-            lin_col = self._cursor_lin_col
-            max_index = self._number_of_lin
-
-            if lin_col:
-                if splited_line and max_index:
-                    assert len(splited_line) == max_index
-                    return max_index, lin_col[0], lin_col[1]
-
-                if line_off and splited_line:
-                    assert len(line_off) == len(splited_line)
-                    return len(splited_line), lin_col[0], lin_col[1]
-
-                if line_off and max_index:
-                    assert len(line_off) == max_index
-                    return max_index, lin_col[0], lin_col[1]
-
-            if lin_off and cursor:
-                lin, offset = lin_off
-                return len(line_off), lin, cursor - offset +1
-
-            if cursor == 0:
-                if splited_line and line_off:
-                    assert len(line_off) == len(splited_line)
-                    return (len(splited_line), 0, 1)
-                if line_off:
-                    return (len(splited_line), 0, 1)
-                if splited_line:
-                    return (len(splited_line), 0, 1)
-        except:
-            raise RuntimeError
-        raise RuntimeError
-
-    @property
     def cursor_lin_col(self):
         """
         A tupple representing the actual cursor (line, collumn),
@@ -295,7 +237,6 @@ class BaseFile:
         with self._lock:
             if not self._cursor_lin_col:
                 lin, off = self.cursor_lin_off
-                #assert lin < self.number_of_lin
                 col = self.cursor - off + 1
                 self._cursor_lin_col = (lin, col)
             return self._cursor_lin_col
@@ -309,31 +250,14 @@ class BaseFile:
         with self._lock:
             old_lin, old_col = self.cursor_lin_col
             new_lin, new_col = pair_value
-            assert new_col > 0
-            assert self.number_of_lin > new_lin >= 0
+            nb_lin = self.number_of_lin
 
-            if old_lin == new_lin:
-                if new_col > len(self.current_line):
-                    new_col = len(self._current_line)
-                self._cursor = self.lines_offsets[old_lin] + new_col
-                self._cursor_lin_col = (old_lin, new_col)
-
-            else:
-                max_col = len(self.splited_lines[new_lin])
-                line_off = self.lines_offsets[new_lin]
-                max_cursor = line_off + max_col
-                try:
-                    assert self._lines_offsets[new_lin+1] == max_cursor
-                except IndexError: 
-                    pass
-                
-                if new_col > max_col:
-                    self._cursor = max_cursor
-                    self._cursor_lin_col = (new_lin, max_col)
-                else:
-                    self._cursor = line_off + new_col
-                    self._cursor_lin_col = (new_lin, new_col)
-                self._current_line = self.splited_lines[new_lin]
+            new_lin = min(nb_lin-1, max(0, new_lin))
+            self._current_line = self.splited_lines[new_lin]
+            new_col = max(1, min(new_col, len(self._current_line)))
+            
+            self._cursor = self.lines_offsets[new_lin] + new_col - 1
+            self._cursor_lin_col = (new_lin, new_col)
 
     @property
     def cursor_lin_off(self):
@@ -393,13 +317,6 @@ class BaseFile:
         with self._lock:
             if not self._splited_lines:
                 self._splited_lines = self._string.splitlines(True)
-
-                if self._number_of_lin:
-                    assert len(self._splited_lines) == self._number_of_lin
-
-                if self._lines_offsets:
-                    assert len(self._splited_lines) == len(self._lines_offsets)
-
             return self._splited_lines
 
     @property
@@ -409,26 +326,10 @@ class BaseFile:
         """
         with self._lock:
             if not self._number_of_lin:
-                if self._splited_lines and self._lines_offsets:
-                    assert len(self._splited_lines) == len(self._lines_offsets)
-                    rv = len(self._splited_lines)
-
-                elif self._string and self._splited_lines:
-                    rv = self._string.count('\n') 
-                    assert rv == len(self.splited_lines)#, f'{len(self.splited_lines) = } {rv = }'
-
-                elif self._string and self._lines_offsets:
-                    rv = self._string.count('\n') 
-                    assert rv == len(self._lines_offsets)#, f'{len(self.splited_lines) = } {rv = }'
-
-                elif self._string:
-                    rv = self._string.count('\n')
-                    assert rv == len(self.splited_lines)
-
-                elif self._splited_lines:
-                    rv = len(self._splited_lines)
-                    assert rv == self._string.count('\n')
-                self._number_of_lin = rv
+                if self._splited_lines:
+                    self._number_of_lin = len(self._splited_lines)
+                else:
+                    self._number_of_lin = self._string.count('\n')
             return self._number_of_lin
 
     def suppr(self):
@@ -442,31 +343,28 @@ class BaseFile:
         '\n'
         """
         with self:
-            if self._splited_lines:
-                lin, col = self.cursor_lin_col
-
-                if self[self.cursor] == '\n':
-                    self._splited_lines[lin] = (self._splited_lines[lin])[:-1] \
-                                             + self._splited_lines.pop(lin+1)
-                elif self._current_line:
-                    self._current_line  = f'{cur_lin[:col]}{cur_lin[col + 1:]}'
-                else:
-                    cur_lin = self._splited_lines[lin]
-                    self._splited_lines[lin] = f'{cur_lin[:col]}{cur_lin[col + 1:]}'
-
-                self._string = ''
-                if self._lenght is not None:
-                    self._lenght -= 1
-                if self._number_of_lin:
-                    self._number_of_lin -=1
-
-            elif self._string:
-                string = self.string
-                cur = self.cursor
-                self.string  = f'{string[:cur]}{string[cur + 1:]}'
-
+            if self.current_line[:-1]:
+                self._list_suppr()
             else:
-                raise RuntimeError('Vy internal error. Buffer in inconsistent state.')
+                self._string_suppr()
+
+    def _list_suppr(self):
+        lin, col = self.cursor_lin_col
+        cur_lin = self.current_line
+        col -= 1
+        self._current_line  = f'{cur_lin[:col]}{cur_lin[col + 1:]}'
+        if not self.current_line.endswith('\n'):
+            self._string_suppr()
+            return
+        self._splited_lines[lin] = self._current_line
+        self._string = ''
+        self._lenght -= 1
+        self._lines_offsets.clear()
+
+    def _string_suppr(self):
+        string = self.string
+        cur = self.cursor
+        self.string  = f'{string[:cur]}{string[cur + 1:]}'
 
     def backspace(self):
         """
@@ -484,33 +382,41 @@ class BaseFile:
         """
         with self:
             if value == '\n':
-                return self.insert_newline()
-
-            if self._splited_lines \
-            and (not '\n' in value) and (self[self.cursor] != '\n'):
-                    lin, col = self.cursor_lin_col
-                    string = self.current_line
-                    self._string = ''
-                    cur = col - 1
-                    self._cursor += len(value)
-                    self._cursor_lin_col = (lin, col + len(value))
-                    self._current_line = f'{string[:cur]}{value}{string[cur:]}'
-                    self._splited_lines[lin] = self._current_line
-                    self._lines_offsets.clear()
-
-                    if self._lenght is not None:
-                        delta = len(string) - len(value)
-                        self._lenght -= delta
+                self.insert_newline()
+            elif '\n' not in value:
+                self._list_insert(value)
             else:
-                string = self.string
-                cur = self.cursor
-                self.string = f'{string[:cur]}{value}{string[cur:]}'
-                self.cursor += len(value)
+                self._string_insert(value)
 
+    def _string_insert(self, value):
+        string = self.string
+        cur = self.cursor
+        self._string = f'{string[:cur]}{value}{string[cur:]}'
+        self._cursor += len(value)
+        self._number_of_lin = 0
+        self._lines_offsets.clear()
+        self._lenght = len(self._string)
+        self._current_line = ''
+        self._cursor_lin_col = ()
+
+
+    def _list_insert(self, value):
+        lin, col = self.cursor_lin_col
+        string = self.current_line
+        #assert string
+        self._string = ''
+        cur = col - 1
+        self._cursor += len(value)
+        self._cursor_lin_col = (lin, col + len(value))
+        self._current_line = f'{string[:cur]}{value}{string[cur:]}'
+        self._splited_lines[lin] = self._current_line
+        self._lines_offsets.clear()
+        self._lenght += len(value)
 
     def __init__(self, set_number=True, set_wrap=False, 
                 set_tabsize=4, cursor=0, init_text='', 
                 path=None):
+        self._repr = '' #TODO delete me ?
         self.path = path
         self.set_wrap = set_wrap
         self.set_number = set_number
@@ -585,10 +491,8 @@ class BaseFile:
             if self._lenght is None:
                 if self._string:
                     self._lenght = len(self._string) - len(self.ending)
-                elif self._splited_lines:
-                    self._lenght = sum(len(line) for line in self._splited_lines) - len(self.ending)
                 else:
-                    raise BaseException('vy internal error')
+                    self._lenght = sum(len(line) for line in self._splited_lines) - len(self.ending)
             return self._lenght
 
     #def delete_line(self, index):
@@ -603,26 +507,17 @@ class BaseFile:
 
     def insert_newline(self):
         r"""
-        This pretty complicated function inserts a newline using a «fast path».
+        This function inserts a newline using a «fast path».
 
-        It does do by checking what is allready being computed, delaying only
-        expensive computation.
+        It does do by checking what is allready being computed, and
+        delaying expensive computations.
         """
         with self:
-            assert self._splited_lines or self._string
-
-            if self._lenght is not None:
+            if self._splited_lines:
                 self._lenght += 1
-
-            if self._number_of_lin:
                 self._number_of_lin += 1
-
-            if self._cursor_lin_col:
-                lin, col = self._cursor_lin_col
-            else:
                 lin, col = self.cursor_lin_col
 
-            if self._splited_lines:
                 top = (self._splited_lines[lin])[:col-1] + '\n'
                 bottom = (self._splited_lines[lin])[col-1:]
                 self._splited_lines.insert(lin, top)
@@ -630,21 +525,18 @@ class BaseFile:
                 self._current_line = bottom
                 self._string = ''
                 self._cursor_lin_col = (lin+1, 1)
-                if self._cursor is not None:
-                    self._cursor += 1
+                self._cursor += 1
+                self._lines_offsets.clear()
 
-            elif self._string:
-                self.insert('\n')
+            else:
+                self._string_insert('\n')
 
-            self._lines_offsets.clear()
 
     @property
     def current_line(self):
         with self._lock:
             if not self._current_line:
                 self._current_line = self.splited_lines[self.cursor_line]
-            assert self._current_line.endswith('\n')
-            assert '\n' not in self._current_line[:-1]
             return self._current_line
 
     @current_line.setter
@@ -652,12 +544,9 @@ class BaseFile:
         with self:
             assert value.endswith('\n') and '\n' not in value[:-1]
 
-            lin, _ = self.cursor_lin_col
+            lin = self.cursor_line
             old_val = self._splited_lines[lin]
-            
-            if self._lenght is not None:
-                delta = len(old_val) - len(value)
-                self._lenght -= delta
+            self._lenght -= len(old_val) - len(value)
 
             self._splited_lines[lin] = value
             self._string = ''
@@ -678,22 +567,15 @@ class BaseFile:
     @cursor.setter
     def cursor(self, value):
         with self._lock:
-            assert isinstance(value, int)
-            if self._lenght is not None:
-                assert self._lenght >= value, f'{self._lenght =} {value =} {(self) = }'
-                assert value >= 0, f'{value =} {len(self)}'
-            if self._cursor != value:
-                self._current_line = ''
-                self._cursor_lin_col = ()
-                self._cursor = value
+            self._current_line = ''
+            self._cursor_lin_col = ()
+            self._cursor = value
 
 
     @string.setter
     def string(self, value):
         with self:
-            assert isinstance(value, str)
-            assert self.modifiable
-            if self._string == value:
+            if not self.modifiable or self._string == value:
                 return
 
             self._current_line = ''
@@ -817,17 +699,14 @@ class BaseFile:
 
     def find_next_non_blank_char(self):
         pos = self.cursor
-        while self.string[pos].isspace() and pos < len(string):
+        string = self.string
+        while string[pos].isspace() and pos < len(string):
             pos += 1
         return pos
 
     def find_normal_k(self):
         with self._lock:
             lin, col = self.cursor_lin_col
-            if lin == 0:
-                return self.cursor
-            else:
-                return (lin-1, col)
 
             current_line_start = self.lines_offsets[lin]
             previous_line = self._lines_offsets[lin-1]
@@ -955,9 +834,7 @@ class BaseFile:
             #stop +=1
         #return slice(start, stop)
 
-
 ########    start of file-object capacities###########################
-
 
     def write(self, text):
         assert isinstance(text, str)
@@ -995,10 +872,7 @@ class BaseFile:
     def move_cursor(self, offset_str):
         with self._lock:
             new_val = self._get_offset(offset_str)
-            if isinstance(new_val, int):
-                self.cursor = new_val
-            elif isinstance(new_val, tuple):
-                self.cursor_lin_col = new_val
+            self.cursor = new_val
     
     def __getitem__(self, key):
         with self._lock:
@@ -1006,7 +880,7 @@ class BaseFile:
                 assert key #, f'{key = }'
                 key = self._get_range(key)
             assert ( isinstance(key, int) and key >= 0
-                   or isinstance(key, slice)) , f'{key = } {type(key) = }'
+                   or isinstance(key, slice)) #, f'{key = } {type(key) = }'
             return self.string[key]
 
     def _get_range(self,key):
@@ -1052,12 +926,10 @@ class BaseFile:
                             return func()
                         except IndexError:
                             raise ValueError('Vy: not a valid motion.')
-                        assert False
-                        return self.offset_finder(key)
                 except IndexError:
                     return None
-                except ValueError:
-                    raise BaseException(f'unrecognized offset {key = } {type(key) = }')
+                #except ValueError:
+                    #raise BaseException(f'unrecognized offset {key = } {type(key) = }')
 
     def __delitem__(self, key):
         with self:
@@ -1100,7 +972,9 @@ class BaseFile:
             self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
 
     def __repr__(self):
-        return f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
+        if not self._repr:
+            self._repr = f"writeable buffer: {self.path.name if self.path else 'undound to file system'}"
+        return self._repr
 
 ########    saving mechanism     e#########################################
 

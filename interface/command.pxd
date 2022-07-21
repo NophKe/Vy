@@ -2,7 +2,7 @@
 from vy cimport keys as k
 from vy.editor cimport _Editor
 from vy.screen cimport Screen
-from vy.filetypes.basefile cimport InputBuffer
+from vy.filetypes.basefile cimport DummyLine
 from vy.interface.helpers cimport one_inside_dict_starts_with
 
 # Cython declaration utils
@@ -23,7 +23,7 @@ cdef class Completer:
         str prompt
         Screen screen
         _Editor editor
-        InputBuffer buffer
+        DummyLine buffer
 
     cdef str get_history(self)
     cdef list get_complete(self)

@@ -25,11 +25,11 @@ def print_some(editor, reg=None, part=None, arg=None, count=1):
     debug_file = USER_DIR / "debugging_values"
     to_print = ''
     for line in debug_file.read_text().splitlines():
-        parent = editor
-        for part in line.split('.'):
-            if not part or part == '.':
-                continue
-            parent = getattr(parent, part) #, f'no {part} in {parent}')
+        #parent = editor
+        #for part in line.split('.'):
+            #if not part or part == '.':
+                #continue
+        parent = eval(line)
         value = ('\n' + pformat(parent)).replace('\n', '\n\t')
         to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
     editor.warning(to_print)
@@ -40,30 +40,30 @@ def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
     editor.screen.minibar(str(Path('.').resolve()))
 
-
-@atomic_commands(f'i_{k.left}')
+@atomic_commands(f'i_{k.left} {k.left} h')
 def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
-    '''Move to ...'''
-    editor.current_buffer.move_cursor('h')
-    return 'insert'
+    '''Move cursor one character left.'''
+    lin, col = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin, col-1)
 
-@atomic_commands(f'i_{k.down}')
+@atomic_commands(f'i_{k.down} {k.down} j + {k.C_M} {k.C_J} {k.CR}'
+                 f'{k.C_J} {k.C_N}')
 def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
-    '''Move to ...'''
-    editor.current_buffer.move_cursor('j')
-    return 'insert'
+    '''Move one line down.'''
+    lin, col = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin+1, col)
 
-@atomic_commands(f'i_{k.up}')
+@atomic_commands(f'i_{k.up} {k.up} {k.C_P} k -')
 def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
-    '''Move to ...'''
-    editor.current_buffer.move_cursor('k')
-    return 'insert'
+    '''Move one line up.'''
+    lin, col = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin-1, col)
 
-@atomic_commands(f'i_{k.right}')
+@atomic_commands(f'l i_{k.right} {k.space} {k.right}')
 def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
-    '''Move to ...'''
-    editor.current_buffer.move_cursor('l')
-    return 'insert'
+    '''Move cursor one character right.'''
+    lin, col = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin, col+1)
 
 @atomic_commands('I')
 def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
@@ -136,9 +136,9 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     And starts «Insert» mode.
     """
     with editor.current_buffer as curbuf:
-        curbuf.move_cursor('0')
+        curbuf.move_cursor('#.')
         curbuf.insert_newline()
-        curbuf.move_cursor('k')
+        do_normal_k(editor)
         return 'insert'
 
 @atomic_commands('A')
@@ -718,9 +718,10 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curwin.shift_to_lin = max(curwin.number_of_lin, ( curwin.shift_to_lin
                                                     + curwin.number_of_lin))
-    cursor_line = curbuf.cursor_line
-    if curwin.shift_to_lin > cursor_line:
-        curbuf.move_cursor(f'{curwin.shift_to_lin}')
+    with curbuf:
+        cursor_line = curbuf.cursor_line
+        if curwin.shift_to_lin > cursor_line:
+            curbuf.move_cursor(f'{curwin.shift_to_lin}')
 
 @atomic_commands(f'{k.C_E}')
 def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
@@ -782,50 +783,40 @@ def do_zb(editor, reg=None, part=None, arg=None, count=1):
         curwin.shift_to_lin = new_pos
 
 
-@atomic_commands(f'{k.page_down} i{k.page_down} {k.C_B}')
+@atomic_commands(f'{k.page_down} i_{k.page_down} {k.C_B}')
 def do_page_down(editor, reg=None, part=None, arg=None, count=1):
     """
-    First keystrike puts the cursor on the beginning of last line shown
-    in the current windows. Next keystrokes scrolls the text one page down.
+    First keystrike puts the cursor on last line shown in the current 
+    windows. Next keystrokes scrolls the text one page down.
     """
     curbuf = editor.current_buffer
     curwin = editor.current_window
     line_shift = curwin.shift_to_lin
     page_size = curwin.number_of_lin
     lin, col = curbuf.cursor_lin_col
-    lines_offsets = curbuf.lines_offsets
-    number_of_lin = len(lines_offsets) - 1
+    new_lin = (line_shift + page_size - 1)
 
-    newline = (line_shift + page_size - 1)
-    if lin < newline:
-        newline = min(newline, number_of_lin)
-        curbuf.cursor = lines_offsets[newline]
+    if lin < new_lin:
+        curbuf.cursor_lin_col = (new_lin, col)
     else:
-        newline = min((newline + page_size), number_of_lin) 
-        curbuf.cursor = lines_offsets[newline]
+        curbuf.cursor_lin_col = (new_lin + page_size, col)
 
-
-
-@atomic_commands(f'{k.page_up} i{k.page_up} {k.C_F}')
+@atomic_commands(f'{k.page_up} i_{k.page_up} {k.C_F}')
 def do_page_up(editor, reg=None, part=None, arg=None, count=1):
     """
-    First keystrike puts the cursor on the beginning of first line shown
-    in the current windows. Next keystrokes scrolls the text one page up.
+    First keystrike puts the cursor on the first line shown in the current 
+    windows. Next keystrokes scrolls the text one page up.
     """
     curbuf = editor.current_buffer
     curwin = editor.current_window
     line_shift = curwin.shift_to_lin
     page_size = curwin.number_of_lin
     lin, col = curbuf.cursor_lin_col
-    lines_offsets = curbuf.lines_offsets
 
     if lin > line_shift:
-        curbuf.cursor = lines_offsets[line_shift]
-    elif lin - page_size > 0:
-        newline = lin - page_size
-        curbuf.cursor = lines_offsets[newline]
+        curbuf.cursor_lin_col = (line_shift, col)
     else:
-        curbuf.cursor = 0
+        curbuf.cursor_lin_col = (lin - page_size, col)
 
 
 @atomic_commands("n")
@@ -905,7 +896,7 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
     specified register. If no register is specified, use default " register.
     """
     with editor.current_buffer as curbuf:
-        lin, col = curbuf.cursor_col
+        lin, col = curbuf.cursor_lin_col
         editor.registr[reg] = curbuf.current_line[:col]
         curbuf.current_line = curbuf.current_line[:col] + '\n' 
         return 'normal'
@@ -987,7 +978,7 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
 
 
 @sa_commands("p")
-def do_paste(editor, reg=None, part=None, arg=None, count=1):
+def do_paste(editor, reg='"', part=None, arg=None, count=1):
     """
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
@@ -1001,6 +992,7 @@ def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     Inserts the necessery number of spaces to reach next level of indentation
 
     """
+    curbuf = editor.current_buffer
     with curbuf:
         curbuf.insert('\t')
         orig = curbuf['0:$']   # TODO use current_line property
@@ -1040,9 +1032,13 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
     """
     editor.edit(None)
     curbuf = editor.current_buffer
-    for k, v in globals().items():
-        curbuf.insert('\n##########\n')
-        curbuf.insert(v.__doc__)
+    #editor.stop_async_io()
+    #breakpoint()
+    with curbuf:
+        for k, v in globals().items():
+            curbuf.insert('\n##########\n')
+            curbuf.insert(v.__doc__)
+        curbuf.string
 
 
 del sa_commands, full_commands, atomic_commands

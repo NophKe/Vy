@@ -8,9 +8,8 @@ be the unique thing in the global dict.
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
-#from functools import partial
 from itertools import repeat, chain
-from time import sleep, time, asctime
+from time import sleep, time
 from threading import Thread
 from queue import Queue
 
@@ -18,10 +17,7 @@ from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import visit_stdin
-
 from vy.global_config import DEBUG
-
-
 
 class _Cache():
     """Simple wrapper around a dict that lets you index a buffer by its
@@ -135,61 +131,60 @@ class _Register:
 
         if key == '_':
             return
+
         elif key == '"':
             for k in range(9,0,-1):
                 self[str(k)] = self[str(k-1)]
             self["0"] = self['"']
             self.dico['"'] = value
+        
         elif key.isupper():
             key = key.lower()
-            self.dico[key] += value
+            if key in self.dico:
+                self.dico[key] += value
+            else:
+                self.dico[key] = value
             self['"'] = self.dico[key]
+            
         elif key.islower():
             self.dico[key] = value
             self['"'] = self.dico[key]
+        
         elif key.isnumeric() or key == '/':
             self.dico[key] = value
+        
         elif key == '=':
             self.dico[key] = eval(value)
+        
         elif key == '!':
             self.dico[key] = exec(value)
 
-########### end of class _Register ##########
+        else:
+            raise RuntimeError
+
+#class _Actions:
+    #def __init__(self, instance):
+        #from vy.actions import __dict__ as action_dict
+        #self.insert = dict()
+        #self.command= dict()
+        #self.visual = dict()
+        #self.normal = dict()
 #
-#class _BoundNameSpace:
-#    def __init__(self, instance):
-#        super().__setattr__("_instance", instance) 
-#    def __setattr__(self, key, value):
-#        pass
-#    def __repr__(self):
-#        return self.__dict__.__repr__()
-#    def __iter__(self):
-#        return iter(self.__dict__)
-########### end of _BoundNameSpace ##########
-
-class _Actions:
-    def __init__(self, instance):
-        from vy.actions import __dict__ as action_dict
-        self.insert = dict()
-        self.command= dict()
-        self.visual = dict()
-        self.normal = dict()
-
-        for name, action in action_dict.items():
-            if callable(action) and not name.startswith('_'):
-                if action.v_alias:
-                    for k in action.v_alias:
-                        self.visual[k]= action
-                if action.n_alias:
-                    for k in action.n_alias:
-                        self.normal[k]= action
-                if action.i_alias:
-                    for k in action.i_alias: 
-                        self.insert[k]= action
-                if action.c_alias:
-                    for k in action.c_alias: 
-                        self.command[k]= action
-                
+        #for name, action in action_dict.items():
+            #if callable(action) and not name.startswith('_'):
+                #if action.v_alias:
+                    #for k in action.v_alias:
+                        #self.visual[k]= action
+                #if action.n_alias:
+                    #for k in action.n_alias:
+                        #self.normal[k]= action
+                #if action.i_alias:
+                    #for k in action.i_alias: 
+                        #self.insert[k]= action
+                #if action.c_alias:
+                    #for k in action.c_alias: 
+                        #self.command[k]= action
+                #
 ########## end of class _Actions ##########
 
 class _Editor:
@@ -198,8 +193,30 @@ class _Editor:
     It is design to be self contained: if you want your code to interract with
     the editor, just pass the «editor» variable to your function.
     """    
+    class actions: pass
+    from vy.actions import __dict__ as action_dict
+    actions.insert = dict()
+    actions.command= dict()
+    actions.visual = dict()
+    actions.normal = dict()
+
+    for name, action in action_dict.items():
+        if callable(action) and not name.startswith('_'):
+            if action.v_alias:
+                for k in action.v_alias:
+                    actions.visual[k]= action
+            if action.n_alias:
+                for k in action.n_alias:
+                    actions.normal[k]= action
+            if action.i_alias:
+                for k in action.i_alias: 
+                    actions.insert[k]= action
+            if action.c_alias:
+                for k in action.c_alias: 
+                    actions.command[k]= action
+
     def __init__(self, *buffers, command_line=''):
-        self.actions = _Actions(self)
+        #self.actions = _Actions(self)
         self.cache = _Cache()
         self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
@@ -228,16 +245,18 @@ class _Editor:
         self._macro_keys = f'{string}{self._macro_keys}'
 
     def warning(self, msg):
-        """Displays a warning message to the user. This should be the main way to cast
-        information to the screen during the execution of a command as it allows the 
-        user to enter the debugger if needed.
-        In parts of the runtime where this method can't be reached, ( you don't have
-        access to the editor variable ) you should raise an exception.
+        """
+        Displays a warning message to the user. This should be the main way 
+        to cast information to the screen during the execution of a command 
+        as it allows the user to enter the debugger if needed.
+        In parts of the runtime where this method can't be reached,
+        ( you don't have access to the editor variable ) you should raise an 
+        exception.
         """
         if self._macro_keys:
             self.screen.minibar_completer(
-             'this happened during the execution of a macro that is still running',
-             f'left to evaluate: {self._macro_keys}')
+              'this happened during the execution of a macro that is still running',
+              f'left to evaluate: {self._macro_keys}')
         self.screen.minibar(*msg.splitlines(), '\tpress any key to continue')
         self.read_stdin()
         self.screen.minibar('')
@@ -273,7 +292,6 @@ class _Editor:
 ### - replace self._asyncio_flag by a threading.Condition
 ###
     def print_loop(self):
-        flash_screen = False # do not require lock
         old_screen = list()  
         last_print = time()
         infobar = self.screen.infobar
@@ -281,72 +299,78 @@ class _Editor:
 
         while self._async_io_flag:
             if stop:
-                self._input_queue.join()
+                left_keys = self._input_queue.qsize()
+                self.screen.bottom()
+                while left_keys and self._async_io_flag:
+                    left_keys = self._input_queue.qsize()
+                    self.screen.clear_line()
+                    print(f'there are {left_keys} keys left waiting to be interpreted', end='\r', flush=True)
+                    sleep(0.1)
+                old_screen.clear()
+                #self._input_queue.join()
                 stop = False
-                last_print = time() - 1
-                continue
-            tasks = self._input_queue.qsize()
-            delta = (start := time()) - last_print
+                last_print = time() - 0.5
+                #continue
 
-            if delta > 3:               # if screen is more than 5 seconds late
+            tasks = self._input_queue.qsize() #< 2
+            delta = time() - last_print
+
+            if delta > 1:               # if screen is more than 5 seconds late
                 stop = True             # draw it noexcept one last time
-                flash_screen = False
-                infobar(f' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
+                infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', 
+                f'last good screen was {round(time() - last_print, 2)} late.')
 
-            elif delta < 0.05:
-                flash_screen = True
-                sleep(0.05 - delta)     # Never try more than 25 fps
+            elif delta < 0.04:
+                sleep(0.04)
                 continue
 
-            elif tasks:                 # if job awaiting, spend this frame waiting
-                sleep(0.1)
-                flash_screen = True
-                infobar(f' ___ SCREEN RENDERING ___ ', f'last good screen {round(time() - last_print,2)} seconds ago')
+            #elif tasks:
+                #infobar(' ___ SCREEN RENDERING ___ ', repr(self.current_buffer))
 
             else:                        
-                flash_screen = False # nothing to do. Draw screen synchronously.
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
 
             try:
-                new_screen = self.screen.get_line_list(flash_screen)
-            except (RuntimeError, AssertionError):
-                if flash_screen:
-                    continue
-                raise
+                new_screen = self.screen.get_line_list()
+            except RuntimeError:
+                continue
 
             filtered = list()
             for index, (line, old_line) in enumerate(
             zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                if line != old_line or flash_screen:
+                if line != old_line:
                     filtered.append(f'\x1b[{index};1H{line}')
 
-            print(''.join(filtered), end='', flush=True)
+            print(''.join(filtered), end='\r', flush=True)
 
-            if ((not flash_screen and not tasks) or 
-               ((0.04 < delta < 0.33) and (new_screen == old_screen))):
-                    last_print = time()
+            if not tasks:
+                last_print = time()
             old_screen = new_screen
 
 
     def input_loop(self):
+        #for key_press in visit_stdin():
+            #if not self._async_io_flag:
+                #break
+            #self._input_queue.put(key_press)
         stdin_reader = visit_stdin()
         while self._async_io_flag:
             key_press = next(stdin_reader) 
             if key_press:
                 self._input_queue.put(key_press)
-            #sleep(0)
+            #self._input_queue.task_done()
         del stdin_reader # help garbage collector
 
     def start_async_io(self):
-        global BP
-        BP = lambda: (self.stop_async_io(), breakpoint())
+        #global BP
+        #BP = lambda: (self.stop_async_io(), breakpoint())
         assert not self._async_io_flag
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()
-            self.screen.hide_cursor()
+        self.screen.hide_cursor()
         self._async_io_flag = True
-        self.input_thread = Thread(target=self.input_loop,)
+        self.input_thread = Thread(target=self.input_loop)
         self.print_thread = Thread(target=self.print_loop,)
         self.input_thread.start()
         self.print_thread.start()
@@ -354,13 +378,14 @@ class _Editor:
     def stop_async_io(self):
         assert self._async_io_flag
         self._async_io_flag = False
+        self._input_queue.join()
         self.print_thread.join()
-        self.input_thread.join()
         if not DEBUG:
+            self.screen.clear_screen()
             self.screen.original_screen()
-            self.screen.show_cursor()
-        #assert self._input_queue.join() // one key may get stuck there
-        #                                // what can we do ?
+        self.screen.show_cursor()
+        #assert self._input_queue.join() ## one key may get stuck there
+        #                               ## what can we do ?
         
     def __call__(self, buff=None, mode='normal'):
         """
@@ -374,9 +399,11 @@ class _Editor:
         self.edit(buff if buff 
                     else self._work_stack.pop(0) if self._work_stack 
                     else None)
-        self.start_async_io()
         try:
+            self.start_async_io()
             while True:
+                #if mode == 'exit':
+                    #break
                 try:
                     self.current_mode = mode if mode else self.current_mode
                     mode = self.interface(mode)

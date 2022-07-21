@@ -1,27 +1,27 @@
 from vy.interface.helpers import one_inside_dict_starts_with
 from vy.keys import _escape
 
-dictionary = dict()
-last_buffer = curbuf = motion_cmd = local_actions = None
-valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
-                        'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                        '+-*/.:%#"=' )
 
 def loop(editor):
     """ Normal mode event-loop function """
 
+    dictionary = dict()
+    last_buffer = curbuf = motion_cmd = local_actions = None
+    valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
+                            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                            '+-*/.:%#"=' )
+
     def update_globals():
         """if the current buffer has changed, update the action dictionnary"""
-        global curbuf, dictionary, motion_cmd, local_actions, last_buffer
+        nonlocal curbuf, dictionary, motion_cmd, local_actions, last_buffer
 
-        if last_buffer is not editor.current_buffer:
-            curbuf = editor.current_buffer
+        if last_buffer is not (curbuf := editor.current_buffer):
+            last_buffer = curbuf
             motion_cmd = curbuf.motion_commands
             local_actions = curbuf.actions 
-
             dictionary.clear()
-            dictionary.update(editor.actions.normal)
             dictionary.update(motion_cmd)
+            dictionary.update(editor.actions.normal)
             dictionary.update(local_actions)
 
     def get_char():
@@ -50,16 +50,16 @@ def loop(editor):
                 continue
             key = get_char()
 
-        while key in '0123456789':
-            COUNT += key
-            key = get_char()
+        if key in '123456789': # No zero allowed
+            while key in '0123456789':
+                COUNT += key
+                key = get_char()
         COUNT = int(COUNT) if COUNT else 1
 
         while one_inside_dict_starts_with(dictionary, key):
             if key in dictionary:
                 break
-            else:
-                key += get_char()
+            key += get_char()
         else:
             editor.screen.minibar(f' ( Invalid command: {_escape(key)} )')
             continue
@@ -67,13 +67,18 @@ def loop(editor):
         if key in local_actions:
             return local_actions[key](editor)
 
-        if key in motion_cmd:
+        #from vy.editor import BP; BP()
+
+        if key in motion_cmd and dictionary[key] is motion_cmd[key]:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
             for _ in range(COUNT):
                 curbuf.move_cursor(key)
             editor.screen.minibar('')
             continue
-        
+
+        #from vy.editor import BP
+        #BP()
+
         #editor.current_buffer.set_undo_point()
         action = dictionary[key]
 

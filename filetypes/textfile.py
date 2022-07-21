@@ -1,9 +1,17 @@
 from time import sleep
-from threading import Thread, Condition, Event
+from threading import Thread, Event
 from queue import Queue, Empty
 
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
+
+class IncList(list):
+    def __setitem__(self, index, value):
+        if index == len(self):
+            return self.append(value)
+        else:
+            return super().__setitem__(index, value)
+
 
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
@@ -91,14 +99,17 @@ class TextFile(BaseFile):
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
 
-        #self._lex_away_waiting = Event()
-        #self._lex_away_waiting.set()
+        self._screen_can_visit_lexed = Event()
+        self._screen_can_visit_spl = Event()
         self._lex_away_may_run = Event()
+        self._lex_away_may_run.set()
         self._lex_away_should_stop = Event()
-        self._lexed_lines = list()
+        self._lexed_lines = IncList()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
+        self.pre_update_callbacks.append(self._screen_can_visit_spl.clear)
+        self.pre_update_callbacks.append(self._screen_can_visit_lexed.clear)
 
         #self.update_callbacks.append(self._lex_away_waiting.wait)
         self.update_callbacks.append(self._lex_away_should_stop.clear)
@@ -111,8 +122,9 @@ class TextFile(BaseFile):
                 self._lexer = guess(str(self.path), self._string).get_tokens_unprocessed
             except ClassNotFound:
                 self._lexer = None
-        self._lex_away_may_run.set()
+        #self._lex_away_may_run.set()
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
+        self._lex_away_may_run.set()
         self._lexer_proc.start()
 
     def lexer(self):
@@ -125,61 +137,79 @@ class TextFile(BaseFile):
                     yield from self._lexer(self.string)
 
     def _lex_away(self):
-        while True:
-            line = list()
-            self._lex_away_may_run.wait()
+        #try:
+            while True:
+                self._lex_away_may_run.wait()
+                with self._lock:
+                    self.splited_lines
+                    self.number_of_lin
+                    self.cursor_lin_col
+                    self._screen_can_visit_spl.set()
 
-            #self._old_lexed_lines = self._lexed_lines
+                    line = list()
+                    count = 0
 
-            if not self._splited_lines: # if not yet computed help print loop
-                self.splited_lines
+                    self._lexed_lines.clear()
 
-            self._lock.acquire()
-            if self._lex_away_should_stop.is_set():
-                self._lock.release()
-                continue
-            self._lexed_lines = list()
-
-            for _, tok, val in self.lexer():
-                if self._lex_away_should_stop.is_set():
-                    self._lock.release()
-                    break
-                tok = get_prefix(repr(tok))     ### Here I use the repr as it is
-                                                #   easier to use a string than an 
-                                                #   object for serializing
-                                                #   may be a good example of premature
-                                                # optimization (multiprocessing in mind)
-                if '\n' in val:
-                    for token_line in val.splitlines(True):
-                        if token_line.endswith('\n'):
-                            token_line = token_line[:-1] + ' '
-                            line.append(f'{tok}{token_line}\x1b[0m')
-                            self._lexed_lines.append(''.join(line))
-                            line.clear()
+                    for _, tok, val in self.lexer():
+                        tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
+                        if '\n' in val:
+                            if self._lex_away_should_stop.is_set():
+                                break
+                            for token_line in val.splitlines(True):
+                                if token_line.endswith('\n'):
+                                    line.append(f'{tok}{token_line[:-1]} \x1b[0m')
+                                    self._lexed_lines.append(''.join(line))
+                                    #self._lexed_lines[count] = ''.join(line)
+                                    line.clear()
+                                    #count += 1
+                                else:
+                                    line.append(f'{tok}{token_line}\x1b[0m')
                         else:
-                            line.append(f'{tok}{token_line}\x1b[0m')
-                else:
-                    line.append(f'{tok}{val}\x1b[0m')
-            else:
-                if line: #No eof
-                    self._lexed_lines.append(line)
-                self._lock.release()
+                            line.append(f'{tok}{val}\x1b[0m')
+                    else:
+                        if line: #No eof
+                            self._lexed_lines.append(line)
+                            #self._lexed_lines[count] = line
+                            #count +=1 
+                        #del self._lexed_lines[count:]
+                    self._screen_can_visit_lexed.set()
                 self._lex_away_should_stop.wait()
+        #except Exception as exc:
+            #raise BaseException('error in lexer') from exc
 
-    def get_lexed_line(self, index, flash_screen):
-        if flash_screen:
-            try:
-                return self._lexed_lines[index]
-            except IndexError:
-                try:
-                    return self._splited_lines[index].replace('\n', ' ')
-                except IndexError:
-                    raise
-                except:
-                    raise RuntimeError
-            except:
-                raise RuntimeError
+    def _list_suppr(self):
+        super()._list_suppr()
+        self._screen_can_visit_spl.set()
+
+    def _list_insert(self, value):
+        super()._list_insert(value)
+        self._screen_can_visit_spl.set()
+
+    def get_raw_screen(self, min_lin, max_lin):
         try:
-            return self._lexed_lines[index]
-        except IndexError:
-            return self.splited_lines[index].replace('\n', ' ')
+            if self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
+                lexed_lines = self._lexed_lines
+            #elif self._screen_can_visit_spl.is_set():
+                #lexed_lines = self._splited_lines
+            else:
+                self._screen_can_visit_spl.wait()
+                lexed_lines = self._splited_lines
+                #raise RuntimeError
+
+            raw_line_list = list()
+            cursor_lin, cursor_col = self._cursor_lin_col
+            nb_lines = self._number_of_lin
+
+            for on_lin in range(min_lin, max_lin):
+                try:
+                    raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
+                except IndexError:
+                    if nb_lines <= on_lin:
+                        for _ in range(on_lin, max_lin):
+                            raw_line_list.append(None)
+                        break
+                    raise RuntimeError
+            return cursor_lin, cursor_col, raw_line_list
+        except Exception:
+            raise RuntimeError

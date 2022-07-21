@@ -1,6 +1,5 @@
 from pathlib import Path
 from vy import keys as k
-#from vy.interface.helpers import CommandCompleter
 from vy.filetypes.basefile import DummyLine
 from vy.global_config import USER_DIR
 from vy.interface.helpers import one_inside_dict_starts_with
@@ -58,9 +57,7 @@ class Completer:
                 elif key == k.C_C or key == '\x1b':
                     raise KeyboardInterrupt
                 elif key == k.CR and self.state:
-                    rv = self.select_item()
-                    self.history.append(rv)
-                    return rv 
+                    self.buffer.string = self.select_item()
                 elif key == k.CR:
                     self.history.append(buffer.string)
                     return buffer.string
@@ -89,8 +86,7 @@ class Completer:
         if not self.state:
             self.screen.minibar_completer()
         else:
-            completer = getattr(self, 'get_' + self.state)
-            completion = completer()
+            completion = getattr(self, 'get_' + self.state)()
             if completion != self.completion:
                 self.max_selected = len(completion) - 1
                 self.selected = 0
@@ -101,24 +97,25 @@ class Completer:
             self.screen.minibar_completer(to_print)
 
     def get_history(self):
-        self.completion = [item for item in self.history if item.startswith(self.buffer.string)][-5:]
-        return self.completion
+        return [item for item in self.history if item.startswith(self.buffer.string)][-5:]
 
 
     def get_complete(self):
         user_input = self.buffer.string
+
+        if ' ' in user_input:
+            cmd, args = user_input.split(' ', maxsplit=1)
+            cmd = cmd.strip()
+            args = args.strip()
+        else:
+            cmd = ''
+
         rv = list()
-        if user_input in self.dictionary:
-            self.buffer.insert(' ')
             
-        if user_input.strip() in self.dictionary:
-            if self.dictionary[user_input.strip()].with_args:
-                rv.extend([str(k) for k in Path('.').iterdir()])
-            else:
-                pass
+        if cmd and self.dictionary[cmd].with_args:
+            rv.extend([str(k) for k in Path('.').iterdir() if str(k).startswith(args)])
         elif one_inside_dict_starts_with(self.dictionary, user_input):
             rv.extend([k for k in self.dictionary if k.startswith(user_input)])
-
         return rv
 
     def complete(self):
@@ -149,13 +146,20 @@ class Completer:
             self.selected = 0
 
     def move_cursor_down(self):
+        if not self.state:
+            return
         if self.selected > self.max_selected:
             self.selected = 0
         else:
             self.selected += 1
 
     def select_item(self):
-        return self.buffer.string + self.completion[self.selected] 
+        item = self.completion[self.selected]
+        rv = self.buffer.string + item.removeprefix(self.buffer.string)
+        self.state = ''
+        self.buffer.string = rv
+        self.buffer.cursor = len(self.buffer.string)
+        return rv
 
 readline = Completer('command_history')
 

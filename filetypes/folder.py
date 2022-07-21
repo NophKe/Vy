@@ -30,13 +30,18 @@ class Folder(BaseFile):
     def string(self, value):
         return
 
-    def get_lexed_line(self, index, flash_screen=False):
-
-        
-        retval = ''
-        if index == 1 or index == 0: #current or parent dir (., ..)
-            retval = '\x1b[00;25;35m'
-        if index == self.cursor_line:
-            retval += '\x1b[2m'
-        retval += self.splited_lines[index] + '\x1b[0m' 
-        return retval 
+    def get_raw_screen(self, min_lin, max_lin):
+        rv = list()
+        for index in range(min_lin, max_lin):
+            retval = ''
+            if index == 1 or index == 0: #current or parent dir (., ..)
+                retval = '\x1b[00;25;35m'
+            if index == self.cursor_line:
+                retval += '\x1b[2m'
+            try:
+                retval += self.splited_lines[index] + '\x1b[0m' 
+            except IndexError:
+                retval = None
+            rv.append(retval)
+        lin, col = self.cursor_lin_col
+        return lin, col, rv 

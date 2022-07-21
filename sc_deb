@@ -1,9 +1,9 @@
 """This module is a mess that handles screen rendering"""
-#from functools import cache
 from time import sleep, asctime
 from os import get_terminal_size
 from sys import stdout
-from vy.global_config import DEBUG
+
+DEBUG = True
 
 def get_rows_needed(number):
     if number < 800: return 3
@@ -12,7 +12,6 @@ def get_rows_needed(number):
     elif number < 999800: return 6
     return len(str(number))
 
-#@cache
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     #assert '/n' not in text
     number = f'{on_lin:{get_rows_needed(on_lin)}}: '
@@ -63,7 +62,6 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
 
-#@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     #assert '/n' not in text
     retval: list = list()
@@ -252,10 +250,10 @@ class Window():
                 self.left_panel.set_focus()
         return self._focused
 
-    def gen_window(self):
+    def gen_window(self, flash_screen):
         if self.vertical_split:
-            left_panel = self.left_panel.gen_window()
-            right_panel = self.right_panel.gen_window()
+            left_panel = self.left_panel.gen_window(flash_screen)
+            right_panel = self.right_panel.gen_window(flash_screen)
             rv = list()
             for _ in range(self.number_of_lin):
                 rv.append(next(left_panel) + '|' + next(right_panel))
@@ -270,9 +268,35 @@ class Window():
             tab_size = self.buff.set_tabsize
             default = f"~{' ':{max_col- 1}}"
             true_cursor = 0
+            locked = False
             
-            cursor_lin, cursor_col, raw_line_list \
-                    = self.buff.get_raw_screen(min_lin, max_lin)
+            raw_line_list = list()
+            try:
+                #if flash_screen and hasattr(self.buff, "_lock") and \
+                    #self.buff._lock.acquire(blocking=True, timeout=0.0001):
+                        #max_idx_expect = self.buff.number_of_lin
+                        #locked = True
+                        #cursor_lin, cursor_col = self.buff.cursor_lin_col
+                #elif flash_screen and hasattr(self.buff, "_lock"):
+                        #max_idx_expect , cursor_lin, cursor_col = self.buff.cursor_lin_col_unsafe
+                #else:
+                        #max_idx_expect = self.buff.number_of_lin
+                        #locked = False
+                        #cursor_lin, cursor_col = self.buff.cursor_lin_col
+                max_idx_expect = self.buff.number_of_lin
+                locked = False
+                cursor_lin, cursor_col = self.buff.cursor_lin_col
+#
+                for on_lin in range(min_lin, max_lin):
+                    try:
+                        raw_line_list.append(self.buff.get_lexed_line(on_lin, flash_screen))
+                    except IndexError:
+                        for _ in range(on_lin, max_lin):
+                            raw_line_list.append(None)
+                        break
+            finally:
+                if locked:
+                    self.buff._lock.release()
 
             line_list = list()
             for on_lin, pretty_line in zip(range(min_lin, max_lin), raw_line_list):
@@ -315,11 +339,13 @@ class Screen(Window):
         else:
             super().vsplit().set_focus()
 
-    def recenter(self, discard_lines=0):
+    def recenter(self, discard_lines=0, flash_screen=False):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - discard_lines - 1 # 1 for infobar
         curwin = self.focused
+        if not curwin.buff._cursor_lin_col and flash_screen:
+            raise RuntimeError
         lin, col = curwin.buff.cursor_lin_col
         if lin < curwin.shift_to_lin:
             curwin.shift_to_lin = lin
@@ -334,27 +360,36 @@ class Screen(Window):
     def number_of_lin(self):
         return self._number_of_lin
 
-    def get_line_list(self):
+    def get_line_list(self, flash_screen=False):
         minibar = self.minibar_banner
-        self.recenter(discard_lines=len(minibar))
-        rv = self.gen_window()
+        self.recenter(discard_lines=len(minibar), flash_screen=flash_screen)
+        rv = self.gen_window(flash_screen)
         rv.append(self._infobar_txt)
         rv.extend(minibar)
         return rv 
 
     def minibar_completer(self, *lines):
-        if DEBUG:
+        if DEBUG and not lines or lines == ['']:
             return
         self._minibar_completer.clear()
         self._minibar_completer.extend(lines)
 
     def minibar(self, *lines):
-        if DEBUG:
+        if DEBUG and not lines or lines == ['']:
             return
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
     
-    if DEBUG:
+    if not DEBUG:
+        @property
+        def minibar_banner(self):
+            rv = list()
+            for line in self._minibar_completer:
+                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+            for line in self._minibar_txt:
+                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+            return rv
+    else:
         @property
         def minibar_banner(self):
             from vy.global_config import USER_DIR
@@ -363,8 +398,12 @@ class Screen(Window):
             debug_file = USER_DIR / "debugging_values"
             to_print = ''
             for line in debug_file.read_text().splitlines():
-                value = eval(line)
-                value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
+                parent = editor
+                for part in line.split('.'):
+                    if not part or part == '.':
+                        continue
+                    parent = getattr(parent, part) #, f'no {part} in {parent}')
+                value = ('\n' + pformat(parent)).replace('\n', '\n\t')
                 to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
             rv = list()
             for line in to_print.splitlines():
@@ -374,15 +413,7 @@ class Screen(Window):
             for line in self._minibar_txt:
                 rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
             rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0))
-            return rv
-    else:
-        @property
-        def minibar_banner(self):
-            rv = list()
-            for line in self._minibar_completer:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-            for line in self._minibar_txt:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+
             return rv
 
     def infobar(self, left='', right=''):

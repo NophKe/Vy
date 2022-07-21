@@ -1,11 +1,11 @@
-#!/usr/bin/python3 -O -u -m
+#!/usr/bin/python3 -m
 
 #######   BASIC INITIALISATION #############################
 
 if __name__ != '__main__':
     raise ImportError(
     'This file is the main entry point for the Vym Editor and '
-    'is not supposed to be imported, but executed by: python -m Vy')
+    'is not supposed to be imported, but executed by: python -m vy')
 try:
     from . import global_config
 except ImportError:
@@ -16,36 +16,37 @@ except ImportError:
 ########   COMMAND LINE PARSING #############################
 
 from argparse import ArgumentParser 
+
 parser = ArgumentParser(prog='Vy',
-                        description='LEGACY-FREE VI-LIKE EDITOR',
-                        )
-parser.add_argument('--debug',
-                    action="store_true",
-                    default=False,
-                    help='Make ^C dump infos and enter the debugger.')
-parser.add_argument('--mode',
-                    default='normal',
-                    choices=('normal', 'command', 'python', 'insert'),
-                    help='Mode in which the editor lauches.')
-parser.add_argument('--no-user-config', 
-                    action="store_true",
-                    default=False,
-                    help='Do not read user config folder.')
-parser.add_argument('--no-pygments',
-                    action="store_true",
-                    default=False,
-                    help='Do not use Pygments library for syntax hilighting even if available.')
-parser.add_argument("files",
-                    help="List of files to Open.", 
-                    nargs='*', 
-                    default=None)
+                        description='LEGACY-FREE VI-LIKE EDITOR',)
+
+parser.add_argument('--debug', default=False,
+            action="store_true",
+            help='Screen shows selected infos and enter the debugger.')
+
+parser.add_argument('--mode', default='normal',
+            choices=('normal', 'command', 'python', 'insert'),
+            help='Mode in which the editor lauches.')
+
+parser.add_argument('--no-user-config', default=False,
+            action="store_true",
+            help='Do not read user config folder.')
+
+parser.add_argument('--no-pygments', default=False,
+            action="store_true",
+            help='Do not use Pygments library for syntax hilighting even if available.')
+
+parser.add_argument("files", default=None,
+            help="List of files to Open.", 
+            nargs='*') 
 
 cmdline = parser.parse_args()
 
 ########    UPDATE CONGIGURATION    ##################################
 
 global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
-global_config.DONT_USE_USER_CONFIG  = cmdline.no_user_config
+global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
+global_config.DEBUG = cmdline.debug
 
 if not global_config.USER_DIR.exists() and not global_config.DONT_USE_USER_CONFIG:
     global_config.USER_DIR.mkdir()

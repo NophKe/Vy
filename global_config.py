@@ -3,7 +3,7 @@ This module contains the default global configuration.
 The variables defined here will be overriden by command line invocation.
 """
 from pathlib import Path
-DEBUG = True
+DEBUG = False
 USER_DIR = Path('~/.vy/').expanduser()
 del Path
 

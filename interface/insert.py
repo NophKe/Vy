@@ -14,12 +14,11 @@ def loop(self):
             curbuf.insert_newline()
             continue
             screen.minibar(f'( Newline inserted )') #, setting undo point )')
-            #curbuf.set_undo_point()
+            curbuf.set_undo_point()
 
         elif user_input in dictionary:
             screen.minibar(f' ( Processing command: {_escape(user_input)} )')
-            with curbuf:
-                rv = dictionary[user_input](self)
+            rv = dictionary[user_input](self)
             screen.minibar('')
             if rv and rv != 'insert':
                 return rv
@@ -34,8 +33,7 @@ def loop(self):
             while one_inside_dict_starts_with(dictionary, user_input):
                 if user_input in dictionary:
                     screen.minibar(f' ( Processing command: {_escape(user_input)} )')
-                    with curbuf:
-                        rv = dictionary[user_input](self)
+                    rv = dictionary[user_input](self)
                     screen.minibar('')
                     if rv and rv != 'insert':
                         return rv

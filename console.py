@@ -68,11 +68,11 @@ def visit_stdin():
     esc_mode[CC][VTIME] = 0
 
     try:
-        tcsetattr(stdin, TCSAFLUSH, mode)
+        tcsetattr(stdin, TCSANOW, mode)
         while True:
             ret = stdin.read(1)
             if ret == '\x1b':
-                tcsetattr(stdin, TCSAFLUSH, esc_mode)
+                tcsetattr(stdin, TCSANOW, esc_mode)
                 esc_seq = stdin.read(1) # not sure if this part is useful
                 while esc_seq:          # maybe just act as in get_a_key()
                     if esc_seq == '\x1b':
@@ -80,7 +80,7 @@ def visit_stdin():
                         ret = ''
                     ret += esc_seq
                     esc_seq = stdin.read(1)
-                tcsetattr(stdin, TCSAFLUSH, mode)
+                tcsetattr(stdin, TCSANOW, mode)
             yield ret
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
