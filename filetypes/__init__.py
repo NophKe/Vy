@@ -1,5 +1,5 @@
 from pathlib import Path
-from os import access, W_OK, X_OK
+from os import access, W_OK
 
 from .folder import Folder
 from .textfile import TextFile
@@ -11,6 +11,7 @@ def Open_path(location):
         location = Path(location).resolve()
     if not isinstance(location, Path):
         raise TypeError('in function Open_path (Vy/filetypes/__init__.py) argument must be None, str or Path object')
+
     location = location.resolve()
 
     try:

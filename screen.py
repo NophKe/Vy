@@ -254,13 +254,9 @@ class Window():
 
     def gen_window(self):
         if self.vertical_split:
-            left_panel = self.left_panel.gen_window()
-            right_panel = self.right_panel.gen_window()
-            rv = list()
-            for _ in range(self.number_of_lin):
-                rv.append(next(left_panel) + '|' + next(right_panel))
-            return rv
-
+            return [f'{left}|{right}' for left, right in zip(
+                                            self.left_panel.gen_window(), 
+                                            self.right_panel.gen_window())]
         else:
             max_col = self.number_of_col
             min_lin = self.shift_to_lin

@@ -9,8 +9,18 @@ cdef class DummyLine:
     cpdef void backspace(self)
     cpdef void insert(self, str text)
 
-cdef class BaseFile(DummyLine):
+cdef class TextLine(DummyLine):
+    pass
+
+cdef class BaseFile:
+    cpdef void suppr(self)
+    cpdef void backspace(self)
+    cpdef void insert(self, str text)
+
     cdef:
+        str _string
+        int _cursor
+
         str _repr
         int _number_of_lin
         list update_callbacks
@@ -36,10 +46,10 @@ cdef class BaseFile(DummyLine):
     cdef void _string_insert(self, str value)
     cdef void _list_suppr(self)
     cdef void _string_suppr(self)
-    cdef void insert_newline(self)
+    cpdef void insert_newline(self)
 
-    cpdef _get_range(self,key)
-    cpdef object _get_offset(self, key)
+    cpdef _get_range(self,key)          # TODO why is it cpdef ?????
+    cpdef object _get_offset(self, key) # TODO why is it cpdef ?????
 
     cdef int find_end_of_line(self)
     cdef int find_end_of_word(self)

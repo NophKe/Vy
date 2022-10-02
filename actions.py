@@ -89,7 +89,7 @@ def join_lines(editor, reg=None, part=None, arg=None, count=1):
 
 
 @sa_commands(f'{k.C_W}>')
-def increase_window_width_right(editor, reg=None, part=None, arg=None, count=1):
+def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):
     """
     Increases window width to the right by {count} columns.
     """
@@ -99,7 +99,7 @@ def increase_window_width_right(editor, reg=None, part=None, arg=None, count=1):
     curwin.parent.move_v_split_right(count)
 
 @sa_commands(f'{k.C_W}<')
-def increase_window_width_left(editor, reg=None, part=None, arg=None, count=1):
+def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
     """
     Increases window width to the left by {count} columns.
     """
@@ -192,7 +192,7 @@ def insert_mode(editor, reg=None, part=None, arg=None, count=1):
     return 'insert'
 
 
-@atomic_commands(':')
+@atomic_commands(f': {k.C_W}:')
 def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Command» mode.
@@ -436,7 +436,7 @@ def do_edit(editor, reg=None, part=None, arg=None, count=1):
         editor.edit(arg)
 
 
-@atomic_commands(":enew :ene")
+@atomic_commands(f"{k.C_W}n {k.C_W}{k.C_N} :new :enew :ene")
 def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts editing a new unnamed buffer.
@@ -595,7 +595,7 @@ def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
 
 
 @with_args_commands(':vsplit :vs')
-@atomic_commands(f'{k.C_W}v')
+@atomic_commands(f'{k.C_W}{k.C_V} {k.C_W}v')
 def do_vsplit(editor, reg=None, part=None, arg=None, count=1):
     """
     Splits the current window vertically. If an argument is given, use this
@@ -956,7 +956,9 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
     For help about a normal mode command just type it!
         :help ~
 
-    To enter a "special key" prepend [CTRL+V].
+    For help on using help, press h now!
+
+    TODO: To enter a "special key" prepend [CTRL+V].
     """
     try:
         if arg.startswith(':'):
@@ -983,6 +985,7 @@ def do_paste(editor, reg='"', part=None, arg=None, count=1):
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
     """
+    #from vy.editor import BP; BP()
     editor.current_buffer.insert(editor.registr[reg])
 
 
@@ -992,8 +995,7 @@ def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     Inserts the necessery number of spaces to reach next level of indentation
 
     """
-    curbuf = editor.current_buffer
-    with curbuf:
+    with editor.current_buffer as curbuf:
         curbuf.insert('\t')
         orig = curbuf['0:$']   # TODO use current_line property
         after = orig.expandtabs(tabsize=curbuf.set_tabsize)

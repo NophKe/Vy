@@ -222,7 +222,7 @@ class BaseFile:
         """
         with self._lock:
             if not self._string:
-                assert self._splited_lines
+                #assert self._splited_lines
                 self._string = ''.join(self._splited_lines)
             return self._string
 
@@ -398,6 +398,7 @@ class BaseFile:
         self._lenght = len(self._string)
         self._current_line = ''
         self._cursor_lin_col = ()
+        self._splited_lines.clear()
 
 
     def _list_insert(self, value):
