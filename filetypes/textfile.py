@@ -121,82 +121,85 @@ class TextFile(BaseFile):
 
     def lexer(self):
             if self._lexer is None:
-                yield from [ (0, '', f'\x1b[33m{val}\x1b[0m') 
+                yield from ((0, '', f'\x1b[33m{val}\x1b[0m') 
                                 if val.startswith('#')
                             else (0, '', val)
-                    for val in self.splited_lines]
+                    for val in self.splited_lines)
             else:
                     yield from self._lexer(self.string)
 
     def _lex_away(self):
-        #try:
-            while True:
-                self._lex_away_may_run.wait()
-                with self._lock:
-                    self.splited_lines
-                    self.number_of_lin
-                    self.cursor_lin_col
-                    self._screen_can_visit_spl.set()
+        while True:
+            self._lex_away_may_run.wait()
+            with self._lock:
+                #if not self._screen_can_visit_spl.is_set():
+                self.splited_lines
+                self.number_of_lin
+                self.cursor_lin_col
+                self._screen_can_visit_spl.set()
 
-                    line = list()
-                    #count = 0
+                line = list()
+                #count = 0
 
-                    self._lexed_lines.clear()
+                self._lexed_lines.clear()
 
-                    for _, tok, val in self.lexer():
-                        tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
-                        if '\n' in val:
-                            if self._lex_away_should_stop.is_set():
-                                break
-                            for token_line in val.splitlines(True):
-                                if token_line.endswith('\n'):
-                                    line.append(f'{tok}{token_line[:-1]} \x1b[0m')
-                                    self._lexed_lines.append(''.join(line))
-                                    line.clear()
-                                else:
-                                    line.append(f'{tok}{token_line}\x1b[0m')
-                        else:
-                            line.append(f'{tok}{val}\x1b[0m')
+                for _, tok, val in self.lexer():
+                    tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
+                    if '\n' in val:
+                        if self._lex_away_should_stop.is_set():
+                            break
+                        for token_line in val.splitlines(True):
+                            if token_line.endswith('\n'):
+                                line.append(f'{tok}{token_line[:-1]} \x1b[0m')
+                                self._lexed_lines.append(''.join(line))
+                                line.clear()
+                            else:
+                                line.append(f'{tok}{token_line}\x1b[0m')
                     else:
-                        if line: #No eof
-                            self._lexed_lines.append(line)
+                        line.append(f'{tok}{val}\x1b[0m')
+                else:
+                    if line: #No eof
+                        self._lexed_lines.append(line)
+                if not self._lex_away_should_stop.is_set():
                     self._screen_can_visit_lexed.set()
-                self._lex_away_should_stop.wait()
-        #except Exception as exc:
-            #raise BaseException('error in lexer') from exc
+            self._lex_away_should_stop.wait()
 
-    def _list_suppr(self):
-        BaseFile._list_suppr(self)
-        self._screen_can_visit_spl.set()
-
-    def _list_insert(self, value):
-        BaseFile._list_insert(self, value)
-        self._screen_can_visit_spl.set()
+    #def _list_suppr(self):
+        #BaseFile._list_suppr(self)
+        #self._screen_can_visit_spl.set()
+#
+    #def _list_insert(self, value):
+        #BaseFile._list_insert(self, value)
+        #self._screen_can_visit_spl.set()
 
     def get_raw_screen(self, min_lin, max_lin):
+    
+        if self._lex_away_should_stop.is_set():
+            self._screen_can_visit_spl.wait()
+            lexed_lines = self._splited_lines
+        elif self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
+            lexed_lines = self._lexed_lines
+        elif self._screen_can_visit_spl.is_set():
+            lexed_lines = self._splited_lines
+        else:
+            self._screen_can_visit_spl.wait()
+            lexed_lines = self._splited_lines
+            #raise RuntimeError
+
+        raw_line_list = list()
         try:
-            if self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
-                lexed_lines = self._lexed_lines
-            #elif self._screen_can_visit_spl.is_set():
-                #lexed_lines = self._splited_lines
-            else:
-                self._screen_can_visit_spl.wait()
-                lexed_lines = self._splited_lines
-                #raise RuntimeError
-
-            raw_line_list = list()
             cursor_lin, cursor_col = self._cursor_lin_col
-            nb_lines = self._number_of_lin
-
-            for on_lin in range(min_lin, max_lin):
-                try:
-                    raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
-                except IndexError:
-                    if nb_lines <= on_lin and nb_lines:
-                        for _ in range(on_lin, max_lin):
-                            raw_line_list.append(None)
-                        break
-                    raise 
-            return cursor_lin, cursor_col, raw_line_list
-        except Exception:
+        except ValueError:
             raise RuntimeError
+        nb_lines = self._number_of_lin
+
+        for on_lin in range(min_lin, max_lin):
+            try:
+                raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
+            except IndexError:
+                if nb_lines <= on_lin and nb_lines:
+                    for _ in range(on_lin, max_lin):
+                        raw_line_list.append(None)
+                    break
+                raise 
+        return cursor_lin, cursor_col, raw_line_list

@@ -281,7 +281,6 @@ class _Editor:
         except PermissionError:
             self.warning(f"You do not seem to have enough rights to read {location}")
         else:
-            buffer = self.cache[location]
             if self.screen:
                 self.current_window.change_buffer(buffer)
             else:
@@ -315,12 +314,9 @@ class _Editor:
                     print(f'there are {left_keys} keys left waiting to be interpreted', end='\r', flush=True)
                     sleep(0.04)
                 old_screen.clear()
-                #self._input_queue.join()
                 stop = False
                 last_print = time() - 0.5
-                #continue
 
-            tasks = self._input_queue.qsize() #< 2
             delta = time() - last_print
 
             if delta > 1:               # if screen is more than 5 seconds late
@@ -329,11 +325,8 @@ class _Editor:
                 f'last good screen was {round(time() - last_print, 2)} late.')
 
             elif delta < 0.04:
-                sleep(0.04)
+                sleep(0.05)
                 continue
-
-            #elif tasks:
-                #infobar(' ___ SCREEN RENDERING ___ ', repr(self.current_buffer))
 
             else:                        
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
@@ -353,8 +346,7 @@ class _Editor:
 
             print(''.join(filtered), end='\r', flush=True)
 
-            if not tasks:
-                last_print = time()
+            last_print = time()
             old_screen = new_screen
 
 
@@ -367,9 +359,8 @@ class _Editor:
             self._input_queue.put(key_press)
 
     def start_async_io(self):
-        #global BP
-        #BP = lambda: (self.stop_async_io(), breakpoint())
         assert not self._async_io_flag
+        assert not self._running
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()
@@ -390,7 +381,7 @@ class _Editor:
             self.screen.original_screen()
         self.screen.show_cursor()
         #assert self._input_queue.join() ## one key may get stuck there
-        #                               ## what can we do ?
+        #                                ## what can we do ?
         
     def __call__(self, buff=None, mode='normal'):
         """
@@ -399,13 +390,15 @@ class _Editor:
         """
         if self._running:
             return self.edit(buff)
-        self._running = True
 
-        self.edit(buff if buff 
-                    else self._work_stack.pop(0) if self._work_stack 
-                    else None)
         try:
+            self.edit(buff if buff 
+                        else self._work_stack.pop(0) if self._work_stack 
+                        else None)
+
             self.start_async_io()
+            self._running = True
+
             while True:
                 #if mode == 'exit':
                     #break
