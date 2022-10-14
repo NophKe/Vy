@@ -173,33 +173,39 @@ class TextFile(BaseFile):
         #self._screen_can_visit_spl.set()
 
     def get_raw_screen(self, min_lin, max_lin):
-    
-        if self._lex_away_should_stop.is_set():
-            self._screen_can_visit_spl.wait()
-            lexed_lines = self._splited_lines
-        elif self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
+        #self._lex_away_may_run.wait()
+
+        if self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
             lexed_lines = self._lexed_lines
         elif self._screen_can_visit_spl.is_set():
             lexed_lines = self._splited_lines
         else:
-            self._screen_can_visit_spl.wait()
-            lexed_lines = self._splited_lines
+            sleep(0)
+            raise RuntimeError
+
+        #if self._lex_away_should_stop.is_set():
             #raise RuntimeError
 
         raw_line_list = list()
+
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
             raise RuntimeError
-        nb_lines = self._number_of_lin
+
+        if not (nb_lines := self._number_of_lin):
+            raise RuntimeError
+
 
         for on_lin in range(min_lin, max_lin):
             try:
                 raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
             except IndexError:
-                if nb_lines <= on_lin and nb_lines:
+                if nb_lines <= on_lin:
                     for _ in range(on_lin, max_lin):
                         raw_line_list.append(None)
-                    break
-                raise 
+                    return cursor_lin, cursor_col, raw_line_list
+                else:
+                    raise RuntimeError
+
         return cursor_lin, cursor_col, raw_line_list

@@ -315,11 +315,11 @@ class _Editor:
                     sleep(0.04)
                 old_screen.clear()
                 stop = False
-                last_print = time() - 0.5
+                last_print = time() 
 
             delta = time() - last_print
 
-            if delta > 1:               # if screen is more than 5 seconds late
+            if delta > 0.25:               # if screen is more than 5 seconds late
                 stop = True             # draw it noexcept one last time
                 infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', 
                 f'last good screen was {round(time() - last_print, 2)} late.')

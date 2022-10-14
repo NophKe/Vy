@@ -20,6 +20,10 @@ from argparse import ArgumentParser
 parser = ArgumentParser(prog='Vy',
                         description='LEGACY-FREE VI-LIKE EDITOR',)
 
+parser.add_argument('--profile', default=False,
+            action="store_true",
+            help='Screen shows selected infos and enter the debugger.')
+
 parser.add_argument('--debug', default=False,
             action="store_true",
             help='Screen shows selected infos and enter the debugger.')
@@ -84,7 +88,25 @@ if not global_config.USER_DIR.exists() and not global_config.DONT_USE_USER_CONFI
 #########    START THE EDITOR #########################################
 
 from vy.editor import _Editor as Editor
+from sys import exit
+
 Editor = Editor(*cmdline.files, command_line=cmdline)
 
-import sys
-sys.exit(Editor(mode=cmdline.mode))
+if cmdline.profile:
+    import cProfile, pstats, io
+    from pstats import SortKey
+    pr = cProfile.Profile()
+
+    pr.enable()
+    Editor(mode=cmdline.mode)
+    pr.disable()
+
+    s = io.StringIO()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    with open('stats.LOG', 'w+') as out_file:
+        print(s.getvalue(), file=out_file)
+else:
+    exit(Editor(mode=cmdline.mode))
+
