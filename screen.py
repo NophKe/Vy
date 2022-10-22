@@ -1,9 +1,72 @@
 """This module is a mess that handles screen rendering"""
 #from functools import cache
-from time import sleep, asctime
+
+from time import time, sleep, asctime
 from os import get_terminal_size
 from sys import stdout
 from vy.global_config import DEBUG
+
+class LexedBuffer:
+    def __init__(self, buffer):
+        self.buffer = buffer
+        self.last_string = '\0'
+        self.last_compute = list()
+        self.last_time = 0
+
+    @property
+    def set_wrap(self):
+        return self.buffer.set_wrap
+
+    @property
+    def set_tabsize(self):
+        return self.buffer.set_tabsize
+
+    @property
+    def cursor_lin_col(self):
+        return self.buffer.cursor_lin_col
+
+    @property
+    def set_number(self):
+        return self.buffer.set_number
+
+    def get_raw_screen(self, min_lin, max_lin):
+        str_dont_match = self.buffer._string is not self.last_string
+
+        if str_dont_match or not self.last_compute:
+            text_buff = self.buffer
+            if text_buff._lexed_lines:
+                self.last_compute = text_buff._lexed_lines
+                if self.buffer._string:
+                    self.last_string = self.buffer._string
+            elif text_buff._splited_lines:
+                self.last_compute = text_buff._splited_lines
+            else:
+                raise RuntimeError # buffer in inconsistant state
+        return self._get_raw_screen_intern(min_lin, max_lin)
+
+    def _get_raw_screen_intern(self, min_lin, max_lin):
+        text_buff = self.last_compute
+        raw_line_list = list()
+
+        try:
+            cursor_lin, cursor_col = self.buffer._cursor_lin_col
+        except ValueError:
+            raise RuntimeError # buffer in inconsistant state
+
+        if not (nb_lines := self.buffer._number_of_lin):
+            raise RuntimeError # buffer in inconsistant state
+
+        for on_lin in range(min_lin, max_lin):
+            try:
+                raw_line_list.append(self.last_compute[on_lin].replace('\n', ' '))
+            except IndexError:
+                if nb_lines <= on_lin:
+                    for _ in range(on_lin, max_lin):
+                        raw_line_list.append(None)
+                else:
+                    raise RuntimeError
+
+        return cursor_lin, cursor_col, raw_line_list
 
 def get_rows_needed(number):
     if number < 800: return 3
@@ -62,7 +125,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
-
+        
 #@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     #assert '/n' not in text
@@ -119,7 +182,7 @@ class Window():
         self.parent: Window = parent
         self.shift_to_col: int = shift_to_col
         self.shift_to_lin: int = shift_to_lin
-        self.buff = buff
+        self.buff = LexedBuffer(buff)
         self._v_split_flag: bool = False
         self.v_split_shift: int = 0
         self._focused: Window = self 
@@ -175,14 +238,14 @@ class Window():
             
     def change_buffer(self, new_buffer):
         assert self._v_split_flag is False
-        self.buff = new_buffer
+        self.buff = LexedBuffer(new_buffer)
         return self
             
     def merge_from_left_panel(self):
         if self._v_split_flag is False:
             return
         else:
-            self.buff = self.left_panel.buff
+            self.buff = LexedBuffer(self.left_panel.buff)
             del self.right_panel
             del self.left_panel
             self._v_split_flag = False
@@ -192,7 +255,7 @@ class Window():
         if self._v_split_flag is False:
             return
         else:
-            self.buff = self.right_panel.buff
+            self.buff = LexedBuffer(self.right_panel.buff)
             self.right_panel = self.left_panel = None
             self._v_split_flag = False
             self._focused = self
@@ -293,7 +356,7 @@ class Window():
 
 class Screen(Window):
     def __init__(self, buff):
-        self.buff = buff
+        self.buff = LexedBuffer(buff)
         self._v_split_flag = False
         self.v_split_shift = 0
         self._focused = self

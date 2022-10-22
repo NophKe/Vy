@@ -113,7 +113,13 @@ class Completer:
         rv = list()
             
         if cmd and self.dictionary[cmd].with_args:
-            rv.extend([str(k) for k in Path('.').iterdir() if str(k).startswith(args)])
+            if not args: #default to completing filenames
+                rv.extend([str(k).removeprefix(args) for k in Path('.').iterdir() if str(k).startswith(args)])
+            else:
+                rv.extend([str(k).removeprefix(args) for k in Path('.').iterdir() if str(k).startswith(args)])
+
+# BUGGY 
+
         elif one_inside_dict_starts_with(self.dictionary, user_input):
             rv.extend([k for k in self.dictionary if k.startswith(user_input)])
         return rv
@@ -155,6 +161,7 @@ class Completer:
 
     def select_item(self):
         item = self.completion[self.selected]
+#here is the bug 
         rv = self.buffer.string + item.removeprefix(self.buffer.string)
         self.state = ''
         self.buffer.string = rv

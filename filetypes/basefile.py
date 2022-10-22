@@ -372,7 +372,7 @@ class BaseFile:
         """
         with self:
             if self.cursor > 0:
-                self.cursor -= 1
+                #self.cursor -= 1
                 self.suppr() 
 
     def insert(self, value):

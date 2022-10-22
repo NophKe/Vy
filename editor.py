@@ -292,7 +292,7 @@ class _Editor:
 
     @property
     def current_buffer(self): 
-        return self.screen.focused.buff
+        return self.screen.focused.buff.buffer
 
 ### TODO -- move this fonction to screen module
 ###
@@ -319,13 +319,13 @@ class _Editor:
 
             delta = time() - last_print
 
-            if delta > 0.25:               # if screen is more than 5 seconds late
+            if delta > 0.08 :               # if screen is more than 5 seconds late
                 stop = True             # draw it noexcept one last time
                 infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', 
                 f'last good screen was {round(time() - last_print, 2)} late.')
 
             elif delta < 0.04:
-                sleep(0.05)
+                sleep(0.04 - delta)
                 continue
 
             else:                        

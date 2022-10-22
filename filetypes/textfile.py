@@ -1,6 +1,4 @@
-from time import sleep
 from threading import Thread, Event
-from queue import Queue, Empty
 
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
@@ -90,20 +88,13 @@ class TextFile(BaseFile):
     modifiable = True
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
-
-        self._screen_can_visit_lexed = Event()
-        self._screen_can_visit_spl = Event()
         self._lex_away_may_run = Event()
-        self._lex_away_may_run.set()
         self._lex_away_should_stop = Event()
         self._lexed_lines = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
-        self.pre_update_callbacks.append(self._screen_can_visit_spl.clear)
-        self.pre_update_callbacks.append(self._screen_can_visit_lexed.clear)
-
-        #self.update_callbacks.append(self._lex_away_waiting.wait)
+        
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
 
@@ -114,7 +105,7 @@ class TextFile(BaseFile):
                 self._lexer = guess(str(self.path), self._string).get_tokens_unprocessed
             except ClassNotFound:
                 self._lexer = None
-        #self._lex_away_may_run.set()
+        
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
         self._lex_away_may_run.set()
         self._lexer_proc.start()
@@ -131,17 +122,14 @@ class TextFile(BaseFile):
     def _lex_away(self):
         while True:
             self._lex_away_may_run.wait()
+            self._lexed_lines.clear()
             with self._lock:
-                #if not self._screen_can_visit_spl.is_set():
-                self.splited_lines
-                self.number_of_lin
                 self.cursor_lin_col
-                self._screen_can_visit_spl.set()
+                self.number_of_lin
+                self.splited_lines
 
                 line = list()
-                #count = 0
-
-                self._lexed_lines.clear()
+                local_lexed = list()
 
                 for _, tok, val in self.lexer():
                     tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
@@ -151,7 +139,7 @@ class TextFile(BaseFile):
                         for token_line in val.splitlines(True):
                             if token_line.endswith('\n'):
                                 line.append(f'{tok}{token_line[:-1]} \x1b[0m')
-                                self._lexed_lines.append(''.join(line))
+                                local_lexed.append(''.join(line))
                                 line.clear()
                             else:
                                 line.append(f'{tok}{token_line}\x1b[0m')
@@ -159,53 +147,6 @@ class TextFile(BaseFile):
                         line.append(f'{tok}{val}\x1b[0m')
                 else:
                     if line: #No eof
-                        self._lexed_lines.append(line)
-                if not self._lex_away_should_stop.is_set():
-                    self._screen_can_visit_lexed.set()
+                        local_lexed.append(line)
+                    self._lexed_lines = local_lexed
             self._lex_away_should_stop.wait()
-
-    #def _list_suppr(self):
-        #BaseFile._list_suppr(self)
-        #self._screen_can_visit_spl.set()
-#
-    #def _list_insert(self, value):
-        #BaseFile._list_insert(self, value)
-        #self._screen_can_visit_spl.set()
-
-    def get_raw_screen(self, min_lin, max_lin):
-        #self._lex_away_may_run.wait()
-
-        if self._screen_can_visit_lexed.is_set() and self._screen_can_visit_spl.is_set():
-            lexed_lines = self._lexed_lines
-        elif self._screen_can_visit_spl.is_set():
-            lexed_lines = self._splited_lines
-        else:
-            sleep(0)
-            raise RuntimeError
-
-        #if self._lex_away_should_stop.is_set():
-            #raise RuntimeError
-
-        raw_line_list = list()
-
-        try:
-            cursor_lin, cursor_col = self._cursor_lin_col
-        except ValueError:
-            raise RuntimeError
-
-        if not (nb_lines := self._number_of_lin):
-            raise RuntimeError
-
-
-        for on_lin in range(min_lin, max_lin):
-            try:
-                raw_line_list.append(lexed_lines[on_lin].replace('\n', ' '))
-            except IndexError:
-                if nb_lines <= on_lin:
-                    for _ in range(on_lin, max_lin):
-                        raw_line_list.append(None)
-                    return cursor_lin, cursor_col, raw_line_list
-                else:
-                    raise RuntimeError
-
-        return cursor_lin, cursor_col, raw_line_list
