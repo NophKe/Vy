@@ -201,10 +201,12 @@ def loop(self):
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
 
-    self.screen.infobar(f'( Processing Command: {user_input} )')
+    self.screen.minibar(f'( Processing Command: {user_input} )')
     if ARG:
         rv = action(self, arg=ARG, part=PART, reg=REG)
     else:
         rv = action(self, part=PART, reg=REG)
+
+    self.screen.minibar('')
 
     return rv or 'normal'

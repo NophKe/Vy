@@ -1,3 +1,4 @@
+from time import sleep
 from threading import Thread, Event
 
 from vy.filetypes.basefile import BaseFile
@@ -91,10 +92,13 @@ class TextFile(BaseFile):
         self._lex_away_may_run = Event()
         self._lex_away_should_stop = Event()
         self._lexed_lines = list()
+        self.last_string = '\0'
+        self.last_compute = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
         
+        #self.update_callbacks.append(self._lexed_lines.clear)
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
 
@@ -121,12 +125,20 @@ class TextFile(BaseFile):
 
     def _lex_away(self):
         while True:
-            self._lex_away_may_run.wait()
             self._lexed_lines.clear()
+            self._lex_away_may_run.wait()
+            sleep(0)
+            if self._lex_away_should_stop.is_set():
+                continue
             with self._lock:
+                self.splited_lines
                 self.cursor_lin_col
                 self.number_of_lin
-                self.splited_lines
+
+                sleep(0)
+                if self._lex_away_should_stop.is_set():
+                    continue
+
 
                 line = list()
                 local_lexed = list()
@@ -136,6 +148,7 @@ class TextFile(BaseFile):
                     if '\n' in val:
                         if self._lex_away_should_stop.is_set():
                             break
+                        #sleep(0)
                         for token_line in val.splitlines(True):
                             if token_line.endswith('\n'):
                                 line.append(f'{tok}{token_line[:-1]} \x1b[0m')
@@ -150,3 +163,38 @@ class TextFile(BaseFile):
                         local_lexed.append(line)
                     self._lexed_lines = local_lexed
             self._lex_away_should_stop.wait()
+
+    def get_raw_screen(self, min_lin, max_lin):
+        if self.last_string is not self._string:
+
+            if self._lexed_lines and self._string:
+                self.last_compute = self._lexed_lines
+                self.last_string = self._string
+            elif self._splited_lines:
+                self.last_compute = self._splited_lines
+                self.last_string = '\0'
+            else:
+                raise RuntimeError # buffer in inconsistant state
+
+        raw_line_list = list()
+
+        try:
+            cursor_lin, cursor_col = self._cursor_lin_col
+        except ValueError:
+            raise RuntimeError # buffer in inconsistant state
+
+        if not (nb_lines := self._number_of_lin):
+            raise RuntimeError # buffer in inconsistant state
+
+        for on_lin in range(min_lin, max_lin):
+            try:
+                raw_line_list.append(self.last_compute[on_lin].replace('\n', ' '))
+            except IndexError:
+                if nb_lines <= on_lin:
+                    for _ in range(on_lin, max_lin):
+                        raw_line_list.append(None)
+                    return cursor_lin, cursor_col, raw_line_list
+                else:
+                    raise RuntimeError
+
+        return cursor_lin, cursor_col, raw_line_list

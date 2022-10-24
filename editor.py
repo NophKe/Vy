@@ -292,7 +292,7 @@ class _Editor:
 
     @property
     def current_buffer(self): 
-        return self.screen.focused.buff.buffer
+        return self.screen.focused.buff
 
 ### TODO -- move this fonction to screen module
 ###
@@ -300,43 +300,22 @@ class _Editor:
 ###
     def print_loop(self):
         old_screen = list()  
-        last_print = time()
         infobar = self.screen.infobar
-        stop = False
+        missed = 0
+        ok_flag = True
 
         while self._async_io_flag:
-            if stop:
-                left_keys = self._input_queue.qsize()
-                self.screen.bottom()
-                while left_keys and self._async_io_flag:
-                    left_keys = self._input_queue.qsize()
-                    self.screen.clear_line()
-                    print(f'there are {left_keys} keys left waiting to be interpreted', end='\r', flush=True)
-                    sleep(0.04)
-                old_screen.clear()
-                stop = False
-                last_print = time() 
+            sleep(0.02)
 
-            delta = time() - last_print
-
-            if delta > 0.08 :               # if screen is more than 5 seconds late
-                stop = True             # draw it noexcept one last time
-                infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ', 
-                f'last good screen was {round(time() - last_print, 2)} late.')
-
-            elif delta < 0.04:
-                sleep(0.04 - delta)
-                continue
-
-            else:                        
+            if ok_flag and not self._input_queue.qsize() > 1:
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+            else:
+                infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ',
+                f'Failed: {missed} time(s), '
+                f'waiting keystrokes: {self._input_queue.qsize()}')
 
-            try:
-                new_screen = self.screen.get_line_list()
-            except RuntimeError:
-                if stop:
-                    stop = False
-                continue
+
+            new_screen, ok_flag = self.screen.get_line_list()
 
             filtered = list()
             for index, (line, old_line) in enumerate(
@@ -346,7 +325,11 @@ class _Editor:
 
             print(''.join(filtered), end='\r', flush=True)
 
-            last_print = time()
+            if ok_flag:
+                missed = 0
+            else:
+                missed += 1
+
             old_screen = new_screen
 
 
