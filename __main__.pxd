@@ -1,2 +1,3 @@
-from vy.editor cimport Editor
-cdef public Editor VY
+from vy cimport editor
+
+#cdef public Editor VY

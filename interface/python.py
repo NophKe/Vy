@@ -53,8 +53,7 @@ def loop(editor):
         except SystemExit:
             pass
 
-        name_space = None
-        #console.save_history()
-        return 'normal'
     finally:
         editor.start_async_io()
+        name_space = None
+        return 'normal'

@@ -305,15 +305,14 @@ class _Editor:
         ok_flag = True
 
         while self._async_io_flag:
-            sleep(0.02)
+            sleep(0.04) # cant try more than  25fps
 
             if ok_flag and not self._input_queue.qsize() > 1:
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
             else:
-                infobar(' ___ SCREEN DISABLED STOP TOUCHING KEYBOARD___ ',
+                infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
                 f'Failed: {missed} time(s), '
                 f'waiting keystrokes: {self._input_queue.qsize()}')
-
 
             new_screen, ok_flag = self.screen.get_line_list()
 
@@ -325,25 +324,30 @@ class _Editor:
 
             print(''.join(filtered), end='\r', flush=True)
 
-            if ok_flag:
-                missed = 0
-            else:
-                missed += 1
-
+            missed = missed + 1 if not ok_flag else 0
             old_screen = new_screen
 
 
     def input_loop(self):
+        #reader = visit_stdin()
+        #while self._async_io_flag:
+            #key_press = next(reader)
+            #if key_press:
+                #self._input_queue.put(key_press)
+            #else:
+                #pass
+#
         for key_press in visit_stdin():
             if not self._async_io_flag:
                 break
             elif not key_press:
+                sleep(0)
                 continue
             self._input_queue.put(key_press)
+            sleep(0)
 
     def start_async_io(self):
         assert not self._async_io_flag
-        assert not self._running
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()

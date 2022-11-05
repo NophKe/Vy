@@ -51,17 +51,16 @@ cdef class _Editor:
     cpdef void start_async_io(self)
     cpdef void stop_async_io(self)
 
-    @locals(old_screen=list,
-            to_print=str,
-            index=Py_ssize_t,
-            new_screen=list,
-            filtered=list,
-            last_print=int,
-            stop=bint,
-            delta=int,
-            tasks=int,
-            line=str,
-            old_line=str)
+    #@locals(old_screen=list,
+            #to_print=str,
+            #index=Py_ssize_t,
+            #new_screen=list,
+            #filtered=list,
+            #last_print=int,
+            #stop=bint,
+            #tasks=int,
+            #line=str,
+            #old_line=str)
     cpdef void print_loop(self)
     cpdef void input_loop(self)
     cpdef void _init_actions(self)

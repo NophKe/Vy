@@ -20,7 +20,7 @@ def loop(editor):
             motion_cmd = curbuf.motion_commands
             local_actions = curbuf.actions 
             dictionary.clear()
-            dictionary.update(motion_cmd)
+            #dictionary.update(motion_cmd)
             dictionary.update(editor.actions.normal)
             dictionary.update(local_actions)
 
@@ -50,7 +50,7 @@ def loop(editor):
                 continue
             key = get_char()
 
-        if key in '123456789': # No zero allowed
+        if key in '123456789': # No zero here
             while key in '0123456789':
                 COUNT += key
                 key = get_char()
@@ -69,12 +69,12 @@ def loop(editor):
 
         #from vy.editor import BP; BP()
 
-        if key in motion_cmd and dictionary[key] is motion_cmd[key]:
-            editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
-            for _ in range(COUNT):
-                curbuf.move_cursor(key)
-            editor.screen.minibar('')
-            continue
+        #if key in motion_cmd: #and dictionary[key] is motion_cmd[key]:
+            #editor.screen.minibar(f' ( Processing Command {_escape(key)} {COUNT} times )')
+            #for _ in range(COUNT):
+                #curbuf.move_cursor(key)
+            #editor.screen.minibar('')
+            #continue
 
         #from vy.editor import BP
         #BP()
@@ -84,14 +84,14 @@ def loop(editor):
 
         if action.atomic:
             editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
-            rv = action(editor)
+            rv = action(editor, count=COUNT)
             editor.screen.minibar('')
             if rv and rv != 'normal':
                 return rv
             continue
 
         elif action.stand_alone:
-            editor.screen.minibar(f' ( Processing Command: {_escape(key)} )')
+            editor.screen.minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
             rv = action(editor, reg=REG if REG else '"', count=COUNT)
             editor.screen.minibar('')
             if rv and rv != 'normal':
@@ -109,7 +109,7 @@ def loop(editor):
 
             if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
                 COUNT = COUNT * MOTION_COUNT
-                editor.screen.minibar(f'( Processing Command: {_escape(CMD)} on {COUNT} lines )')
+                editor.screen.minibar(f'( Processing Command: {COUNT} {_escape(CMD)} )')
                 RANGE = curbuf._get_range(f'#.:#+{COUNT}')
                 rv = action(editor, reg=REG if REG else '"', part=RANGE)
                 editor.screen.minibar('')

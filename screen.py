@@ -1,11 +1,10 @@
-"""This module is a mess that handles screen rendering"""
-#from functools import cache
-
-from time import time, sleep, asctime
+"""
+This module is a mess that handles screen rendering.
+"""
 from os import get_terminal_size
 from sys import stdout
-from vy.global_config import DEBUG
 
+from vy.global_config import DEBUG
 
 def get_rows_needed(number):
     if number < 800: return 3
@@ -14,7 +13,6 @@ def get_rows_needed(number):
     elif number < 999800: return 6
     return len(str(number))
 
-#@cache
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     #assert '/n' not in text
     number = f'{on_lin:{get_rows_needed(on_lin)}}: '
@@ -178,7 +176,7 @@ class Window():
             
     def change_buffer(self, new_buffer):
         assert self._v_split_flag is False
-        self.buff = buff
+        self.buff = new_buffer
         return self
             
     def merge_from_left_panel(self):
@@ -303,22 +301,20 @@ class Screen(Window):
         self.parent = self
         self.shift_to_lin = 0
         self.shift_to_col = 0
-        self._infobar_txt = ''
+        self._infobar_right = ''
+        self._infobar_left = ''
         self._minibar_txt = ['']
         self._minibar_completer = []
 
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
-        #self.recenter(0)
 
     def vsplit(self):
         if self.focused != self:
             self.focused.vsplit()
         else:
             super().vsplit().set_focus()
-
-    #def recenter(self, discard_lines=0):
 
     @property
     def number_of_col(self):
@@ -333,7 +329,7 @@ class Screen(Window):
 
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        self._number_of_lin = lines - len(minibar) - 1 # 1 for infobar
+        self._number_of_lin = lines - len(minibar) - 1 # infobar is allways 1 line
 
         curwin = self.focused
         try:
@@ -343,16 +339,18 @@ class Screen(Window):
             elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
                 curwin.shift_to_lin = lin - self.number_of_lin + 1
         except ValueError:
-            pass
+            ok_flag = False
 
         try:
             rv = self.gen_window()
-            ok_flag = True
         except RuntimeError:
             rv = [''] * self.number_of_lin
             ok_flag = False
+        else:
+            ok_flag = True
 
-        rv.append(self._infobar_txt)
+
+        rv.append(self.infobar_txt)
         rv.extend(minibar)
         return rv, ok_flag
 
@@ -363,32 +361,36 @@ class Screen(Window):
         self._minibar_completer.extend(lines)
 
     def minibar(self, *lines):
-        if DEBUG:
-            return
+        #if DEBUG:
+            #return
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
     
     if DEBUG:
         @property
         def minibar_banner(self):
-            from vy.global_config import USER_DIR
-            from pprint import pformat
-            from __main__ import Editor as editor
-            debug_file = USER_DIR / "debugging_values"
-            to_print = ''
-            for line in debug_file.read_text().splitlines():
-                value = eval(line)
-                value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
-                to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-            rv = list()
-            for line in to_print.splitlines():
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-            for line in self._minibar_completer:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-            for line in self._minibar_txt:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-            rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0))
-            return rv
+            try:
+                from vy.global_config import USER_DIR
+                from pprint import pformat
+                from __main__ import Editor as editor
+                #from time import asctime
+                debug_file = USER_DIR / "debugging_values"
+                to_print = ''
+                for line in debug_file.read_text().splitlines():
+                    value = eval(line)
+                    value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
+                    to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+                rv = list()
+                for line in to_print.splitlines():
+                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                for line in self._minibar_completer:
+                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                for line in self._minibar_txt:
+                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                #rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0))
+                return rv
+            except Exception as exc:
+                return [f'{exc}']
     else:
         @property
         def minibar_banner(self):
@@ -400,6 +402,13 @@ class Screen(Window):
             return rv
 
     def infobar(self, left='', right=''):
+        self._infobar_left = left
+        self._infobar_right = right
+
+    @property
+    def infobar_txt(self):
+        left = self._infobar_left
+        right = self._infobar_right
         middle = int(self.number_of_col / 2)
         if len(right) + 5 > middle:
             right = right[:middle - 5] + '....'
@@ -410,7 +419,7 @@ class Screen(Window):
         else:
             left = left.ljust(middle, ' ')
         left = '\x1b[7m\x1b[1m' + left + '\x1b[0m'
-        self._infobar_txt = f"{left}{right}"
+        return f"{left}{right}"
 
     def hide_cursor(self):
         stdout.write('\x1b[0m\x1b[?25l')

@@ -87,18 +87,16 @@ class TextFile(BaseFile):
     Inherit from it to customize it.
     """
     modifiable = True
+
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
         self._lex_away_may_run = Event()
         self._lex_away_should_stop = Event()
         self._lexed_lines = list()
-        self.last_string = '\0'
-        self.last_compute = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
         
-        #self.update_callbacks.append(self._lexed_lines.clear)
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
 
@@ -115,40 +113,38 @@ class TextFile(BaseFile):
         self._lexer_proc.start()
 
     def lexer(self):
-            if self._lexer is None:
-                yield from ((0, '', f'\x1b[33m{val}\x1b[0m') 
-                                if val.startswith('#')
-                            else (0, '', val)
-                    for val in self.splited_lines)
-            else:
-                    yield from self._lexer(self.string)
+        if self._lexer is None:
+            yield from ((0, '', f'\x1b[33m{val}\x1b[0m') 
+                            if val.startswith('#')
+                        else (0, '', val)
+                for val in self.splited_lines)
+        else:
+                yield from self._lexer(self.string)
 
     def _lex_away(self):
         while True:
-            self._lexed_lines.clear()
             self._lex_away_may_run.wait()
-            sleep(0)
-            if self._lex_away_should_stop.is_set():
+            if self._lex_away_should_stop.wait(0.04):
                 continue
             with self._lock:
                 self.splited_lines
                 self.cursor_lin_col
                 self.number_of_lin
 
-                sleep(0)
                 if self._lex_away_should_stop.is_set():
                     continue
 
-
+                local_str = self.string
+                local_lexer = self.lexer()
+                    
                 line = list()
                 local_lexed = list()
 
-                for _, tok, val in self.lexer():
+                for _, tok, val in local_lexer:
                     tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
                     if '\n' in val:
                         if self._lex_away_should_stop.is_set():
                             break
-                        #sleep(0)
                         for token_line in val.splitlines(True):
                             if token_line.endswith('\n'):
                                 line.append(f'{tok}{token_line[:-1]} \x1b[0m')
@@ -163,38 +159,32 @@ class TextFile(BaseFile):
                         local_lexed.append(line)
                     self._lexed_lines = local_lexed
             self._lex_away_should_stop.wait()
+            self._lexed_lines.clear()
 
     def get_raw_screen(self, min_lin, max_lin):
-        if self.last_string is not self._string:
-
-            if self._lexed_lines and self._string:
-                self.last_compute = self._lexed_lines
-                self.last_string = self._string
-            elif self._splited_lines:
-                self.last_compute = self._splited_lines
-                self.last_string = '\0'
-            else:
-                raise RuntimeError # buffer in inconsistant state
+        if self._lexed_lines:
+            local_lexed = self._lexed_lines
+        elif self._splited_lines:
+            local_lexed = self._splited_lines
+        else:
+            raise RuntimeError # buffer in inconsistant state
 
         raw_line_list = list()
 
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
-            raise RuntimeError # buffer in inconsistant state
+            raise RuntimeError # _cusor_lin_col got invalidated
 
-        if not (nb_lines := self._number_of_lin):
-            raise RuntimeError # buffer in inconsistant state
-
-        for on_lin in range(min_lin, max_lin):
-            try:
-                raw_line_list.append(self.last_compute[on_lin].replace('\n', ' '))
-            except IndexError:
-                if nb_lines <= on_lin:
-                    for _ in range(on_lin, max_lin):
-                        raw_line_list.append(None)
-                    return cursor_lin, cursor_col, raw_line_list
-                else:
-                    raise RuntimeError
+        try:
+            for on_lin in range(min_lin, max_lin):
+                raw_line_list.append(local_lexed[on_lin].replace('\n', ' '))
+        except IndexError:
+            # check if number_of_lin is valid first
+            if self._number_of_lin and self._number_of_lin <= on_lin:
+                for _ in range(on_lin, max_lin):
+                    raw_line_list.append(None)
+            else:
+                raise RuntimeError # local_lexed got .clear() by other thread
 
         return cursor_lin, cursor_col, raw_line_list

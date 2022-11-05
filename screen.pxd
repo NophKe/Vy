@@ -1,4 +1,8 @@
+from os import get_terminal_size
+from sys import stdout
+
 from vy.filetypes.textfile cimport TextFile
+
 from cython cimport locals, final
 
 cdef int get_rows_needed(int number)
@@ -59,15 +63,15 @@ cdef class Window:
 cdef class Screen(Window):
     cdef int _number_of_lin
     cdef int _number_of_col
-    cdef str _infobar_txt
+    cdef str _infobar_right
+    cdef str _infobar_left
     cdef list _minibar_txt
     cdef list _minibar_completer
 
     @locals(rv=list)
-    cpdef list get_line_list(self)
+    cpdef tuple get_line_list(self)
     cdef void alternative_screen(self)
     cdef void original_screen(self)
-    cdef void recenter(self, int discard_lines=*)
     #, Py_ssize_t discard_lines=*, bint flash_screen=*)
     #cdef void minibar_completer(self, str *lines)
     #cdef void minibar(self, str *lines)

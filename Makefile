@@ -3,12 +3,14 @@ all: top_level filetypes_module interface_module
 filetypes_module: filetypes/basefile.so \
 				  filetypes/textfile.so \
 				  filetypes/__init__.so
+
 top_level: actions.so \
            keys.so \
 		   global_config.so \
 		   editor.so \
 		   screen.so \
 		   console.so 
+
 interface_module: interface/__init__.so \
                   interface/insert.so  \
 				  interface/command.so \
@@ -52,5 +54,6 @@ gcc-config:
 	${CC} $< -o $@
 
 %.c: %.py %.pxd
-	cython --fast-fail -Wextra -X warn.undeclared=True -X infer_types=True -a -3 $<
+	cython --fast-fail -Wextra -X infer_types=True -a -3 $<
+	#cython --fast-fail -Wextra -X warn.undeclared=True -X infer_types=True -a -3 $<
 	#cython --fast-fail -Wextra -X warn.unused_result=True -X warn.undeclared=True -X infer_types=True -a -3 $<

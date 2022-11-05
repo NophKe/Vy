@@ -21,23 +21,24 @@ cdef class BaseFile:
         str _string
         int _cursor
 
+        public tuple _cursor_lin_col # 
+        public int _number_of_lin    # but screen uses those vars
+        public list _splited_lines   # to only "visit" ephemeral values
+        public bint set_number       # TODO should go private
+        public bint set_wrap
+        public int set_tabsize
+
         str _repr
-        int _number_of_lin
         list update_callbacks
         list pre_update_callbacks
-        list _splited_lines
         list _lines_offsets
         object _lenght
         int _recursion
-        tuple _cursor_lin_col
         str _current_line
         object _lock
-        bint _no_undoing
+        #bint _no_undoing
         list undo_list
         list redo_list
-        public bint set_number
-        public bint set_wrap
-        public int set_tabsize
         public dict motion_commands
         public object cache_id
         public object path
@@ -67,7 +68,6 @@ cdef class BaseFile:
     cdef int find_normal_l(self)
     cdef int find_normal_h(self)
     cdef int find_next_WORD(self)
-    cdef int find_next_word(self)
     cdef int find_first_char_of_word(self)
     cdef int find_normal_b(self)
     cdef int find_next_non_delim(self)
@@ -81,8 +81,8 @@ cdef class BaseFile:
     cpdef int tell(self)
     cpdef seek(self, int offset=*, flag=*)
     cpdef void move_cursor(self, str offset_str)
-    cpdef void start_undo_record(self)
-    cpdef void stop_undo_record(self)
+    #cpdef void start_undo_record(self)
+    #cpdef void stop_undo_record(self)
     cpdef void set_undo_point(self)
     cpdef void undo(self)
     cpdef void redo(self)

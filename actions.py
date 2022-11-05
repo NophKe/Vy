@@ -12,6 +12,8 @@ from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
 from vy import keys as k
 
+########    DEBUGGING ################################################
+
 @atomic_commands('µ')
 def print_some(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -25,97 +27,170 @@ def print_some(editor, reg=None, part=None, arg=None, count=1):
     debug_file = USER_DIR / "debugging_values"
     to_print = ''
     for line in debug_file.read_text().splitlines():
-        #parent = editor
-        #for part in line.split('.'):
-            #if not part or part == '.':
-                #continue
         parent = eval(line)
         value = ('\n' + pformat(parent)).replace('\n', '\n\t')
         to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
     editor.warning(to_print)
-    #repr(editor.current_buffer.cursor_lin_col))
 
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
     editor.screen.minibar(str(Path('.').resolve()))
 
+########    start of motions #########################################
+
+
 @atomic_commands(f'i_{k.left} {k.left} h')
 def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
-    '''Move cursor one character left.'''
+    """
+    Move cursor one character left.
+    """
     lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin, col-1)
+    editor.current_buffer.cursor_lin_col = (lin, col-count)
 
 @atomic_commands(f'i_{k.down} {k.down} j + {k.C_M} {k.C_J} {k.CR}'
                  f'{k.C_J} {k.C_N}')
 def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
-    '''Move one line down.'''
+    """
+    Move one line down.
+    """
     lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin+1, col)
+    editor.current_buffer.cursor_lin_col = (lin+count, col)
 
 @atomic_commands(f'i_{k.up} {k.up} {k.C_P} k -')
 def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
-    '''Move one line up.'''
+    """
+    Move one line up.
+    """
     lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin-1, col)
+    editor.current_buffer.cursor_lin_col = (lin-count, col)
 
 @atomic_commands(f'l i_{k.right} {k.space} {k.right}')
 def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
-    '''Move cursor one character right.'''
+    """
+    Move cursor one character right.
+    """
     lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin, col+1)
+    editor.current_buffer.cursor_lin_col = (lin, col+count)
+
+@atomic_commands('0')
+def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor to end of line.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_begining_of_line()
+
+@atomic_commands(f'$ {k.end} i_{k.end}')
+def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor to end of line.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_end_of_line()
+
+@atomic_commands('G')
+def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor to end of file
+    """
+    # This does not correspond to the vim behaviour. In vim, G move to the last
+    # line on the first collumn, whereas dG deletes till the end of last line.
+    # In Vy, G is allways last collumn, last line.
+    curbuf = editor.current_buffer
+    curbuf.cursor = len(curbuf) - 1
+
+@atomic_commands(f'gg')
+def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor to first line first character.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = 0
+
+@atomic_commands(f'_')
+def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor to first line first character.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
+
+@atomic_commands(f'b i_{k.S_left} {k.S_left}')
+def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor one word backwards.
+    """
+    curbuf = editor.current_buffer
+    for _ in range(count):
+        curbuf.cursor = curbuf.find_normal_b()
+
+@atomic_commands(f'W i_{k.C_right} {k.C_right}')
+def do_normal_W(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor one WORD right.
+    """
+    curbuf = editor.current_buffer
+    for _ in range(count):
+        curbuf.cursor = curbuf.find_next_WORD()
+
+@atomic_commands(f'w i_{k.S_right} {k.S_right}')
+def do_normal_w(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor one word right.
+    """
+    curbuf = editor.current_buffer
+    for _ in range(count):
+        curbuf.cursor = curbuf.find_next_delim()
+
+########    end of motions ###########################################
+
+########    start of mode switching ##################################
+
+@atomic_commands(f'i {k.insert}')
+def insert_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Insert» mode at cursor position.
+    """
+    return 'insert'
+
+@atomic_commands(f': {k.C_W}:')
+def command_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Command» mode.
+    """
+    return 'command'
+
+@atomic_commands(':PYTHON :PY')
+def python__main__mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Python» mode in the __main__ name space.
+    """
+    from .interface import python
+    from __main__ import __dict__ as main_name_space
+    python.name_space = main_name_space
+    return 'python'
+
+@atomic_commands(':python :py')
+def python_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Python» mode.
+    """
+    return 'python'
+@atomic_commands(f'{k.escape} i_{k.escape} i_{k.C_C} :vi :visual :stopi :stopinsert')
+def normal_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «Normal» mode.
+    """
+    return 'normal'
 
 @atomic_commands('I')
 def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Starts «insert» mode at beginning of line.
+    """
     editor.current_buffer.move_cursor('#.')
     return 'insert'
-
-@sa_commands('J')
-def join_lines(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Joins the {count} next lines together.
-    """
-    with editor.current_buffer as curbuf:
-        for _ in range(count):
-            try:
-                newline = curbuf.lines_offsets[curbuf.cursor_line + 1]
-            except IndexError:
-                return
-            curbuf.move_cursor('$')
-            if not curbuf[curbuf.cursor].isspace():
-                del curbuf[newline - 1]
-            else:
-                curbuf[newline - 1] = ' '
-
-
-@sa_commands(f'{k.C_W}>')
-def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):
-    """
-    Increases window width to the right by {count} columns.
-    """
-    curwin = editor.current_window
-    if curwin.parent is curwin: #if it's screen itself
-        return
-    curwin.parent.move_v_split_right(count)
-
-@sa_commands(f'{k.C_W}<')
-def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
-    """
-    Increases window width to the left by {count} columns.
-    """
-    curwin = editor.current_window
-    if curwin.parent is curwin: #if it's screen itself
-        return
-    curwin.parent.move_v_split_left(count)
-
-@atomic_commands('?')
-def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
-    return 'search_backward'
-
-
-@atomic_commands('/')
-def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
-    return 'search_forward'
 
 @atomic_commands('o')
 def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
@@ -128,6 +203,13 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
         curbuf.insert_newline()
         return 'insert'
 
+@atomic_commands('?')
+def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
+    return 'search_backward'
+
+@atomic_commands('/')
+def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
+    return 'search_forward'
 
 @atomic_commands('O')
 def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
@@ -149,6 +231,42 @@ def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.current_buffer.move_cursor('$')
     return 'insert'
+
+@sa_commands('J')
+def join_lines(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Joins the {count} next lines together.
+    """
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            lin, col = curbuf.cursor_lin_col
+            if lin + 1 == curbuf.number_of_lin:
+                return
+            curbuf.current_line = curbuf.current_line.strip() + ' \n'
+            curbuf.cursor_lin_col = lin+1, 0
+            curbuf.current_line = curbuf.current_line.lstrip(' ')
+            curbuf.cursor_lin_col = lin, col
+            curbuf.join_line_with_next()
+
+@sa_commands(f'{k.C_W}>')
+def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):
+    """
+    Increases window width to the right by {count} columns.
+    """
+    curwin = editor.current_window
+    if curwin.parent is curwin: #if it's screen itself
+        return
+    curwin.parent.move_v_split_right(count)
+
+@sa_commands(f'{k.C_W}<')
+def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
+    """
+    Increases window width to the left by {count} columns.
+    """
+    curwin = editor.current_window
+    if curwin.parent is curwin: #if it's screen itself
+        return
+    curwin.parent.move_v_split_left(count)
 
 @atomic_commands('U u :u :un :undo')
 def undo(editor, reg=None, part=None, arg=None, count=1):
@@ -173,59 +291,9 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
     """
     Redo last undone action in the current buffer.
     """
-    if arg:
-        try:
-            count = int(arg)
-        except ValueError:
-            editor.screen.minibar(f'Wrong coount argument: {arg}')
-            return
     with editor.current_buffer as curbuf:
         for _ in range(count):
             editor.current_buffer.redo()
-
-
-@atomic_commands(f'i {k.insert}')
-def insert_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Insert» mode at cursor position.
-    """
-    return 'insert'
-
-
-@atomic_commands(f': {k.C_W}:')
-def command_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Command» mode.
-    """
-    return 'command'
-
-
-@atomic_commands(f'{k.escape} i_{k.escape} :vi :visual :stopi :stopinsert')
-def normal_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Normal» mode.
-    """
-    return 'normal'
-
-
-@atomic_commands(':PYTHON :PY')
-def python__main__mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Python» mode in the __main__ name space.
-    """
-    from .interface import python
-    from __main__ import __dict__ as main_name_space
-    python.name_space = main_name_space
-    return 'python'
-
-
-@atomic_commands(':python :py')
-def python_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Python» mode.
-    """
-    return 'python'
-
 
 #@with_args_commands(':nmap :nnoremap')
 #def do_nmap(editor, reg=None, part=None, arg=None, count=1):
@@ -341,6 +409,7 @@ def swap_case(editor, reg='_', part=None, arg=None, count=1):
         curbuf[part] = curbuf[part].swapcase()
         curbuf.cursor = part.stop
 
+########    command mode only ########################################
 
 @with_args_commands(":read :re :r")
 def read_file(editor, reg=None, part=None, arg=None, count=1):
@@ -366,8 +435,11 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
         editor.screen.minibar('Commmand needs arg!')
     else:
         editor.stop_async_io()
+        editor.screen.alternative_screen()
         err = system(arg)
+        system(f"read -p 'Command Finished with status: {err}, press enter.")
         editor.start_async_io()
+
         editor.warning(f'Command Finished with status: {err}')
 
 
@@ -718,10 +790,9 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curwin.shift_to_lin = max(curwin.number_of_lin, ( curwin.shift_to_lin
                                                     + curwin.number_of_lin))
-    with curbuf:
-        cursor_line = curbuf.cursor_line
-        if curwin.shift_to_lin > cursor_line:
-            curbuf.move_cursor(f'{curwin.shift_to_lin}')
+    current_line_idx = curbuf.current_line_idx
+    if curwin.shift_to_lin > current_line_idx:
+        curbuf.move_cursor(f'#{curwin.shift_to_lin}')
 
 @atomic_commands(f'{k.C_E}')
 def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
@@ -733,8 +804,8 @@ def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     if curwin.shift_to_lin < curbuf.number_of_lin:
         curwin.shift_to_lin += 1
-    cursor_line, _ = curbuf.cursor_lin_col
-    if curwin.shift_to_lin > cursor_line:
+    current_line_idx, _ = curbuf.cursor_lin_col
+    if curwin.shift_to_lin > current_line_idx:
         curbuf.move_cursor('j')
 
 
@@ -1036,11 +1107,12 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
     curbuf = editor.current_buffer
     #editor.stop_async_io()
     #breakpoint()
-    with curbuf:
-        for k, v in globals().items():
-            curbuf.insert('\n##########\n')
-            curbuf.insert(v.__doc__)
-        curbuf.string
+    #with curbuf:
+    for k, v in globals().items():
+        if not k.startswith('_'):
+            curbuf.insert(v.__doc__ + '\n')
+    curbuf.cursor = 0
+        #curbuf.string
 
 
 del sa_commands, full_commands, atomic_commands
