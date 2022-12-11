@@ -2,58 +2,54 @@ from ..global_config import USER_DIR
 from rlcompleter  import Completer 
 import readline
 from pathlib import Path
-from code import InteractiveConsole as Console
+from code import InteractiveConsole
 
-from vy.interface.helpers import CommandCompleter as VyCompleter
+class CommandCompleter:
+    def __init__(self, file):
+        histfile = USER_DIR / file
+        if not histfile.exists():
+            histfile.touch()
+        restric = set(histfile.read_text().splitlines(True))
+        histfile.write_text(''.join(restric))
+        self.histfile = histfile
 
-local_completer = VyCompleter('python_history')
-name_space = None
+    def __enter__(self):
+        self._old_history = [ readline.get_history_item(idx) 
+                                for idx in range(readline.get_current_history_length())]
+        self._old_complete = readline.get_completer() 
+        readline.set_completer_delims(' \t')
+        readline.set_history_length(1000)
+        readline.clear_history()
+        readline.read_history_file(self.histfile)
+        readline.parse_and_bind('tab: complete')
+  
+    def __exit__(self, *args, **kwargs):
+        readline.write_history_file(self.histfile)
+        readline.set_completer(self._old_complete)
+        readline.clear_history()
+        for item in self._old_history:
+            readline.add_history(item)
 
-#class Console(InteractiveConsole):
-    #def __init__(self, locals=None, filename="<console>", editor=None):
-        #self.editor = editor
-        #self.histfile = USER_DIR / 'python_history'
-        #if not self.histfile.exists():
-            #self.histfile.touch()
-        #InteractiveConsole.__init__(self, locals, filename)
-        #return
+local_completer = CommandCompleter('python_history')
 
-    #def raw_input(self, prompt=''):
-        #return self.editor.read_stdin_line(prompt)
-    
-    #def save_history(self):
-            #pass
-        
-    #def push(self, line):
-        #rv = super().push(line)
-        #if not rv:
-#
-            ##self.editor.show_screen(True)
-            ##self.screen.infobar()
-        #return rv
-
-def loop(editor):
+def loop(editor, source=None):
     try:
         editor.stop_async_io()
-        global name_space
-        if name_space is None:
-            print('\tuse :eval in a python source file to use its name_space.')
-            name_space = {}
-        else:
-            print()
-            print('\tBuffer correctly evaluated.')
-            print()
-
-        console = Console(locals=name_space)#, editor=editor)
+        console = InteractiveConsole(locals={'Editor': editor})#, editor=editor)
+        if source:
+            print('=====')
+            for line in source.splitlines(True):
+                if line != '\n':
+                    console.push(line)
+            print('=====')
         
         try:
             with local_completer:
-                readline.set_completer(Completer(name_space).complete)
+                readline.set_completer(Completer(console.locals).complete)
                 console.interact()
         except SystemExit:
             pass
+        return 'normal'
 
     finally:
         editor.start_async_io()
-        name_space = None
-        return 'normal'

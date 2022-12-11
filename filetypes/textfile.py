@@ -133,27 +133,30 @@ class TextFile(BaseFile):
 
                 if self._lex_away_should_stop.is_set():
                     continue
-
                 local_str = self.string
+                if self._lex_away_should_stop.is_set():
+                    continue
                 local_lexer = self.lexer()
+                if self._lex_away_should_stop.is_set():
+                    continue
                     
-                line = list()
+                line = ''
                 local_lexed = list()
 
                 for _, tok, val in local_lexer:
                     tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
                     if '\n' in val:
-                        if self._lex_away_should_stop.is_set():
-                            break
                         for token_line in val.splitlines(True):
+                            if self._lex_away_should_stop.is_set():
+                                break
                             if token_line.endswith('\n'):
-                                line.append(f'{tok}{token_line[:-1]} \x1b[0m')
+                                line += f'{tok}{token_line[:-1]} \x1b[0m'
                                 local_lexed.append(''.join(line))
-                                line.clear()
+                                line = ''
                             else:
-                                line.append(f'{tok}{token_line}\x1b[0m')
+                                line += f'{tok}{token_line}\x1b[0m'
                     else:
-                        line.append(f'{tok}{val}\x1b[0m')
+                        line += f'{tok}{val}\x1b[0m'
                 else:
                     if line: #No eof
                         local_lexed.append(line)

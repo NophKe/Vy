@@ -10,7 +10,8 @@ def Open_path(location):
     elif isinstance(location, str):
         location = Path(location).resolve()
     if not isinstance(location, Path):
-        raise TypeError('in function Open_path (Vy/filetypes/__init__.py) argument must be None, str or Path object')
+        raise TypeError('in function Open_path (Vy/filetypes/__init__.py)'
+                        ' argument must be None, str or Path object')
 
     location = location.resolve()
 

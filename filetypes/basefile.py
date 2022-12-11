@@ -12,14 +12,9 @@ class DummyLine:
      
     >>> x = DummyLine()
     >>> x.insert('FOO')
-    >>> x.string
-    'FOO'
     >>> x.cursor = 0
     >>> x.insert('\n12345')
     >>> x.backspace()
-    >>> x.string
-    '\n1234FOO'
-    >>> x.cursor = 0
     >>> x.suppr()
     >>> x.string
     '1234FOO'
@@ -435,6 +430,7 @@ class BaseFile:
         self.pre_update_callbacks = list()
         self.redo_list = list()
         self.undo_list = list()
+        self._undo_len = 0
 
         self.string = init_text
         self.cursor = cursor
@@ -486,7 +482,7 @@ class BaseFile:
             for func in self.update_callbacks:
                 func()
             self._lock.release()
-            self.compress_undo_list()
+            #self.compress_undo_list()
         return False
 
     def __len__(self):
@@ -602,13 +598,11 @@ class BaseFile:
             self._lenght = len(self._string)
             self._cursor_lin_col = ()
 
-    def compress_undo_list(self):
-        if sum(len(strings) for strings, _ in self.undo_list) > 200_000_000:
-            #divisor = max(len(self.undo_list)//3, 2) 
-            self.undo_list = [ item for index, item in enumerate(self.undo_list) 
-                                if (index == 0) 
-                                    or (index == len(self.undo_list)) 
-                                    or (index % 2 == 0)]
+    def _compress_undo_list(self):
+        old_len = len(self.undo_list) - 1
+        self.undo_list = [item for index, item in enumerate(self.undo_list) 
+                    if index % 2 == 1 or index == 0 or index == old_len]
+        self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
         
     def set_undo_point(self):
         if self._string and self._cursor:
@@ -616,11 +610,17 @@ class BaseFile:
         else:
             self.undo_list.append((self.string, self.cursor))
 
+        self._undo_len += len(self.string)
+
+        if self._undo_len > 10_000_000:
+            self._compress_undo_list()
+
     def undo(self):
         with self:
             try:
                 self.redo_list.append(self.undo_list.pop())
                 self.string, self.cursor = self.undo_list.pop()
+                self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
             except IndexError:
                 return
 
@@ -633,6 +633,7 @@ class BaseFile:
             self.undo_list.append((txt, pos))
             self.string = txt
             self.cursor = pos
+            self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
 
 ########    mots of what follow need to be rewritten using lock and new capacities
 ########    of BaseFile  and stop using string directly 

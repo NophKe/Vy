@@ -1,6 +1,9 @@
 from vy.interface.helpers import one_inside_dict_starts_with
 from vy.keys import _escape
 
+def init(editor):
+    global minibar
+    minibar = editor.screen.minibar
 
 def loop(editor):
     """ Normal mode event-loop function """
@@ -34,7 +37,7 @@ def loop(editor):
         if RANGE                : texte += ' Motion: ' + RANGE + ' '
         if key                  : texte += ' (not fully evaluated: ' + _escape(key) + ' )'
         if texte:
-            editor.screen.minibar(texte)
+            minibar(texte)
         return editor.read_stdin()
 
     while True:
@@ -46,7 +49,7 @@ def loop(editor):
         if key == '"':
             REG = get_char()
             if REG not in valid_registers:
-                editor.screen.minibar(f' ( Invalid register: {_escape(REG)} )')
+                minibar(f' ( Invalid register: {_escape(REG)} )')
                 continue
             key = get_char()
 
@@ -61,7 +64,7 @@ def loop(editor):
                 break
             key += get_char()
         else:
-            editor.screen.minibar(f' ( Invalid command: {_escape(key)} )')
+            minibar(f' ( Invalid command: {_escape(key)} )')
             continue
 
         if key in local_actions:
@@ -83,17 +86,17 @@ def loop(editor):
         action = dictionary[key]
 
         if action.atomic:
-            editor.screen.minibar(f' ( Processing Command {_escape(key)} )')
+            minibar(f' ( Processing Command {_escape(key)} )')
             rv = action(editor, count=COUNT)
-            editor.screen.minibar('')
+            minibar('')
             if rv and rv != 'normal':
                 return rv
             continue
 
         elif action.stand_alone:
-            editor.screen.minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
+            minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
             rv = action(editor, reg=REG if REG else '"', count=COUNT)
-            editor.screen.minibar('')
+            minibar('')
             if rv and rv != 'normal':
                 return rv
             continue
@@ -109,10 +112,10 @@ def loop(editor):
 
             if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
                 COUNT = COUNT * MOTION_COUNT
-                editor.screen.minibar(f'( Processing Command: {COUNT} {_escape(CMD)} )')
+                minibar(f'( Processing Command: {COUNT} {_escape(CMD)} )')
                 RANGE = curbuf._get_range(f'#.:#+{COUNT}')
                 rv = action(editor, reg=REG if REG else '"', part=RANGE)
-                editor.screen.minibar('')
+                minibar('')
                 if rv and rv != 'normal':
                     return rv
                 continue
@@ -121,13 +124,13 @@ def loop(editor):
                 if key in motion_cmd: break
                 else: key += get_char()
             else:
-                editor.screen.minibar(f'Invalid motion: {_escape(key)}')
+                minibar(f'Invalid motion: {_escape(key)}')
                 continue
             func = motion_cmd[key]
             RRANGE = func()
             COUNT = COUNT * MOTION_COUNT
 
-            editor.screen.minibar(f'( Processing Command: {_escape(CMD)}{COUNT}{_escape(key)} )')
+            minibar(f'( Processing Command: {_escape(CMD)}{COUNT}{_escape(key)} )')
 
             if isinstance(RRANGE, slice): # correct! discard COUNT in case of slice
                 old_pos, new_pos = RRANGE.start, RRANGE.stop
@@ -140,7 +143,7 @@ def loop(editor):
             RRANGE = slice(min(old_pos, new_pos), max(old_pos, new_pos))
 
             rv = action(editor, reg=REG if REG else '"', part=RRANGE)
-            editor.screen.minibar('')
+            minibar('')
             if rv and rv != 'normal':
                 return rv
             continue

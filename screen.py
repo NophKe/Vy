@@ -334,21 +334,20 @@ class Screen(Window):
         curwin = self.focused
         try:
             lin, col = curwin.buff._cursor_lin_col
+        except ValueError:
+            ok_flag = False
+        else:
             if lin < curwin.shift_to_lin:
                 curwin.shift_to_lin = lin
             elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
                 curwin.shift_to_lin = lin - self.number_of_lin + 1
-        except ValueError:
-            ok_flag = False
+            ok_flag = True
 
         try:
             rv = self.gen_window()
         except RuntimeError:
             rv = [''] * self.number_of_lin
             ok_flag = False
-        else:
-            ok_flag = True
-
 
         rv.append(self.infobar_txt)
         rv.extend(minibar)

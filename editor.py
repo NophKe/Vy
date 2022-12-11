@@ -16,7 +16,7 @@ from queue import Queue
 from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
-from vy.console import visit_stdin
+from vy.console import visit_stdin, input_timeout
 from vy.global_config import DEBUG
 
 class _Cache():
@@ -228,13 +228,14 @@ class _Editor:
         self.cache = _Cache()
         self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
+        self._old_screen = list()
         self.interface = Interface(self)
         self.command_line = command_line
         self._macro_keys = str()
         self._running = False
         self._async_io_flag = False
         self._work_stack = [self.cache[buff].path for buff in buffers]
-        self.command_list = list()
+        #self.command_list = list()
         self.current_mode = ''
         self._input_queue = Queue()
     
@@ -299,7 +300,7 @@ class _Editor:
 ### - replace self._asyncio_flag by a threading.Condition
 ###
     def print_loop(self):
-        old_screen = list()  
+        old_screen = self._old_screen
         infobar = self.screen.infobar
         missed = 0
         ok_flag = True
@@ -329,28 +330,21 @@ class _Editor:
 
 
     def input_loop(self):
-        #reader = visit_stdin()
-        #while self._async_io_flag:
-            #key_press = next(reader)
-            #if key_press:
-                #self._input_queue.put(key_press)
-            #else:
-                #pass
-#
-        for key_press in visit_stdin():
+        #for key_press in visit_stdin():
+        for key_press in input_timeout():
+            #sleep(0.01)
             if not self._async_io_flag:
                 break
             elif not key_press:
-                sleep(0)
                 continue
             self._input_queue.put(key_press)
-            sleep(0)
 
     def start_async_io(self):
         assert not self._async_io_flag
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()
+        self._old_screen.clear()
         self.screen.hide_cursor()
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop)
@@ -359,9 +353,8 @@ class _Editor:
         self.print_thread.start()
 
     def stop_async_io(self):
-        assert self._async_io_flag
         self._async_io_flag = False
-        self._input_queue.join()
+        self.input_thread.join()
         self.print_thread.join()
         if not DEBUG:
             self.screen.clear_screen()
@@ -398,6 +391,7 @@ class _Editor:
                     continue
                 except Exception as exc:
                     self.stop_async_io()
+                    print(self.screen.infobar_txt)
                     print(  'The following *unhandled* exception was encountered:\n  >  ' + repr(exc),
                             'indicating:\n  >  ' + str(exc) + '\n')
                     print_tb(exc.__traceback__)

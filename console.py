@@ -1,5 +1,6 @@
 """Helper function to deal with the linux console.
 """
+import select
 from termios import *
 from tty import *
 from sys import stdin
@@ -24,7 +25,7 @@ CC = 6
     #mode[LFLAG] = mode[LFLAG] & ~ECHO
     #tcsetattr(fd, when, mode)
 
-def setnonblocking(fd, when=TCSAFLUSH):
+def setnonblocking(fd, when=TCSANOW):
     mode = tcgetattr(fd)
     mode[CC][VMIN] = 0
     mode[CC][VTIME] = 0
@@ -70,6 +71,7 @@ def visit_stdin():
     try:
         tcsetattr(stdin, TCSANOW, mode)
         while True:
+            #select.select([stdin],[],[], 0.01)
             ret = stdin.read(1)
             if ret == '\x1b':
                 tcsetattr(stdin, TCSANOW, esc_mode)
@@ -84,3 +86,37 @@ def visit_stdin():
             yield ret
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
+
+def input_timeout():
+    old_mode = tcgetattr(stdin)
+    try:
+        setnonblocking(stdin)
+        setraw(stdin)
+        for key in visit_stdin():
+            time = select.select([stdin],[],[], 0.1)
+            yield key
+    finally:
+        tcsetattr(stdin, TCSAFLUSH, old_mode)
+
+if __name__ == '__main__':
+    print('testing vy.console module')
+    #import Path
+    from time import time
+    import select
+    
+    start = time()
+    count = 0
+    for key in visit_stdin():
+        count +=1
+        if count % 10 and (took := time() - start) > 1:
+            print(f'normal visit stdin {took = } {count = }')
+            break
+
+    start = time()
+    count = 0
+    for key in input_timeout():
+        count +=1
+        if count % 10 and (took := time() - start) > 1:
+            print(f'normal visit stdin {took = } {count = }')
+            break
+    

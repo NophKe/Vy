@@ -92,11 +92,14 @@ def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands('G')
 def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
     """
-    Move cursor to end of file
+    Move cursor to the end of file.
+    ---
+    NOTE:
+    This does not correspond to the vim behaviour. In vim, G move to the last
+    line on the first collumn, whereas dG deletes till the end of last line.
+    In Vy, G is allways last collumn, last line.
+    ---
     """
-    # This does not correspond to the vim behaviour. In vim, G move to the last
-    # line on the first collumn, whereas dG deletes till the end of last line.
-    # In Vy, G is allways last collumn, last line.
     curbuf = editor.current_buffer
     curbuf.cursor = len(curbuf) - 1
 
@@ -111,7 +114,7 @@ def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(f'_')
 def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     """
-    Move cursor to first line first character.
+    Move cursor to the first character of the current line.
     """
     curbuf = editor.current_buffer
     curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
@@ -332,16 +335,15 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
 @full_commands('c')
 def change(editor, reg='_', part=None, arg=None, count=1):
     """
-    Deletes the text from the cursor position to MOTION argument,
-    or inside MOTION if it resolves to as slice of the text.
-    The discarded text is also copied to the {register}.
-    Then starts 'insert' mode.
+    Deletes the text from the cursor position to MOTION argument, or inside
+    MOTION if it resolves to as slice of the text. The discarded text is also
+    copied to the {register}.  Then starts 'insert' mode.
     By default, if no register is specified the black hole "_ register is used.
     """
     with editor.current_buffer as curbuf:
-        stop = part.stop
-        start = part.start
-        if curbuf[stop - 1] == '\n':
+        stop = part.stop or len(curbuf) - 1
+        start = part.start or 0
+        if stop - 1 > start and curbuf[stop - 1] == '\n':
             stop = stop - 1
         editor.registr[reg] = curbuf[start:stop]
         del curbuf[start:stop]
@@ -666,8 +668,7 @@ def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
         curwin.parent.merge_from_left_panel()
 
 
-@with_args_commands(':vsplit :vs')
-@atomic_commands(f'{k.C_W}{k.C_V} {k.C_W}v')
+@atomic_commands(f':vsplit :vs {k.C_W}{k.C_V} {k.C_W}v')
 def do_vsplit(editor, reg=None, part=None, arg=None, count=1):
     """
     Splits the current window vertically. If an argument is given, use this
@@ -685,17 +686,17 @@ def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
     Use 'from __main__ import Editor' to make use of it.
     """
     from .interface import python
-    from traceback import print_tb
-    name_space = {}
-    try:
-        ret = exec(editor.current_buffer.getvalue(), name_space)
-        #editor.warning(f'eval returned {ret}')
-    except Exception as Err:
-        print_tb(Err.__traceback__)
-        editor.warning(f'buggy progrm: {Err}')
-        return 'normal'
-    python.name_space = name_space
-    return python.loop(editor)
+    #from traceback import print_tb
+    #name_space = {}
+    #try:
+        #ret = exec(editor.current_buffer.getvalue(), name_space)
+        ##editor.warning(f'eval returned {ret}')
+    #except Exception as Err:
+        #print_tb(Err.__traceback__)
+        #editor.warning(f'buggy progrm: {Err}')
+        #return 'normal'
+    #python.name_space = name_space
+    return python.loop(editor, source=editor.current_buffer.string)
 
 
 @atomic_commands(":quitall :quita :qall :qa")
