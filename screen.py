@@ -1,28 +1,23 @@
 """
 This module is a mess that handles screen rendering.
 """
+
 from os import get_terminal_size
 from sys import stdout
 
 from vy.global_config import DEBUG
 
-def get_rows_needed(number):
-    if number < 800: return 3
-    elif number < 9800: return 4
-    elif number < 99800: return 5
-    elif number < 999800: return 6
-    return len(str(number))
-
-def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
+def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len):
     #assert '/n' not in text
-    number = f'{on_lin:{get_rows_needed(on_lin)}}: '
+    number = f'{on_lin:{num_len}}: '
     line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
 
     retval: list = list()
     on_col: int = len(number)
     cursor_col += on_col - 1
     esc_flag: bool = False
-    cursor_flag: bool = False
+    cursor_flag: bool = cursor_lin == on_lin
+    cursor_char_flag = False
 
     char: str
     for char in text:
@@ -45,19 +40,20 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col)
             on_col = len(number)
             esc_flag = False
 
-        cursor_flag = on_col == cursor_col and on_lin == cursor_lin
-        if cursor_flag:
+        if cursor_flag and on_col == cursor_col:
+            cursor_char_flag = True
             line += '\x1b[5;7m'
 
         if char == '\t':
-            nb_of_tabs =  tab_size - (on_col % tab_size)
+            nb_of_tabs =  tab_size - ((on_col - len(number)) % tab_size)
             line += ' ' * nb_of_tabs
             on_col += nb_of_tabs
             cursor_col += (nb_of_tabs-1)
         else:
             on_col += 1
             line += char
-        if cursor_flag:
+        if cursor_char_flag:
+            cursor_char_flag = False
             line += '\x1b[25;27m'
 
     retval.append(line + (' ' * (max_col - on_col)))
@@ -263,7 +259,8 @@ class Window():
             min_lin = self.shift_to_lin
             max_lin = self.number_of_lin + self.shift_to_lin
             wrap = self.buff.set_wrap
-            number = self.buff.set_number
+            if (number := self.buff.set_number):
+                num_len = len(str(max_lin))
             tab_size = self.buff.set_tabsize
             default = f"~{' ':{max_col- 1}}"
             true_cursor = 0
@@ -279,7 +276,7 @@ class Window():
                 if on_lin == cursor_lin and true_cursor == 0:
                     true_cursor = len(line_list)
                 if number:
-                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len)
                 else:
                     to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
                 if wrap:
@@ -287,9 +284,12 @@ class Window():
                 else:
                     line_list.append(to_print[0])
 
+
             if wrap and true_cursor >= self.number_of_lin:
                 to_remove = 1 + true_cursor - self.number_of_lin
                 line_list = line_list[to_remove:]
+                line_list = line_list[:self.number_of_lin]
+                #assert len(line_list) == self.number_of_lin, f'{len(line_list) = }, {self.number_of_lin = }'
             return line_list 
 
 class Screen(Window):

@@ -4,13 +4,13 @@
 
 if __name__ != '__main__':
     raise ImportError(
-    'This file is the main entry point for the Vym Editor and '
+    'This file is the main entry point for the Vy Editor and '
     'is not supposed to be imported, but executed by: python -m vy')
 try:
     from . import global_config
 except ImportError:
     raise ImportError(
-    'This file is the main entry point for the Vym Editor and '
+    'This file is the main entry point for the Vy Editor and '
     'is not supposed to be executed outside the Vy package. Use: python -m Vy')
 
 ########   COMMAND LINE PARSING #############################

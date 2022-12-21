@@ -13,8 +13,11 @@ cdef:
 #cdef setnoecho(fd, when=*)
 
 @locals(mode=list)
+cdef setraw(fd, when=*)
+
+@locals(mode=list)
 cdef setnonblocking(fd, when=*)
 
 @locals(rv=str, esc_seq=str)
-cdef str get_a_key()
+cdef str getch()
 

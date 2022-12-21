@@ -7,6 +7,9 @@ by calling it from command line ('python keys.py'). In this case it will
 produce valid python statements as below.
 """
 
+# Control + misc
+C_rbra = '\x1d'
+
 # Shift + Arrow
 S_right = '\x1b\x5b\x31\x3b\x32\x43'
 S_left = '\x1b\x5b\x31\x3b\x32\x44'
@@ -48,6 +51,7 @@ C_E = '\x05'
 C_F = '\x06'
 C_G = '\x07'
 C_H = backspace = BS = '\x08'
+linux_backpace = '\x7f'
 C_I = '\x09'
 C_J = '\x0a'
 C_K = '\x0b'
@@ -106,7 +110,7 @@ def _escape(text):
     
 
 if __name__ == '__main__':
-    from vy.console import get_a_key
+    from vy.console import getch
     file_out = input('write to a file? give it a name or just type [enter] : ')
     if file_out:
         file_out = open(file_out, "w+")
@@ -115,7 +119,7 @@ if __name__ == '__main__':
 
     print('hit [SPACE] to leave.')
 
-    key_press = get_a_key()
+    key_press = getch()
     while (key_press  != ' '):
         name = input('give this key a name:')
         file_out.write(f"{name} = '")
@@ -128,4 +132,4 @@ if __name__ == '__main__':
                 file_out.write('x' + seq)
         file_out.write("'\n")
         file_out.flush()
-        key_press = get_a_key()
+        key_press = getch()

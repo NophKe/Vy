@@ -119,6 +119,15 @@ def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
 
+#@atomic_commands(f'B i_{k.C_left} {k.C_left}')
+#def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
+    #"""
+    #Move cursor one WORD backwards.
+    #"""
+    #curbuf = editor.current_buffer
+    #for _ in range(count):
+        #curbuf.cursor = curbuf.find_normal_B()
+
 @atomic_commands(f'b i_{k.S_left} {k.S_left}')
 def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -180,6 +189,7 @@ def python_mode(editor, reg=None, part=None, arg=None, count=1):
     Starts «Python» mode.
     """
     return 'python'
+
 @atomic_commands(f'{k.escape} i_{k.escape} i_{k.C_C} :vi :visual :stopi :stopinsert')
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -951,7 +961,7 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer['cursor'] = editor.read_stdin()
 
 
-@atomic_commands(f'i_{k.backspace} X')
+@atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
 def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character on the left of the cursor, joining current line
@@ -1069,10 +1079,11 @@ def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     """
     with editor.current_buffer as curbuf:
         curbuf.insert('\t')
-        orig = curbuf['0:$']   # TODO use current_line property
-        after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-        curbuf['0:$'] = after
-        curbuf.cursor += len(after) - len(orig)
+        if curbuf.set_expandtabs:
+            orig = curbuf['0:$']   # TODO use current_line property
+            after = orig.expandtabs(tabsize=curbuf.set_tabsize)
+            curbuf['0:$'] = after
+            curbuf.cursor += len(after) - len(orig)
 
 
 @atomic_commands("gf")
@@ -1113,7 +1124,7 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
         if not k.startswith('_'):
             curbuf.insert(v.__doc__ + '\n')
     curbuf.cursor = 0
-        #curbuf.string
+    curbuf.string
 
 
 del sa_commands, full_commands, atomic_commands

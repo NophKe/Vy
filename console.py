@@ -1,8 +1,9 @@
-"""Helper function to deal with the linux console.
 """
-import select
+Helper functions to deal with the linux console.
+"""
+
+from select import select
 from termios import *
-from tty import *
 from sys import stdin
 
 IFLAG = 0
@@ -13,17 +14,17 @@ ISPEED = 4
 OSPEED = 5
 CC = 6
 
-#class save_stdin_state:
-    #__slots__ = 'mode'
-    #def __enter__(self):
-        #self.mode = tcgetattr(stdin)
-    #def __exit__(self, *args):
-        #tcsetattr(stdin, TCSAFLUSH, self.mode)
-
-#def setnoecho(fd, when=TCSAFLUSH):
-    #mode = tcgetattr(fd)
-    #mode[LFLAG] = mode[LFLAG] & ~ECHO
-    #tcsetattr(fd, when, mode)
+def setraw(fd, when=TCSAFLUSH):
+    """Put terminal into a raw mode."""
+    mode = tcgetattr(fd)
+    mode[IFLAG] = mode[IFLAG] & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON)
+    mode[OFLAG] = mode[OFLAG] & ~(OPOST)
+    mode[CFLAG] = mode[CFLAG] & ~(CSIZE | PARENB)
+    mode[CFLAG] = mode[CFLAG] | CS8
+    mode[LFLAG] = mode[LFLAG] & ~(ECHO | ICANON | IEXTEN | ISIG)
+    mode[CC][VMIN] = 1
+    mode[CC][VTIME] = 0
+    tcsetattr(fd, when, mode)
 
 def setnonblocking(fd, when=TCSANOW):
     mode = tcgetattr(fd)
@@ -31,7 +32,7 @@ def setnonblocking(fd, when=TCSANOW):
     mode[CC][VTIME] = 0
     tcsetattr(fd, when, mode)
 
-def get_a_key():
+def getch():
     """
     This function reads an only one key from the keyboard and returns it.
     if this key is the <ESCAPE> key however, it checks if there are things
@@ -49,74 +50,33 @@ def get_a_key():
     tcsetattr(stdin, TCSAFLUSH, mode)
     return rv
 
-def visit_stdin():
+def getch_noblock():
     """
-    This is the couter-part of the get_a_key() function also defined in the
-    current module. visit_stdin() returns a generator yielding key strokes.
+    This is the couter-part of the getch() function also defined in the
+    current module. getch_noblock() returns a generator yielding key strokes
+    or None every 0.1 seconds
     """
     old_mode = tcgetattr(stdin)
-
-    mode = old_mode[:]
-    mode[IFLAG] = mode[IFLAG] & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON)
-    mode[OFLAG] = mode[OFLAG] & ~(OPOST)
-    mode[CFLAG] = mode[CFLAG] & ~(CSIZE | PARENB)
-    mode[CFLAG] = mode[CFLAG] | CS8
-    mode[LFLAG] = mode[LFLAG] & ~(ECHO | ICANON | IEXTEN | ISIG)
-    mode[CC][VMIN] = 0
-    mode[CC][VTIME] = 1
-    
-    esc_mode = mode[:]
-    esc_mode[CC][VTIME] = 0
-
     try:
-        tcsetattr(stdin, TCSANOW, mode)
+        setraw(stdin)           # First,
+        setnonblocking(stdin)   # Second, 
         while True:
-            #select.select([stdin],[],[], 0.01)
+            select([stdin],[],[], 0.1)       # wait for a character
+            # rely on .read(1) not splitting multi-bytes chars
             ret = stdin.read(1)
             if ret == '\x1b':
-                tcsetattr(stdin, TCSANOW, esc_mode)
-                esc_seq = stdin.read(1) # not sure if this part is useful
-                while esc_seq:          # maybe just act as in get_a_key()
+                esc_seq = stdin.read(1) 
+                while esc_seq:
+                    # While there are things left in the buffer this sould be 
+                    # considered as part of the escape sequence, but if we read 
+                    # <ESC> again this mean the user is holding the key. 
+                    # There is a subtil bug! if user holds a special key and
+                    # presses a normal key very quickly.... What can we do ?
                     if esc_seq == '\x1b':
                         yield ret
                         ret = ''
                     ret += esc_seq
                     esc_seq = stdin.read(1)
-                tcsetattr(stdin, TCSANOW, mode)
             yield ret
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
-
-def input_timeout():
-    old_mode = tcgetattr(stdin)
-    try:
-        setnonblocking(stdin)
-        setraw(stdin)
-        for key in visit_stdin():
-            time = select.select([stdin],[],[], 0.1)
-            yield key
-    finally:
-        tcsetattr(stdin, TCSAFLUSH, old_mode)
-
-if __name__ == '__main__':
-    print('testing vy.console module')
-    #import Path
-    from time import time
-    import select
-    
-    start = time()
-    count = 0
-    for key in visit_stdin():
-        count +=1
-        if count % 10 and (took := time() - start) > 1:
-            print(f'normal visit stdin {took = } {count = }')
-            break
-
-    start = time()
-    count = 0
-    for key in input_timeout():
-        count +=1
-        if count % 10 and (took := time() - start) > 1:
-            print(f'normal visit stdin {took = } {count = }')
-            break
-    

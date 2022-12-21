@@ -7,7 +7,7 @@ from vy import global_config
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
-    from pygments.lexers import guess_lexer_for_filename as guess
+    from pygments.lexers import guess_lexer_for_filename as guess_lexer
     from pygments.util import ClassNotFound
     from pygments.token import (Keyword, Name, Comment, 
                                 String, Error, Number, Operator, 
@@ -15,7 +15,7 @@ try:
     colorscheme = {
       '':                 '',
       Token:              '',
-      Whitespace:         'gray',         Comment:            '/gray/',
+      Whitespace:         '',             Comment:            '/gray/',
       Comment.Preproc:    'cyan',         Keyword:            '*blue*',
       Keyword.Type:       'cyan',         Operator.Word:      'magenta',
       Name.Builtin:       'cyan',         Name.Function:      'green',
@@ -57,7 +57,7 @@ def get_prefix(token):
         return colorscheme[token]
     except KeyError:
         accu = ''
-        for ttype in token.split('.'):
+        for ttype in repr(token).split('.'):
             if ttype in colorscheme:
                 colorscheme[token] = colorscheme[ttype]
             accu = f'{accu}{"." if accu else ""}{ttype}'
@@ -104,7 +104,7 @@ class TextFile(BaseFile):
             self._lexer = None
         else:
             try:
-                self._lexer = guess(str(self.path), self._string).get_tokens_unprocessed
+                self._lexer = guess_lexer(str(self.path), self._string).get_tokens_unprocessed
             except ClassNotFound:
                 self._lexer = None
         
@@ -130,33 +130,30 @@ class TextFile(BaseFile):
                 self.splited_lines
                 self.cursor_lin_col
                 self.number_of_lin
-
-                if self._lex_away_should_stop.is_set():
-                    continue
                 local_str = self.string
-                if self._lex_away_should_stop.is_set():
+                if self._lex_away_should_stop.wait(0.04):
                     continue
                 local_lexer = self.lexer()
-                if self._lex_away_should_stop.is_set():
-                    continue
-                    
                 line = ''
                 local_lexed = list()
 
                 for _, tok, val in local_lexer:
-                    tok = get_prefix(repr(tok)) # old, bad, too early, premature optimization
+                    if self._lex_away_should_stop.is_set():
+                        break
+                    tok = get_prefix(tok)
                     if '\n' in val:
                         for token_line in val.splitlines(True):
                             if self._lex_away_should_stop.is_set():
                                 break
                             if token_line.endswith('\n'):
-                                line += f'{tok}{token_line[:-1]} \x1b[0m'
-                                local_lexed.append(''.join(line))
+                                line += tok + token_line[:-1] + ' \x1b[0m'
+                                local_lexed.append(line)
                                 line = ''
                             else:
-                                line += f'{tok}{token_line}\x1b[0m'
+                                line += tok + token_line + '\x1b[0m'
+                                #line += f'{tok}{token_line}\x1b[0m'
                     else:
-                        line += f'{tok}{val}\x1b[0m'
+                        line += tok + val + '\x1b[0m'
                 else:
                     if line: #No eof
                         local_lexed.append(line)
@@ -165,19 +162,23 @@ class TextFile(BaseFile):
             self._lexed_lines.clear()
 
     def get_raw_screen(self, min_lin, max_lin):
-        if self._lexed_lines:
-            local_lexed = self._lexed_lines
-        elif self._splited_lines:
-            local_lexed = self._splited_lines
-        else:
-            raise RuntimeError # buffer in inconsistant state
-
         raw_line_list = list()
 
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
             raise RuntimeError # _cusor_lin_col got invalidated
+
+        if self._lexed_lines:
+            local_lexed = self._lexed_lines
+        elif self._splited_lines:
+            local_lexed = self._splited_lines
+        else:
+            sleep(0)
+            if self._splited_lines:
+                local_lexed = self._splited_lines
+            else:
+                raise RuntimeError # buffer in inconsistant state
 
         try:
             for on_lin in range(min_lin, max_lin):

@@ -15,7 +15,7 @@ cdef dict codes
 
 @locals( accu=str,
         ttype=str)
-cdef str get_prefix(str token)
+cdef str get_prefix(object token)
 
 @locals(result=str)
 cdef str _resolve_prefix(str color_string)

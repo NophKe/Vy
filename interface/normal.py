@@ -12,7 +12,7 @@ def loop(editor):
     last_buffer = curbuf = motion_cmd = local_actions = None
     valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
                             'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                            '+-*/.:%#"=' )
+                            '+-*/.:%#"=!' )
 
     def update_globals():
         """if the current buffer has changed, update the action dictionnary"""

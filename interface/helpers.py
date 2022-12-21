@@ -23,6 +23,7 @@ class Completer:
         self.screen = editor.screen
         self.buffer = DummyLine()
         self.dictionary = completion_dict
+        self.view_start = 0
 
     def __call__(self):
         """
@@ -90,17 +91,18 @@ class Completer:
             if completion != self.completion:
                 self.max_selected = len(completion) - 1
                 self.selected = 0
+                self.view_start = 0
                 self.completion = completion
             #to_print = [f'| {self.buffer.string}{k} ' if index != self.selected
                    #else f"|\x1b[7m {self.buffer.string}{k} \x1b[27m" 
                    #for index, k in enumerate(completion)]
             to_print = [f'| {k} ' if index != self.selected
                    else f"|\x1b[7m {k} \x1b[27m" 
-                   for index, k in enumerate(completion)]
+                   for index, k in enumerate(completion)][self.view_start:self.view_start+8]
             self.screen.minibar_completer(*to_print)
 
     def get_history(self):
-        return [item for item in self.history if item.startswith(self.buffer.string)][-7:]
+        return [item for item in self.history if item.startswith(self.buffer.string)] #[-7:]
 
 
     def get_complete(self):
@@ -136,6 +138,7 @@ class Completer:
     def give_up(self):
         self.state = ''
         self.selected = 0
+        self.view_start = 0
         self.completion = list()
 
     def move_left(self):
@@ -154,6 +157,11 @@ class Completer:
         else:
             self.selected = self.max_selected
 
+        if self.selected <= self.view_start:
+            self.view_start = self.selected
+        if self.selected > self.view_start + 7:
+            self.view_start = self.selected - 7
+
     def move_cursor_down(self):
         if not self.state:
             return
@@ -161,6 +169,11 @@ class Completer:
             self.selected = 0
         else:
             self.selected += 1
+
+        if self.selected <= self.view_start:
+            self.view_start = self.selected
+        if self.selected > self.view_start + 7:
+            self.view_start = self.selected - 7
 
     def select_item(self):
         item = self.completion[self.selected]

@@ -39,6 +39,7 @@ cdef class BaseFile:
         #bint _no_undoing
         list undo_list
         list redo_list
+        int _undo_len
         public dict motion_commands
         public object cache_id
         public object path
@@ -50,7 +51,7 @@ cdef class BaseFile:
     cpdef void insert_newline(self)
 
     cpdef _get_range(self,key)          # TODO why is it cpdef ?????
-    cpdef object _get_offset(self, key) # TODO why is it cpdef ?????
+    cpdef object _get_offset(self, key, default_start=*) # TODO why is it cpdef ?????
 
     cdef int find_end_of_line(self)
     cdef int find_end_of_word(self)
@@ -83,8 +84,8 @@ cdef class BaseFile:
     cpdef void move_cursor(self, str offset_str)
     #cpdef void start_undo_record(self)
     #cpdef void stop_undo_record(self)
-    cpdef void set_undo_point(self)
-    cpdef void undo(self)
-    cpdef void redo(self)
-    cpdef void save(self)
+    #cpdef void set_undo_point(self)
+    #cpdef void undo(self)
+    #cpdef void redo(self)
+    #cpdef void save(self)
     cpdef void save_as(self, new_path=*, override=*)

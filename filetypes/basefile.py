@@ -408,14 +408,20 @@ class BaseFile:
         self._lines_offsets.clear()
         self._lenght += len(value)
 
-    def __init__(self, set_number=True, set_wrap=False, 
-                set_tabsize=4, cursor=0, init_text='', 
+    def __init__(self,
+                set_number=True, 
+                set_wrap=False, 
+                set_tabsize=4, 
+                set_expandtabs=False, 
+                cursor=0, 
+                init_text='', 
                 path=None):
         self._repr = '' #TODO delete me ?
         self.path = path
         self.set_wrap = set_wrap
         self.set_number = set_number
         self.set_tabsize = set_tabsize
+        self.set_expandtabs = set_expandtabs
         self._number_of_lin = 0
         self._cursor = 0
         self._cursor_lin_col = ()
@@ -618,11 +624,14 @@ class BaseFile:
     def undo(self):
         with self:
             try:
+                if len(self.undo_list) == 1:
+                    self.undo_list.pop()
+                    return
                 self.redo_list.append(self.undo_list.pop())
                 self.string, self.cursor = self.undo_list.pop()
                 self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
             except IndexError:
-                return
+                pass
 
     def redo(self):
         with self:
@@ -755,6 +764,12 @@ class BaseFile:
             return self.cursor
         else:
             return self[:self.cursor].rfind(' ') + 1
+
+    #def find_normal_B(self):
+        #pos = self.tell()
+        #while (not self.string[pos].is_space()) or pos == 0:
+            #pos -=1
+        #return pos
 
     def find_normal_b(self):
         old_pos = self.tell()

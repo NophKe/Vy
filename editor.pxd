@@ -1,4 +1,8 @@
-#from vy.console cimport visit_stdin
+
+#from vy.console cimport getch_noblock
+# generator !!!  how to import ????
+
+
 from vy.screen cimport Screen 
 from vy.interface cimport Interface
 from vy.filetypes cimport Open_path

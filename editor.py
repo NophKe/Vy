@@ -16,7 +16,7 @@ from queue import Queue
 from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
-from vy.console import visit_stdin, input_timeout
+from vy.console import getch_noblock
 from vy.global_config import DEBUG
 
 class _Cache():
@@ -228,7 +228,6 @@ class _Editor:
         self.cache = _Cache()
         self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
-        self._old_screen = list()
         self.interface = Interface(self)
         self.command_line = command_line
         self._macro_keys = str()
@@ -300,39 +299,42 @@ class _Editor:
 ### - replace self._asyncio_flag by a threading.Condition
 ###
     def print_loop(self):
-        old_screen = self._old_screen
+        old_screen = list()
         infobar = self.screen.infobar
         missed = 0
         ok_flag = True
+        get_line_list = self.screen.get_line_list
+        left_keys = self._input_queue.qsize
 
         while self._async_io_flag:
             sleep(0.04) # cant try more than  25fps
 
-            if ok_flag and not self._input_queue.qsize() > 1:
+            if ok_flag and not left_keys() > 1:
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
             else:
                 infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
                 f'Failed: {missed} time(s), '
                 f'waiting keystrokes: {self._input_queue.qsize()}')
 
-            new_screen, ok_flag = self.screen.get_line_list()
+            new_screen, ok_flag = get_line_list()
 
-            filtered = list()
+            filtered = ''
             for index, (line, old_line) in enumerate(
-            zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                if line != old_line:
-                    filtered.append(f'\x1b[{index};1H{line}')
+                            zip(new_screen, chain(old_screen, repeat(''))),start=1):
+                if line != old_line and line:
+                    filtered += f'\x1b[{index};1H{line}'
 
-            print(''.join(filtered), end='\r', flush=True)
+            print(filtered, end='\r', flush=True)
 
             missed = missed + 1 if not ok_flag else 0
-            old_screen = new_screen
+            if ok_flag:
+                old_screen = new_screen
+                #self.screen.bottom()
+                #print(f'{self.screen.number_of_lin = } {len(old_screen) = }', end='\r')
 
 
     def input_loop(self):
-        #for key_press in visit_stdin():
-        for key_press in input_timeout():
-            #sleep(0.01)
+        for key_press in getch_noblock():
             if not self._async_io_flag:
                 break
             elif not key_press:
@@ -344,7 +346,6 @@ class _Editor:
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()
-        self._old_screen.clear()
         self.screen.hide_cursor()
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop)

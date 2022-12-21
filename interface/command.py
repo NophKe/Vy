@@ -33,7 +33,7 @@ def loop(self):
         cmd = user_input.strip()
 
     try:
-        action = self.actions.command[cmd]
+        action = self.actions.command[cmd.lstrip(':')]
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'

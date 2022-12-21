@@ -5,8 +5,6 @@ from vy.filetypes.textfile cimport TextFile
 
 from cython cimport locals, final
 
-cdef int get_rows_needed(int number)
-
 @locals(number=str,
         retval=list, 
         cursor_col=int, 
@@ -21,7 +19,8 @@ cdef list expandtabs_numbered(int tab_size,
                               str text, 
                               int on_lin, 
                               int cursor_lin, 
-                              int cursor_col)
+                              int cursor_col,
+                              int num_len)
 
 @locals(retval=list, 
         cursor_col=int, 
