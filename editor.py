@@ -78,7 +78,7 @@ class _Cache():
            return str(Path(key).resolve()) 
         elif isinstance(key, Path):
             return str(key.resolve() if not key.is_absolute() else key)
-        raise ValueError(f"key is type:{key.__class__}, int, str, or Path expected")
+        raise TypeError(f"key is type:{key.__class__}, int, str, or Path expected")
 
     def __delitem__(self, key):
         """ Use this function to delete a buffer from cache. """
@@ -94,9 +94,8 @@ class _Cache():
         return rv
 
     def __iter__(self):
-        for value in self._dic.values():
-            yield value
-    
+        yield from self._dic.values()    
+
     def __contains__(self, key):
         if self._make_key(key) in self._dic:
             return True
@@ -162,30 +161,6 @@ class _Register:
         else:
             raise RuntimeError
 
-#class _Actions:
-    #def __init__(self, instance):
-        #from vy.actions import __dict__ as action_dict
-        #self.insert = dict()
-        #self.command= dict()
-        #self.visual = dict()
-        #self.normal = dict()
-#
-        #for name, action in action_dict.items():
-            #if callable(action) and not name.startswith('_'):
-                #if action.v_alias:
-                    #for k in action.v_alias:
-                        #self.visual[k]= action
-                #if action.n_alias:
-                    #for k in action.n_alias:
-                        #self.normal[k]= action
-                #if action.i_alias:
-                    #for k in action.i_alias: 
-                        #self.insert[k]= action
-                #if action.c_alias:
-                    #for k in action.c_alias: 
-                        #self.command[k]= action
-                #
-########## end of class _Actions ##########
 class NameSpace:
     def __init__(self):
         self.insert = dict()

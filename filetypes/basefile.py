@@ -444,6 +444,7 @@ class BaseFile:
 
 
         self.motion_commands = {
+           'B'          : self.find_normal_B,
            'b'          : self.find_previous_delim,
            k.S_left     : self.find_previous_delim,
            k.C_left     : self.find_previous_delim,
@@ -771,7 +772,7 @@ class BaseFile:
             #pos -=1
         #return pos
 
-    def find_normal_b(self):
+    def find_normal_B(self):
         old_pos = self.tell()
         word_offset = self.find_first_char_of_word() 
         if word_offset == old_pos and word_offset != 0:

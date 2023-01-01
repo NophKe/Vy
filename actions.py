@@ -340,6 +340,7 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.warning(str(editor.cache))
     return 'normal'
+########    NEEDLE ###################################################
 
 
 @full_commands('c')
@@ -421,6 +422,17 @@ def swap_case(editor, reg='_', part=None, arg=None, count=1):
         curbuf[part] = curbuf[part].swapcase()
         curbuf.cursor = part.stop
 
+@atomic_commands("r")
+def do_r(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Replace the character under the cursor by next keystrike.
+    """
+    editor.current_buffer['cursor'] = editor.read_stdin()
+
+
+########    END OF NEEDLE ############################################
+
+
 ########    command mode only ########################################
 
 @with_args_commands(":read :re :r")
@@ -442,17 +454,13 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
     """
     Execute a system command.
     """
-    from os import system
+    from subprocess import run
     if not arg:
-        editor.screen.minibar('Commmand needs arg!')
+        editor.warning('Commmand needs arg!')
     else:
-        editor.stop_async_io()
-        editor.screen.alternative_screen()
-        err = system(arg)
-        system(f"read -p 'Command Finished with status: {err}, press enter.")
-        editor.start_async_io()
-
-        editor.warning(f'Command Finished with status: {err}')
+        completed = run(arg, capture_output=True, shell=True, text=True)
+        editor.screen.minibar_completer(*completed.stdout.splitlines())
+        editor.warning(f'Command Finished with status: {completed.check_returncode() or "OK"}')
 
 
 @with_args_commands(":chdir :chd :cd")
@@ -952,13 +960,11 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
         curbuf.cursor = offset + 1
         return
 
+@atomic_commands('*')
+def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
+    editor.registr['/'] = editor.current_buffer['iw']
+    do_normal_n(editor)
 
-@atomic_commands("r")
-def do_r(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Replace the character under the cursor by next keystrike.
-    """
-    editor.current_buffer['cursor'] = editor.read_stdin()
 
 
 @atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
@@ -1071,20 +1077,43 @@ def do_paste(editor, reg='"', part=None, arg=None, count=1):
     editor.current_buffer.insert(editor.registr[reg])
 
 
+@atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
+def do_insert_newline_or_completion(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Inserts the a newline or the selected completion.
+
+    """
+    if not editor.screen.minibar_completer:
+        editor.current_buffer.insert_newline()
+    else:
+        to_insert, to_delete = editor.screen.minibar_completer.select_item()
+        curbuf = editor.current_buffer
+        cursor = curbuf.cursor
+        curbuf[cursor - to_delete:cursor] = to_insert
+        curbuf.cursor += len(to_insert) - to_delete
+        editor.screen.minibar_completer.give_up()
+
 @atomic_commands('i_\t')
-def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
+def do_insert_expandtabs_or_browse_completion(editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts the necessery number of spaces to reach next level of indentation
 
     """
-    with editor.current_buffer as curbuf:
-        curbuf.insert('\t')
-        if curbuf.set_expandtabs:
-            orig = curbuf['0:$']   # TODO use current_line property
-            after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-            curbuf['0:$'] = after
-            curbuf.cursor += len(after) - len(orig)
-
+    completer = editor.screen.minibar_completer
+    if not completer:
+        completer.activate()
+    elif completer and len(completer.completion) > 1:
+        completer.move_cursor_down()
+    else:
+        with editor.current_buffer as curbuf:
+            curbuf.insert('\t')
+            if curbuf.set_expandtabs:
+                orig = curbuf['0:$']  # TODO use current_line property
+                after = orig.expandtabs(tabsize=curbuf.set_tabsize)
+                curbuf['0:$'] = after
+                curbuf.cursor += len(after) - len(orig)
+    #else:
+        #editor.screen.minibar_completer.move_cursor_down()
 
 @atomic_commands("gf")
 def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):

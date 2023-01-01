@@ -109,6 +109,77 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
 
+class CompletionBanner:
+    def __init__(self):
+        self.view_start = 0
+        self.max_selected = 0
+        self.selected = 0
+        self.completion = list()
+        self.pretty_completion = list()
+        self.prefix_len = 0
+        #self._bool = False
+    
+    def activate(self):
+        self.selected = 0
+        self._update()
+
+    def give_up(self):
+        self.selected = 0
+        self.pretty_completion.clear()
+
+    def __call__(self, completion=[], prefix=0):
+        if DEBUG:
+            return
+        if completion != self.completion:
+            self.prefix_len = prefix
+            self.max_selected = len(completion) - 1
+            self.selected = 0
+            self.view_start = 0
+            self.completion = completion
+            self.give_up()
+            #self._bool = False
+            #self._update()
+
+    def __iter__(self):
+        yield from self.pretty_completion[self.view_start:self.view_start+8]
+
+    def __bool__(self):
+        #return self._bool
+        return bool(len(self.pretty_completion)) # > 1 and self._bool
+
+    def move_cursor_up(self):
+        self._bool = True
+        if self.selected > 0:
+            self.selected -= 1
+        else:
+            self.selected = self.max_selected
+        self._update()
+
+    def move_cursor_down(self):
+        self._bool = True
+        if self.selected == self.max_selected:
+            self.selected = 0
+        else:
+            self.selected += 1
+        self._update()
+
+    def _update(self):
+        #selected = self.selected
+        self.pretty_completion = [
+            f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
+                   for index, k in enumerate(self.completion)]
+
+        if self.selected <= self.view_start:
+            self.view_start = self.selected
+        if self.selected > self.view_start + 7:
+            self.view_start = self.selected - 7
+
+    def select_item(self):
+        if not self.pretty_completion:
+            return '', 0
+        return self.completion[self.selected], self.prefix_len
+
+
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
         self.left_panel = None
@@ -304,7 +375,8 @@ class Screen(Window):
         self._infobar_right = ''
         self._infobar_left = ''
         self._minibar_txt = ['']
-        self._minibar_completer = []
+        #self.minibar_completer = []
+        self.minibar_completer = CompletionBanner()
 
         columns, lines = get_terminal_size()
         self._number_of_col = columns
@@ -325,11 +397,10 @@ class Screen(Window):
         return self._number_of_lin
 
     def get_line_list(self):
-        minibar = self.minibar_banner
-
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        self._number_of_lin = lines - len(minibar) - 1 # infobar is allways 1 line
+        minibar = self.minibar_banner
+        self._number_of_lin = lines - len(minibar)
 
         curwin = self.focused
         try:
@@ -349,15 +420,9 @@ class Screen(Window):
             rv = [''] * self.number_of_lin
             ok_flag = False
 
-        rv.append(self.infobar_txt)
         rv.extend(minibar)
         return rv, ok_flag
 
-    def minibar_completer(self, *lines):
-        if DEBUG:
-            return
-        self._minibar_completer.clear()
-        self._minibar_completer.extend(lines)
 
     def minibar(self, *lines):
         #if DEBUG:
@@ -382,7 +447,7 @@ class Screen(Window):
                 rv = list()
                 for line in to_print.splitlines():
                     rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-                for line in self._minibar_completer:
+                for line in self.minibar_completer:
                     rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
                 for line in self._minibar_txt:
                     rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
@@ -394,8 +459,9 @@ class Screen(Window):
         @property
         def minibar_banner(self):
             rv = list()
-            for line in self._minibar_completer:
+            for line in self.minibar_completer:
                 rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+            rv.append(self.infobar_txt)
             for line in self._minibar_txt:
                 rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
             return rv
