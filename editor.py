@@ -304,9 +304,6 @@ class _Editor:
             missed = missed + 1 if not ok_flag else 0
             if ok_flag:
                 old_screen = new_screen
-                #self.screen.bottom()
-                #print(f'{self.screen.number_of_lin = } {len(old_screen) = }', end='\r')
-
 
     def input_loop(self):
         for key_press in getch_noblock():
@@ -356,8 +353,6 @@ class _Editor:
             self._running = True
 
             while True:
-                #if mode == 'exit':
-                    #break
                 try:
                     self.current_mode = mode if mode else self.current_mode
                     mode = self.interface(mode)

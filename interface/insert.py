@@ -1,30 +1,19 @@
 from vy.keys import C_C, _escape, C_J
 from vy.interface.helpers import one_inside_dict_starts_with
 
-from jedi import Script
-#from threading import Thread
-
 def loop(editor):
-
+    curbuf = editor.current_buffer
     def get_a_key():
-        curbuf = editor.current_buffer
-        lin, col = curbuf.cursor_lin_col
-        completions = Script(code=curbuf.string)
-        completions = completions.complete(line=lin+1, column=col-1)
-        if completions:
-            lengh = completions[0].get_completion_prefix_length()
-        else:
-            lengh = 0
-        completions = [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')]
-        editor.screen.minibar_completer(completions, prefix=lengh)
+        #completions, lengh = curbuf.completer()
+        #editor.screen.minibar_completer(*curbuf.completer())
         return editor.read_stdin()
 
-    curbuf = editor.current_buffer
     minibar = editor.screen.minibar
     dictionary = editor.actions.insert
 
     while True:
         user_input = get_a_key()
+        #editor.screen.minibar_completer.give_up()
         minibar('')
 
         if user_input in dictionary:
@@ -32,7 +21,7 @@ def loop(editor):
             rv = dictionary[user_input](editor)
             minibar('')
             if rv and rv != 'insert':
-                editor.screen.minibar_completer()
+                editor.screen.minibar_completer.give_up()
                 return rv
 
         elif user_input.isprintable() or user_input.isspace():
@@ -46,10 +35,12 @@ def loop(editor):
                     rv = dictionary[user_input](editor)
                     minibar('')
                     if rv and rv != 'insert':
-                        editor.screen.minibar_completer()
+                        editor.screen.minibar_completer.give_up()
                         return rv
                     break
             else:
+                editor.screen.minibar_completer.give_up()
                 minibar(f' ( Invalid command: {_escape(user_input)} )')
         else:
+            editor.screen.minibar_completer.give_up()
             minibar(f' ( Invalid command: {_escape(user_input)} )')

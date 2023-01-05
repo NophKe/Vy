@@ -30,9 +30,9 @@ class Completer:
         screen = self.screen
         reader = self.reader
 
-        self.update_minibar()
         try:
             while True:
+                self.update_minibar()
                 key = reader()
                 if key == k.backspace:
                     buffer.backspace()
@@ -59,13 +59,9 @@ class Completer:
                     buffer.insert(key)
                 else:
                     return
-
-                self.update_minibar_completer()
-                self.update_minibar()
-
         finally:
-            screen.minibar_completer()
-            screen.minibar()
+            screen.minibar_completer.give_up()
+            screen.minibar('')
 
     def select_item(self):
         to_insert, to_delete = self.screen.minibar_completer.select_item()
@@ -90,10 +86,11 @@ class Completer:
     
     def update_minibar_completer(self):
         if not self.state:
-            self.screen.minibar_completer()
+            self.screen.minibar_completer.give_up()
         else:
-            completion, prefix = getattr(self, 'get_' + self.state)()
-            self.screen.minibar_completer(completion, prefix)
+            completer = getattr(self, 'get_' + self.state)
+            #self.screen.minibar_completer(completion, prefix)
+            self.screen.minibar_completer.set_callbacks(lambda: completer(), lambda: False)
 
     def get_history(self):
         return [item for item in self.history if item.startswith(self.buffer.string)], len(self.buffer.string)
@@ -103,10 +100,10 @@ class Completer:
 
         if ' ' in user_input:
             cmd, arg = user_input.split(' ', maxsplit=1)
-            cmd = cmd.strip()
+            cmds = cmd.strip()
             args = arg.strip()
-            if cmd in self.dictionary and self.dictionary[cmd].with_args:   
-                rv = [str(k).removeprefix(args) for k in Path('.').iterdir() if str(k).startswith(args)]
+            if cmds in self.dictionary and self.dictionary[cmds].with_args:   
+                rv = [str(k) for k in Path('.').iterdir() if str(k).startswith(args)]
                 prefix = len(arg)
                 return rv, prefix
 

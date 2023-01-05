@@ -38,8 +38,9 @@ def loop(editor, source=None):
         console = InteractiveConsole(locals={'Editor': editor})#, editor=editor)
         if source:
             print('=====')
-            for line in source.splitlines(True):
-                if line != '\n':
+            for line in source.splitlines():
+                #editor.stop_async_io(); breakpoint()
+                if line and not line.isspace():
                     console.push(line)
             print('=====')
         

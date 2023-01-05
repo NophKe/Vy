@@ -1,8 +1,15 @@
 from time import sleep
 from threading import Thread, Event
+from queue import Queue
 
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
+
+try:
+    from jedi import Script
+    JEDI_INSTALLED = True
+except ImportError:
+    JEDI_INSTALLED = False
 
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
@@ -92,10 +99,15 @@ class TextFile(BaseFile):
         BaseFile.__init__(self, *args, **kwargs)
         self._lex_away_may_run = Event()
         self._lex_away_should_stop = Event()
+        self._lexer_waiting = Event()
+
         self._lexed_lines = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
+        self.pre_update_callbacks.append(self._lexer_waiting.wait)
+        self.pre_update_callbacks.append(self._lexer_waiting.clear)
+
         
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
@@ -109,8 +121,42 @@ class TextFile(BaseFile):
                 self._lexer = None
         
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
-        self._lex_away_may_run.set()
         self._lexer_proc.start()
+        self._lexer_waiting.wait()
+        self._lex_away_may_run.set()
+
+        self._complete_flag = False
+        if JEDI_INSTALLED:
+            if self.path:
+                if self.path.name.lower().endswith('.py'):
+                    self._complete_flag = True
+
+        self._completer = None, None
+
+    @property
+    def completer_engine(self):
+        with self._lock:
+            _, version = self._completer
+            if version != self._string:
+                self._completer = Script(code=self.string), self.string
+            return self._completer[0]
+
+    def check_completions(self):
+        _, version = self._completer
+        if self._string == version and self.cursor_lin_col == self._last_comp:
+            return False
+        return True
+
+    def get_completions(self):
+        if self._complete_flag and JEDI_INSTALLED:
+            with self._lock:
+                lin, col = self.cursor_lin_col
+                self._last_comp = lin, col
+                completions = self.completer_engine.complete(line=lin+1, column=col-1)
+                if completions:
+                    lengh = completions[0].get_completion_prefix_length()
+                    return [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')], lengh 
+        return [], 0
 
     def lexer(self):
         if self._lexer is None:
@@ -123,6 +169,7 @@ class TextFile(BaseFile):
 
     def _lex_away(self):
         while True:
+            self._lexer_waiting.set()
             self._lex_away_may_run.wait()
             if self._lex_away_should_stop.wait(0.04):
                 continue

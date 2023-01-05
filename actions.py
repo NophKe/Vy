@@ -459,7 +459,7 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
         editor.warning('Commmand needs arg!')
     else:
         completed = run(arg, capture_output=True, shell=True, text=True)
-        editor.screen.minibar_completer(*completed.stdout.splitlines())
+        editor.screen.minibar_completer(completed.stdout.splitlines())
         editor.warning(f'Command Finished with status: {completed.check_returncode() or "OK"}')
 
 
@@ -1100,20 +1100,25 @@ def do_insert_expandtabs_or_browse_completion(editor, reg=None, part=None, arg=N
 
     """
     completer = editor.screen.minibar_completer
+    curbuf = editor.current_buffer
     if not completer:
-        completer.activate()
-    elif completer and len(completer.completion) > 1:
-        completer.move_cursor_down()
+        lin, col = curbuf.cursor_lin_col
+        curline = curbuf.current_line
+        before = curline[:col]
+        previous_char = col - 1 if col != 0 else 0
+        if (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
+            completer.set_callbacks(lambda: curbuf.get_completions(), lambda: curbuf.check_completions())
+            return
     else:
-        with editor.current_buffer as curbuf:
-            curbuf.insert('\t')
-            if curbuf.set_expandtabs:
-                orig = curbuf['0:$']  # TODO use current_line property
-                after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-                curbuf['0:$'] = after
-                curbuf.cursor += len(after) - len(orig)
-    #else:
-        #editor.screen.minibar_completer.move_cursor_down()
+        completer.move_cursor_down()
+        return
+    with editor.current_buffer as curbuf:
+        curbuf.insert('\t')
+        if curbuf.set_expandtabs:
+            orig = curbuf['0:$']  # TODO use current_line property
+            after = orig.expandtabs(tabsize=curbuf.set_tabsize)
+            curbuf['0:$'] = after
+            curbuf.cursor += len(after) - len(orig)
 
 @atomic_commands("gf")
 def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):

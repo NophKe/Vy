@@ -117,38 +117,49 @@ class CompletionBanner:
         self.completion = list()
         self.pretty_completion = list()
         self.prefix_len = 0
-        #self._bool = False
-    
-    def activate(self):
-        self.selected = 0
-        self._update()
+        self.check_func = lambda: True
+        self.make_func = lambda: ([], 0)
+        self._active = False
 
+    def set_callbacks(self, make_func, check_func):
+        self.make_func = make_func
+        self.check_func = check_func
+        self.generate()
+        self._active = True
+    
     def give_up(self):
-        self.selected = 0
-        self.pretty_completion.clear()
+        self._active = False
 
     def __call__(self, completion=[], prefix=0):
-        if DEBUG:
-            return
-        if completion != self.completion:
+        #if not DEBUG and completion:
             self.prefix_len = prefix
             self.max_selected = len(completion) - 1
             self.selected = 0
             self.view_start = 0
+            self.check_func = lambda: False
+            self.make_func = lambda: (completion, prefix)
             self.completion = completion
-            self.give_up()
-            #self._bool = False
-            #self._update()
+            self._update()
+            self._active = True
+
+    def generate(self):
+        self.completion, self.prefix_len = self.make_func()
+        self.selected = 0
+        self.max_selected = len(self.completion) - 1
+        self.view_start = 0
+        self._update()
 
     def __iter__(self):
-        yield from self.pretty_completion[self.view_start:self.view_start+8]
+        if self._active:
+            if self.check_func():
+                self.generate()
+                self._update()
+            yield from self.pretty_completion[self.view_start:self.view_start+8]
 
     def __bool__(self):
-        #return self._bool
-        return bool(len(self.pretty_completion)) # > 1 and self._bool
+        return self._active
 
     def move_cursor_up(self):
-        self._bool = True
         if self.selected > 0:
             self.selected -= 1
         else:
@@ -156,7 +167,6 @@ class CompletionBanner:
         self._update()
 
     def move_cursor_down(self):
-        self._bool = True
         if self.selected == self.max_selected:
             self.selected = 0
         else:
@@ -164,21 +174,19 @@ class CompletionBanner:
         self._update()
 
     def _update(self):
-        #selected = self.selected
         self.pretty_completion = [
             f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
                    for index, k in enumerate(self.completion)]
-
         if self.selected <= self.view_start:
             self.view_start = self.selected
         if self.selected > self.view_start + 7:
             self.view_start = self.selected - 7
 
     def select_item(self):
-        if not self.pretty_completion:
+        if not self._active:
             return '', 0
+        self._active = False
         return self.completion[self.selected], self.prefix_len
-
 
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
