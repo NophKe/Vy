@@ -1,17 +1,6 @@
 Vy
 ===
 
-DISCLAIMER
-----------
-
-A lot of work have been put in this piece of sotware those las days.
-
-Some parts have become buggy, but most of it are because of api changes.
-
-This are minor bug, to be fixed soon.
-
-I hope to make a release during summer.
-
 What is Vy?
 -----------
 First, Vy is an experiment.
@@ -40,12 +29,14 @@ indirection.... Except when the problem is too many levels of indirection... »
 
 Vy is a **light** python implementation of the Vi text editor. It has 
 no external dependency outside standard lib. But it can use the Pygments
-library (if present) for syntax highlighting.  It aims to stay less than 10_000
-lines (including doc) and run on any modern python+linux machine.
+library (if present) for syntax highlighting, and Jedi (if present) for things like
+auto-completion, or python introspection related operations.  It aims to stay less than
+10_000 lines (including doc) and run on any modern python+linux machine.
 
 At the time of this writing, it it working enough so that I would prefer it to the
 traditionnal vi, and the ability to have the python repl inside the editor would
-make me prefer it over vim for python oriented stuff.
+make me prefer it over vim for python oriented stuff where you would like to evaluate
+expressions in real time.
 
 This is not supposed to be a clone of Vim or Vi. And this has important consquences.
 
@@ -62,10 +53,6 @@ waste the physical dial-up line.
 
 Nowaday, with no other information than the size of the terminal screen, it is easily 
 feasible to send a whole screen several times a second !
-
-Of course, the traditionnal approach would be to keep a cached version of the screen,
-in an opaque data structure burried into the program, but I claim my laptop can do 
-enough frames per seconds.
 
 Vym will never try to handle weird terminals. It makes minimal terminal manipulation,
 and will keep to very basic vt100/ANSI/«de facto» standard.
@@ -84,10 +71,10 @@ Implemented Features
 
 * Syntax highlighted through Pygments library
 * Linear undo/redo
-* Registers
-* Macros
-* Expantabs
-* Windows and vertical splits
+* Copy / paste and Registers
+* Macros (will be back soon)
+* Expandtabs
+* Windows with vertical splits
 * Most basic motions ( W w e E $ gg G b _ 0 h j k l )
 * Most basic 
 

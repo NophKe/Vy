@@ -21,7 +21,7 @@ class Folder(BaseFile):
         except AttributeError:
             cwd = Path().cwd().resolve()
             browsing  = self.path.resolve()
-            if not browsing.is_relative_to(cwd):
+            while not browsing.is_relative_to(cwd):
                 cwd = cwd.parent
             value =[ browsing, browsing.parent.resolve() ]
             value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()))

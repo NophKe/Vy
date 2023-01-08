@@ -280,9 +280,13 @@ class _Editor:
         ok_flag = True
         get_line_list = self.screen.get_line_list
         left_keys = self._input_queue.qsize
+        start = time()
 
         while self._async_io_flag:
             sleep(0.04) # cant try more than  25fps
+            if time() - start > 5:
+                old_screen = []
+                start = time()
 
             if ok_flag and not left_keys() > 1:
                 infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))

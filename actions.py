@@ -12,33 +12,50 @@ from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
 from vy import keys as k
 
-########    DEBUGGING ################################################
 
-@atomic_commands('µ')
-def print_some(editor, reg=None, part=None, arg=None, count=1):
+
+########    Work in progress  Start ##################################
+
+
+########    RUNTIME EVALUATION   ######################################
+
+@atomic_commands('Q')
+def ex_mode(editor, reg=None, part=None, arg=None, count=1):
+    return 'ex'
+@with_args_commands(':source%')
+def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
+    from __main__ import __dict__ as main_dict
+    exec(editor.current_buffer.string, main_dict)
+
+#@atomic_commands(':source :so :source! :so')
+#def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
+    #exec(editor.current_buffer.string)
+#
+
+########    Work in progress  Start ##################################
+
+
+
+
+########    MOTIONS (not valid command operator) #####################
+#
+# this means that for now you can't do things like dgd 
+# But should this be implemented?
+#
+# In vim, dgd is valid but d<page-down> is not! Why?
+
+@atomic_commands('gd')
+def goto_definition(editor, reg=None, part=None, arg=None, count=1):
     """
-    This command is used to print variables to debug.
-    It looks to a file called "debugging_values" from the user 
-    config directory. This file should contain a list of newline
-    separated variables from the editor object namespace.
+    Moves the cursor to the definition of the variable it is on.
     """
-    from vy.global_config import USER_DIR
-    from pprint import pformat
-    debug_file = USER_DIR / "debugging_values"
-    to_print = ''
-    for line in debug_file.read_text().splitlines():
-        parent = eval(line)
-        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
-        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-    editor.warning(to_print)
-
-@atomic_commands(':pwd :pw :pwd-verbose')
-def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
-    from pathlib import Path
-    editor.screen.minibar(str(Path('.').resolve()))
-
-########    start of motions #########################################
-
+    curbuf = editor.current_buffer
+    if curbuf.completer_engine is not None:
+        lin, col = curbuf.cursor_lin_col
+        loc = curbuf.completer_engine.goto(lin+1, col-1)
+        if loc:
+            lin, col = loc[0].get_definition_start_position()
+            curbuf.cursor_lin_col = lin-1, col+1 
 
 @atomic_commands(f'i_{k.left} {k.left} h')
 def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
@@ -119,14 +136,14 @@ def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
 
-#@atomic_commands(f'B i_{k.C_left} {k.C_left}')
-#def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
-    #"""
-    #Move cursor one WORD backwards.
-    #"""
-    #curbuf = editor.current_buffer
-    #for _ in range(count):
-        #curbuf.cursor = curbuf.find_normal_B()
+@atomic_commands(f'B i_{k.C_left} {k.C_left}')
+def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor one WORD backwards.
+    """
+    curbuf = editor.current_buffer
+    for _ in range(count):
+        curbuf.cursor = curbuf.find_normal_B()
 
 @atomic_commands(f'b i_{k.S_left} {k.S_left}')
 def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
@@ -135,7 +152,7 @@ def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     for _ in range(count):
-        curbuf.cursor = curbuf.find_normal_b()
+        curbuf.cursor = curbuf.find_previous_delim()
 
 @atomic_commands(f'W i_{k.C_right} {k.C_right}')
 def do_normal_W(editor, reg=None, part=None, arg=None, count=1):
@@ -245,6 +262,8 @@ def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer.move_cursor('$')
     return 'insert'
 
+########    COMMAND THAT MAY TAKE AN OPERATOR ########################
+
 @sa_commands('J')
 def join_lines(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -319,6 +338,11 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
 #    key, value = arg.split(' ', maxsplit=1)
 #    editor.current_buffer.stand_alone_commands[key] = lambda ed, reg, part, arg, count: ed.push_macro(value)
 
+@atomic_commands(':pwd :pw :pwd-verbose')
+def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
+    from pathlib import Path
+    editor.screen.minibar(str(Path('.').resolve()))
+
 @with_args_commands(':reg :registers :di :display')
 @atomic_commands(':reg :registers :di :display')
 def show_registers(editor, reg=None, part=None, arg=None, count=1):
@@ -327,7 +351,10 @@ def show_registers(editor, reg=None, part=None, arg=None, count=1):
     If an argument is given, only shows the content of this register.
     """
     if arg:
-        editor.warning(arg + ': ' + str(editor.registr[arg]))
+        if arg in editor.registr:
+            editor.warning(arg + ': ' + str(editor.registr[arg]))
+        else:
+            editor.warning(f'{arg} is not a valid register')
     else:
         editor.warning(str(editor.registr))
     return 'normal'
@@ -340,6 +367,7 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.warning(str(editor.cache))
     return 'normal'
+
 ########    NEEDLE ###################################################
 
 
@@ -1108,10 +1136,12 @@ def do_insert_expandtabs_or_browse_completion(editor, reg=None, part=None, arg=N
         previous_char = col - 1 if col != 0 else 0
         if (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
             completer.set_callbacks(lambda: curbuf.get_completions(), lambda: curbuf.check_completions())
-            return
+            if completer:
+                return
     else:
         completer.move_cursor_down()
         return
+
     with editor.current_buffer as curbuf:
         curbuf.insert('\t')
         if curbuf.set_expandtabs:
@@ -1143,6 +1173,9 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     return 'normal'
 
 
+
+########    DEBUGGING ################################################
+
 @atomic_commands(':HELP')
 def dump_help(editor, reg=None, arg=None, part=None, count=1):
     """
@@ -1150,16 +1183,33 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
     new unnamed buffer.
     """
     editor.edit(None)
-    curbuf = editor.current_buffer
-    #editor.stop_async_io()
-    #breakpoint()
-    #with curbuf:
-    for k, v in globals().items():
-        if not k.startswith('_'):
-            curbuf.insert(v.__doc__ + '\n')
-    curbuf.cursor = 0
-    curbuf.string
+    with editor.current_buffer as curbuf:
+        for k, v in globals().items():
+            if not k.startswith('_'):
+                curbuf.insert(v.__doc__ + '\n')
+        curbuf.cursor = 0
+        curbuf.string
 
+@atomic_commands('µ')
+def print_some(editor, reg=None, part=None, arg=None, count=1):
+    """
+    This command is used to print variables to debug.
+    It looks to a file called "debugging_values" from the user 
+    config directory. This file should contain a list of newline
+    separated variables from the editor object namespace.
+    """
+    from vy.global_config import USER_DIR
+    from pprint import pformat
+    debug_file = USER_DIR / "debugging_values"
+    to_print = ''
+    for line in debug_file.read_text().splitlines():
+        parent = eval(line)
+        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+    editor.warning(to_print)
+
+
+########    start of motions #########################################
 
 del sa_commands, full_commands, atomic_commands
 del with_args_commands, k

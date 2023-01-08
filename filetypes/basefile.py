@@ -464,7 +464,7 @@ class BaseFile:
            k.C_right    : self.find_next_WORD,
            'G'          : lambda: len(self) - 1,
            'gg'         : lambda: 0,
-           'cursor'     : lambda self: self.cursor,
+           'cursor'     : lambda: self.cursor,
            'e'          : self.find_end_of_word,
            'E'          : self.find_end_of_WORD,
            '$'          : self.find_end_of_line,
@@ -747,6 +747,7 @@ class BaseFile:
             return next_lin_offset + col - 1
 
     def find_next_WORD(self):
+#TODO CHeck for end of file
         cursor = self.cursor +1
         try:
             if not self[cursor].isspace(): 
@@ -754,8 +755,9 @@ class BaseFile:
                     cursor += 1
             while self[cursor].isspace(): 
                 cursor += 1
-            return cursor
         except IndexError:
+            pass
+        finally:
             return cursor
 
     def find_first_char_of_word(self):
@@ -766,22 +768,26 @@ class BaseFile:
         else:
             return self[:self.cursor].rfind(' ') + 1
 
-    #def find_normal_B(self):
-        #pos = self.tell()
-        #while (not self.string[pos].is_space()) or pos == 0:
-            #pos -=1
-        #return pos
-
     def find_normal_B(self):
-        old_pos = self.tell()
-        word_offset = self.find_first_char_of_word() 
-        if word_offset == old_pos and word_offset != 0:
-            self.seek(old_pos - 1)
-            rv = self.find_first_char_of_word()
-            self.seek(old_pos)
-            return rv
-        else:
-            return word_offset
+        pos = self.tell()
+        if self.string[pos].isspace():
+            while self.string[pos].isspace() or pos != 0:
+                pos -=1
+
+        while (not self.string[pos].isspace()) or pos != 0:
+            pos -=1
+        return pos
+#
+    #def find_normal_B(self):
+        #old_pos = self.tell()
+        #word_offset = self.find_first_char_of_word() 
+        #if word_offset == old_pos and word_offset != 0:
+            #self.seek(old_pos - 1)
+            #rv = self.find_first_char_of_word()
+            #self.seek(old_pos)
+            #return rv
+        #else:
+            #return word_offset
 
     def find_next_non_delim(self):
         global DELIMS

@@ -112,7 +112,7 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
 class CompletionBanner:
     def __init__(self):
         self.view_start = 0
-        self.max_selected = 0
+        self.max_selected = -1
         self.selected = 0
         self.completion = list()
         self.pretty_completion = list()
@@ -125,10 +125,11 @@ class CompletionBanner:
         self.make_func = make_func
         self.check_func = check_func
         self.generate()
-        self._active = True
+        if self.completion:
+            self._active = True
     
     def give_up(self):
-        self._active = False
+        self.__init__()
 
     def __call__(self, completion=[], prefix=0):
         #if not DEBUG and completion:
@@ -140,20 +141,23 @@ class CompletionBanner:
             self.make_func = lambda: (completion, prefix)
             self.completion = completion
             self._update()
-            self._active = True
+            if self.completion:
+                self._active = True
 
     def generate(self):
-        self.completion, self.prefix_len = self.make_func()
+        try:
+            self.completion, self.prefix_len = self.make_func()
+        except TypeError: #Jedi-completer returned None
+            return self.give_up()
         self.selected = 0
-        self.max_selected = len(self.completion) - 1
         self.view_start = 0
+        self.max_selected = len(self.completion) - 1
         self._update()
 
     def __iter__(self):
         if self._active:
             if self.check_func():
                 self.generate()
-                self._update()
             yield from self.pretty_completion[self.view_start:self.view_start+8]
 
     def __bool__(self):

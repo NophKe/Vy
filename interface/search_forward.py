@@ -22,6 +22,12 @@ def loop(editor):
     offset = curbuf.string.find(user_input, curbuf.cursor)
     if offset == -1:
         editor.warning('chaine de caractere non trouvée. (recherche vers l\'avant)')
+        offset = curbuf._string.find(user_input)
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+            return 'normal'
+        curbuf.cursor = offset
+    else:
+        curbuf.cursor = offset + 1
         return 'normal'
-    curbuf.cursor = offset
-    return 'normal'
+

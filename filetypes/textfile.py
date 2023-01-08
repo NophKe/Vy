@@ -1,16 +1,26 @@
 from time import sleep
 from threading import Thread, Event
-from queue import Queue
 
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
 
 try:
-    from jedi import Script
+    from jedi import Script, settings
+    settings.add_bracket_after_function = True
     JEDI_INSTALLED = True
 except ImportError:
     JEDI_INSTALLED = False
-
+    
+    def make_word_list(string):
+        from re import split
+        return set(split(r'[ :,()\[\]]|$', string))
+    
+    class Script:
+        def __init__(self, *args, **kwargs):
+            pass
+        def complete(lin,col):
+            return [], 0
+        
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
@@ -105,9 +115,8 @@ class TextFile(BaseFile):
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
-        self.pre_update_callbacks.append(self._lexer_waiting.wait)
-        self.pre_update_callbacks.append(self._lexer_waiting.clear)
-
+        #self.pre_update_callbacks.append(self._lexer_waiting.wait)
+        #self.pre_update_callbacks.append(self._lexer_waiting.clear)
         
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
@@ -138,7 +147,7 @@ class TextFile(BaseFile):
         with self._lock:
             _, version = self._completer
             if version != self._string:
-                self._completer = Script(code=self.string), self.string
+                self._completer = Script(code=self.string, path=self.path), self.string
             return self._completer[0]
 
     def check_completions(self):
@@ -148,15 +157,20 @@ class TextFile(BaseFile):
         return True
 
     def get_completions(self):
-        if self._complete_flag and JEDI_INSTALLED:
-            with self._lock:
-                lin, col = self.cursor_lin_col
-                self._last_comp = lin, col
+        with self._lock:
+            lin, col = self.cursor_lin_col
+            self._last_comp = lin, col
+            if self._complete_flag and JEDI_INSTALLED:
                 completions = self.completer_engine.complete(line=lin+1, column=col-1)
                 if completions:
                     lengh = completions[0].get_completion_prefix_length()
                     return [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')], lengh 
-        return [], 0
+            elif self._complete_flag:
+                # return super().get_completions() #TODO
+                return [], 0
+            else:
+                return [], 0
+
 
     def lexer(self):
         if self._lexer is None:
