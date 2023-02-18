@@ -21,7 +21,6 @@ def loop(editor):
             rv = dictionary[user_input](editor)
             minibar('')
             if rv and rv != 'insert':
-                editor.screen.minibar_completer.give_up()
                 return rv
 
         elif user_input.isprintable() or user_input.isspace():
@@ -35,12 +34,12 @@ def loop(editor):
                     rv = dictionary[user_input](editor)
                     minibar('')
                     if rv and rv != 'insert':
-                        editor.screen.minibar_completer.give_up()
+                        #editor.screen.minibar_completer.give_up()
                         return rv
                     break
             else:
-                editor.screen.minibar_completer.give_up()
+                #editor.screen.minibar_completer.give_up()
                 minibar(f' ( Invalid command: {_escape(user_input)} )')
         else:
-            editor.screen.minibar_completer.give_up()
+            #editor.screen.minibar_completer.give_up()
             minibar(f' ( Invalid command: {_escape(user_input)} )')

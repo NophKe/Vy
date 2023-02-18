@@ -243,7 +243,7 @@ class _Editor:
         self.screen.minibar(*msg.splitlines(), '\tpress any key to continue')
         self.read_stdin()
         self.screen.minibar('')
-        self.screen.minibar_completer()
+        self.screen.minibar_completer.give_up()
 
     def edit(self, location):
         """

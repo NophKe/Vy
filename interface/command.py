@@ -15,7 +15,7 @@ def loop(self):
 
     ARG = PART = REG = None
     try:
-        user_input = readline()
+        user_input = readline().lstrip()
     except KeyboardInterrupt:
         self.screen.minibar(' (Command aborted) ')
         return 'normal'

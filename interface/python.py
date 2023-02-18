@@ -46,7 +46,11 @@ def loop(editor, source=None):
         
         try:
             with local_completer:
-                readline.set_completer(Completer(console.locals).complete)
+                try:
+                    from jedi.utils import setup_readline
+                    setup_readline()
+                except ImportError:
+                    readline.set_completer(Completer(console.locals).complete)
                 console.interact()
         except SystemExit:
             pass

@@ -113,11 +113,11 @@ class CompletionBanner:
     def __init__(self):
         self.view_start = 0
         self.max_selected = -1
-        self.selected = 0
+        self.selected = -1
         self.completion = list()
         self.pretty_completion = list()
         self.prefix_len = 0
-        self.check_func = lambda: True
+        self.check_func = lambda: False
         self.make_func = lambda: ([], 0)
         self._active = False
 
@@ -127,22 +127,6 @@ class CompletionBanner:
         self.generate()
         if self.completion:
             self._active = True
-    
-    def give_up(self):
-        self.__init__()
-
-    def __call__(self, completion=[], prefix=0):
-        #if not DEBUG and completion:
-            self.prefix_len = prefix
-            self.max_selected = len(completion) - 1
-            self.selected = 0
-            self.view_start = 0
-            self.check_func = lambda: False
-            self.make_func = lambda: (completion, prefix)
-            self.completion = completion
-            self._update()
-            if self.completion:
-                self._active = True
 
     def generate(self):
         try:
@@ -154,14 +138,17 @@ class CompletionBanner:
         self.max_selected = len(self.completion) - 1
         self._update()
 
+    
+    def give_up(self):
+        self.__init__()
+
     def __iter__(self):
-        if self._active:
-            if self.check_func():
-                self.generate()
-            yield from self.pretty_completion[self.view_start:self.view_start+8]
+        if self.check_func():
+            self.generate()
+        yield from self.pretty_completion[self.view_start:self.view_start+8]
 
     def __bool__(self):
-        return self._active
+        return self._active #and self.selected > 0
 
     def move_cursor_up(self):
         if self.selected > 0:
@@ -187,10 +174,9 @@ class CompletionBanner:
             self.view_start = self.selected - 7
 
     def select_item(self):
-        if not self._active:
-            return '', 0
-        self._active = False
-        return self.completion[self.selected], self.prefix_len
+        if self.completion:
+            return self.completion[self.selected], self.prefix_len
+        return '', 0
 
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
@@ -439,6 +425,9 @@ class Screen(Window):
     def minibar(self, *lines):
         #if DEBUG:
             #return
+        for l in lines:
+            if l is None:
+                raise
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
     

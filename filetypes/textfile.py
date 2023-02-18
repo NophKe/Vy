@@ -8,19 +8,26 @@ try:
     from jedi import Script, settings
     settings.add_bracket_after_function = True
     JEDI_INSTALLED = True
+
 except ImportError:
     JEDI_INSTALLED = False
-    
+
+    class Script(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs):
+            pass
+        def complete(lin,col):
+            return None
+finally:
     def make_word_list(string):
         from re import split
         return set(split(r'[ :,()\[\]]|$', string))
     
-    class Script:
+    class FakeCompleter:
         def __init__(self, *args, **kwargs):
             pass
         def complete(lin,col):
-            return [], 0
-        
+            return None
+
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
@@ -109,8 +116,9 @@ class TextFile(BaseFile):
         BaseFile.__init__(self, *args, **kwargs)
         self._lex_away_may_run = Event()
         self._lex_away_should_stop = Event()
-        self._lexer_waiting = Event()
+        #self._lexer_waiting = Event()
 
+        self._lexed_cache = {}
         self._lexed_lines = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
@@ -131,23 +139,24 @@ class TextFile(BaseFile):
         
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
         self._lexer_proc.start()
-        self._lexer_waiting.wait()
+        #self._lexer_waiting.wait()
         self._lex_away_may_run.set()
 
         self._complete_flag = False
-        if JEDI_INSTALLED:
-            if self.path:
-                if self.path.name.lower().endswith('.py'):
-                    self._complete_flag = True
 
         self._completer = None, None
 
+    def _make_completer(self):
+        if self.path:
+            if self.path.name.lower().endswith('.py'):
+                return Script(code=self.string, path=self.path)
+        return FakeCompleter()
     @property
     def completer_engine(self):
         with self._lock:
             _, version = self._completer
             if version != self._string:
-                self._completer = Script(code=self.string, path=self.path), self.string
+                self._completer = self._make_completer(), self.string
             return self._completer[0]
 
     def check_completions(self):
@@ -160,17 +169,12 @@ class TextFile(BaseFile):
         with self._lock:
             lin, col = self.cursor_lin_col
             self._last_comp = lin, col
-            if self._complete_flag and JEDI_INSTALLED:
-                completions = self.completer_engine.complete(line=lin+1, column=col-1)
-                if completions:
-                    lengh = completions[0].get_completion_prefix_length()
-                    return [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')], lengh 
-            elif self._complete_flag:
-                # return super().get_completions() #TODO
-                return [], 0
+            completions = self.completer_engine.complete(line=lin+1, column=col-1)
+            if completions:
+                lengh = completions[0].get_completion_prefix_length()
+                return [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')], lengh 
             else:
                 return [], 0
-
 
     def lexer(self):
         if self._lexer is None:
@@ -183,7 +187,7 @@ class TextFile(BaseFile):
 
     def _lex_away(self):
         while True:
-            self._lexer_waiting.set()
+            #self._lexer_waiting.set()
             self._lex_away_may_run.wait()
             if self._lex_away_should_stop.wait(0.04):
                 continue
@@ -197,6 +201,8 @@ class TextFile(BaseFile):
                 local_lexer = self.lexer()
                 line = ''
                 local_lexed = list()
+                count = 0
+                local_dict = self._lexed_cache
 
                 for _, tok, val in local_lexer:
                     if self._lex_away_should_stop.is_set():
@@ -209,6 +215,8 @@ class TextFile(BaseFile):
                             if token_line.endswith('\n'):
                                 line += tok + token_line[:-1] + ' \x1b[0m'
                                 local_lexed.append(line)
+                                local_dict[self._splited_lines[count]] = line
+                                count += 1
                                 line = ''
                             else:
                                 line += tok + token_line + '\x1b[0m'
@@ -217,6 +225,7 @@ class TextFile(BaseFile):
                         line += tok + val + '\x1b[0m'
                 else:
                     if line: #No eof
+                        local_dict[self._splited_lines[count]] = line
                         local_lexed.append(line)
                     self._lexed_lines = local_lexed
             self._lex_away_should_stop.wait()
@@ -230,26 +239,25 @@ class TextFile(BaseFile):
         except ValueError:
             raise RuntimeError # _cusor_lin_col got invalidated
 
-        if self._lexed_lines:
-            local_lexed = self._lexed_lines
-        elif self._splited_lines:
-            local_lexed = self._splited_lines
+        if self._splited_lines:
+            local_split = self._splited_lines
         else:
-            sleep(0)
-            if self._splited_lines:
-                local_lexed = self._splited_lines
-            else:
-                raise RuntimeError # buffer in inconsistant state
+            raise RuntimeError # buffer in inconsistant state
 
         try:
             for on_lin in range(min_lin, max_lin):
-                raw_line_list.append(local_lexed[on_lin].replace('\n', ' '))
+                try:
+                    cur_lex = self._lexed_lines[on_lin]
+                except IndexError: 
+                    cur_lin = local_split[on_lin]
+                    cur_lex = self._lexed_cache.get(cur_lin, cur_lin.replace('\n',' '))
+                raw_line_list.append(cur_lex)
         except IndexError:
             # check if number_of_lin is valid first
             if self._number_of_lin and self._number_of_lin <= on_lin:
                 for _ in range(on_lin, max_lin):
                     raw_line_list.append(None)
             else:
-                raise RuntimeError # local_lexed got .clear() by other thread
+                raise RuntimeError # local_lexed or local_split got .clear() by other thread
 
         return cursor_lin, cursor_col, raw_line_list

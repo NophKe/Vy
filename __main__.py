@@ -1,4 +1,10 @@
 #!/usr/bin/python3 -m
+"""
+This file is the main entry point for the Vy Editor and is not supposed 
+to be executed outside the Vy package. This module is in charge of basic
+initialization. To see all available option on command line, use:
+ python -m vy --help
+"""
 
 #######   BASIC INITIALISATION #############################
 

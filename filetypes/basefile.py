@@ -1,7 +1,7 @@
 from threading import RLock
 from vy import keys as k
 
-DELIMS = ' ,;:/!%.{}()[]():\n'
+DELIMS = ' ,;:/!%.{}()[]():\n\t'
 
 class DummyLine:
     r"""
@@ -1041,8 +1041,7 @@ class BaseFile:
             if self.string[self.cursor+1] != '\n':
                 return self.cursor + 1
         except IndexError:
-            pass 
-        return self.cursor
+            return self.cursor
 
     def find_normal_h(self):
         r"""

@@ -93,7 +93,7 @@ def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands('0')
 def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
     """
-    Move cursor to end of line.
+    Move cursor to beginning of line.
     """
     curbuf = editor.current_buffer
     curbuf.cursor = curbuf.find_begining_of_line()
@@ -1106,23 +1106,15 @@ def do_paste(editor, reg='"', part=None, arg=None, count=1):
 
 
 @atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
-def do_insert_newline_or_completion(editor, reg=None, part=None, arg=None, count=1):
+def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts the a newline or the selected completion.
 
     """
-    if not editor.screen.minibar_completer:
-        editor.current_buffer.insert_newline()
-    else:
-        to_insert, to_delete = editor.screen.minibar_completer.select_item()
-        curbuf = editor.current_buffer
-        cursor = curbuf.cursor
-        curbuf[cursor - to_delete:cursor] = to_insert
-        curbuf.cursor += len(to_insert) - to_delete
-        editor.screen.minibar_completer.give_up()
+    editor.current_buffer.insert_newline()
 
 @atomic_commands('i_\t')
-def do_insert_expandtabs_or_browse_completion(editor, reg=None, part=None, arg=None, count=1):
+def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts the necessery number of spaces to reach next level of indentation
 
@@ -1137,10 +1129,9 @@ def do_insert_expandtabs_or_browse_completion(editor, reg=None, part=None, arg=N
         if (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
             completer.set_callbacks(lambda: curbuf.get_completions(), lambda: curbuf.check_completions())
             if completer:
-                return
-    else:
-        completer.move_cursor_down()
-        return
+                return 'completion'
+            else:
+                completer.give_up()
 
     with editor.current_buffer as curbuf:
         curbuf.insert('\t')
