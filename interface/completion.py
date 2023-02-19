@@ -57,6 +57,8 @@ def init(editor):
 def loop(editor):
     try:
         while True:
+            if not editor.screen.minibar_completer.completion:
+                return 'insert'
             key_press = editor.read_stdin()
             if key_press in completion_dict:
                 rv = completion_dict[key_press](editor)

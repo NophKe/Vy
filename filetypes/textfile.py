@@ -4,29 +4,41 @@ from threading import Thread, Event
 from vy.filetypes.basefile import BaseFile
 from vy import global_config
 
+from re import split
+make_word_set = lambda string: set(split(r'[{}\. :,()\[\]]|$', string))
+make_word_list = lambda string: split(r'[{}\. :,()\[\]]|$', string)
+
+class WordCompleter:
+    def __init__(self, code='', **kwargs):
+        self.code = code
+        self.split = code.splitlines()
+        self.words = set()
+        for line in self.split:
+            for w in make_word_set(line):
+                self.words.add(w)
+    def complete(self,line, column):
+        word_list = make_word_list(self.split[line-1 if line else 0][:column+1])
+        if len(word_list) >= 2:
+            word = word_list[-2]
+            return [item for item in self.words if item.startswith(word) and item != word], len(word)
+        return None
+
 try:
     from jedi import Script, settings
     settings.add_bracket_after_function = True
-    JEDI_INSTALLED = True
+    
+    class ScriptCompleter(Script):
+        def complete(self, line, column):
+            completion = super().complete(line=line, column=column)
+            if completion:
+                lengh = completion[0].get_completion_prefix_length()
+                return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
+            else:
+                return WordCompleter(code=self._code).complete(line=line, column=column)
+            return None
 
 except ImportError:
-    JEDI_INSTALLED = False
-
-    class Script(self, *args, **kwargs):
-        def __init__(self, *args, **kwargs):
-            pass
-        def complete(lin,col):
-            return None
-finally:
-    def make_word_list(string):
-        from re import split
-        return set(split(r'[ :,()\[\]]|$', string))
-    
-    class FakeCompleter:
-        def __init__(self, *args, **kwargs):
-            pass
-        def complete(lin,col):
-            return None
+    ScriptCompleter = WordCompleter
 
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
@@ -141,16 +153,13 @@ class TextFile(BaseFile):
         self._lexer_proc.start()
         #self._lexer_waiting.wait()
         self._lex_away_may_run.set()
-
-        self._complete_flag = False
-
         self._completer = None, None
 
     def _make_completer(self):
         if self.path:
             if self.path.name.lower().endswith('.py'):
-                return Script(code=self.string, path=self.path)
-        return FakeCompleter()
+                return ScriptCompleter(code=self.string, path=self.path)
+        return WordCompleter(code=self.string, path=self.path)
     @property
     def completer_engine(self):
         with self._lock:
@@ -171,8 +180,7 @@ class TextFile(BaseFile):
             self._last_comp = lin, col
             completions = self.completer_engine.complete(line=lin+1, column=col-1)
             if completions:
-                lengh = completions[0].get_completion_prefix_length()
-                return [item.name_with_symbols for item in completions if hasattr(item, 'name_with_symbols')], lengh 
+                return completions
             else:
                 return [], 0
 
@@ -192,7 +200,7 @@ class TextFile(BaseFile):
             if self._lex_away_should_stop.wait(0.04):
                 continue
             with self._lock:
-                self.splited_lines
+                local_split = self.splited_lines
                 self.cursor_lin_col
                 self.number_of_lin
                 local_str = self.string
@@ -215,7 +223,7 @@ class TextFile(BaseFile):
                             if token_line.endswith('\n'):
                                 line += tok + token_line[:-1] + ' \x1b[0m'
                                 local_lexed.append(line)
-                                local_dict[self._splited_lines[count]] = line
+                                local_dict[local_split[count]] = line
                                 count += 1
                                 line = ''
                             else:
@@ -225,6 +233,7 @@ class TextFile(BaseFile):
                         line += tok + val + '\x1b[0m'
                 else:
                     if line: #No eof
+                        # bug !
                         local_dict[self._splited_lines[count]] = line
                         local_lexed.append(line)
                     self._lexed_lines = local_lexed

@@ -20,13 +20,6 @@ For obvious unicode and encodings related issues, one should never rely on
 sys.stdin.read(1) to read an only one character. Moreover some characters like
 <CURSOR-UP> are historically mapped to an escape sequence consisting of multiple bytes.
 
-Implementing custom low level functions such as input() or print() used to be a common
-thing for 8 bits computers... But as soon as you want portability across various
-terminal implementation/emulation, the simpler soon becomes using libraries....
-
-« In computer programming, one may solve any problem by adding another level of
-indirection.... Except when the problem is too many levels of indirection... »
-
 Vy is a **light** python implementation of the Vi text editor. It has 
 no external dependency outside standard lib. But it can use the Pygments
 library (if present) for syntax highlighting, and Jedi (if present) for things like
@@ -69,15 +62,26 @@ will never handle binary files.
 Implemented Features
 --------------------
 
-* Syntax highlighted through Pygments library
+* Syntax highlighted through Pygments library (optionnal)
+* Auto-completion through Jedi library (optionnal)
 * Linear undo/redo
 * Copy / paste and Registers
 * Macros (will be back soon)
 * Expandtabs
 * Windows with vertical splits
 * Most basic motions ( W w e E $ gg G b _ 0 h j k l )
-* Most basic 
+* Most basic editing stuff...
 
+
+Q Mode
+------
+
+Fed up hiting the Q key in vim? In Vy this leads you to a python unique prompt
+where you can enter any valid python expression or statement or code block.
+
+The Vy editor is accessible by the «Editor» variable.
+    
+    >>> Editor.screen.vertical_split()
 
 
 Python Mode

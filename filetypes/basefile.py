@@ -1,3 +1,4 @@
+#from sys import intern
 from threading import RLock
 from vy import keys as k
 
@@ -310,7 +311,12 @@ class BaseFile:
         """
         with self._lock:
             if not self._splited_lines:
-                self._splited_lines = self._string.splitlines(True)
+                self._splited_lines = self.string.splitlines(True)
+                #local = []
+                #for line in self.string.splitlines(True):
+                #    local.append(intern(line))
+                #self._splited_lines = local
+                #return local
             return self._splited_lines
 
     @property
@@ -392,7 +398,7 @@ class BaseFile:
         self._lenght = len(self._string)
         self._current_line = ''
         self._cursor_lin_col = ()
-        self._splited_lines.clear()
+        self._splited_lines = []
 
 
     def _list_insert(self, value):
@@ -596,7 +602,7 @@ class BaseFile:
 
             self._current_line = ''
             self._number_of_lin = 0
-            self._splited_lines.clear()
+            self._splited_lines = []
             self._lines_offsets.clear()
             if not value.endswith(self.ending):
                 self._string = value + self.ending
@@ -612,15 +618,8 @@ class BaseFile:
         self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
         
     def set_undo_point(self):
-        if self._string and self._cursor:
-            self.undo_list.append((self._string, self._cursor))
-        else:
-            self.undo_list.append((self.string, self.cursor))
-
-        self._undo_len += len(self.string)
-
-        if self._undo_len > 10_000_000:
-            self._compress_undo_list()
+        if self._splited_lines and self._cursor_lin_col:
+            self.undo_list.append((self._splited_lines.copy(), self._cursor_lin_col))
 
     def undo(self):
         with self:
@@ -629,8 +628,10 @@ class BaseFile:
                     self.undo_list.pop()
                     return
                 self.redo_list.append(self.undo_list.pop())
-                self.string, self.cursor = self.undo_list.pop()
-                self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
+                txt, pos = self.undo_list.pop()
+                self.string = ''.join(txt)
+                self._splited_lines = txt
+                self.cursor_lin_col = pos
             except IndexError:
                 pass
 
@@ -641,9 +642,9 @@ class BaseFile:
                 return
             txt, pos = self.redo_list.pop()
             self.undo_list.append((txt, pos))
-            self.string = txt
-            self.cursor = pos
-            self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
+            self.string = ''.join(txt)
+            self._splited_lines = txt
+            self.cursor_lin_col = pos
 
 ########    mots of what follow need to be rewritten using lock and new capacities
 ########    of BaseFile  and stop using string directly 
@@ -777,6 +778,16 @@ class BaseFile:
         while (not self.string[pos].isspace()) or pos != 0:
             pos -=1
         return pos
+
+    def find_normal_B(self):
+        lin, col = self.cursor_lin_col
+        cur_lin = self.current_line
+        befor_cur = cur_lin[:col-1]
+        pos = befor_cur.rfind(' ')
+        _, off = self.current_line_off
+        if pos > 0:
+            return off + pos
+        return off
 #
     #def find_normal_B(self):
         #old_pos = self.tell()

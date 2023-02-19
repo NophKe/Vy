@@ -23,9 +23,10 @@ class Folder(BaseFile):
             browsing  = self.path.resolve()
             while not browsing.is_relative_to(cwd):
                 cwd = cwd.parent
-            value =[ browsing, browsing.parent.resolve() ]
-            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()))
+            value =[ browsing.parent.resolve(), browsing ]
+            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir() and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.name.startswith('.') and not x.is_dir()))
+            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir() and x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if x.name.startswith('.') and not x.is_dir()))
 
             self._values = [ val.resolve() for val in value ]
@@ -42,7 +43,7 @@ class Folder(BaseFile):
         for index in range(min_lin, max_lin):
             retval = ''
             if index == 1 or index == 0: #current or parent dir (., ..)
-                retval = '\x1b[00;25;35m'
+                retval = '\x1b[00;25;35;1m'
             if index == self.current_line_idx:
                 retval += '\x1b[2m'
             try:

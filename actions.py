@@ -732,16 +732,6 @@ def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
     Use 'from __main__ import Editor' to make use of it.
     """
     from .interface import python
-    #from traceback import print_tb
-    #name_space = {}
-    #try:
-        #ret = exec(editor.current_buffer.getvalue(), name_space)
-        ##editor.warning(f'eval returned {ret}')
-    #except Exception as Err:
-        #print_tb(Err.__traceback__)
-        #editor.warning(f'buggy progrm: {Err}')
-        #return 'normal'
-    #python.name_space = name_space
     return python.loop(editor, source=editor.current_buffer.string)
 
 
@@ -1124,9 +1114,8 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
     if not completer:
         lin, col = curbuf.cursor_lin_col
         curline = curbuf.current_line
-        before = curline[:col]
-        previous_char = col - 1 if col != 0 else 0
-        if (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
+        before = curline[:col-1]
+        if before and (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
             completer.set_callbacks(lambda: curbuf.get_completions(), lambda: curbuf.check_completions())
             if completer:
                 return 'completion'

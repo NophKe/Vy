@@ -106,6 +106,7 @@ def _escape(text):
         final += char
     if evaluing:
         final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+    #TODO insert assertion to check for '\t' or '\n' or alike in final
     return final
     
 

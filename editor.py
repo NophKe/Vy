@@ -364,7 +364,9 @@ class _Editor:
                     self.start_async_io()
                     mode = 'normal'
                     continue
-                except Exception as exc:
+                except SystemExit:
+                    raise
+                except BaseException as exc:
                     self.stop_async_io()
                     print(self.screen.infobar_txt)
                     print(  'The following *unhandled* exception was encountered:\n  >  ' + repr(exc),
