@@ -437,7 +437,6 @@ class Screen(Window):
             try:
                 from vy.global_config import USER_DIR
                 from pprint import pformat
-                from __main__ import Editor as editor
                 #from time import asctime
                 debug_file = USER_DIR / "debugging_values"
                 to_print = ''

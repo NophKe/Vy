@@ -769,15 +769,15 @@ class BaseFile:
         else:
             return self[:self.cursor].rfind(' ') + 1
 
-    def find_normal_B(self):
-        pos = self.tell()
-        if self.string[pos].isspace():
-            while self.string[pos].isspace() or pos != 0:
-                pos -=1
-
-        while (not self.string[pos].isspace()) or pos != 0:
-            pos -=1
-        return pos
+#    def find_normal_B(self):
+#        pos = self.tell()
+#        if self.string[pos].isspace():
+#            while self.string[pos].isspace() or pos != 0:
+#                pos -=1
+#
+#        while (not self.string[pos].isspace()) or pos != 0:
+#            pos -=1
+#        return pos
 
     def find_normal_B(self):
         lin, col = self.cursor_lin_col
@@ -947,7 +947,7 @@ class BaseFile:
                     else:
                         return len(self) - 1
             else:
-                raise TypeError(f'key sould be int or valid motion str') 
+                raise TypeError('key sould be int or valid motion str') 
 
     def __delitem__(self, key):
         with self:

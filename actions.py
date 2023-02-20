@@ -120,7 +120,7 @@ def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = len(curbuf) - 1
 
-@atomic_commands(f'gg')
+@atomic_commands('gg')
 def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to first line first character.
@@ -128,7 +128,7 @@ def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = 0
 
-@atomic_commands(f'_')
+@atomic_commands('_')
 def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to the first character of the current line.
@@ -314,7 +314,7 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
             return
     with editor.current_buffer as curbuf:
         for _ in range(count):
-            editor.current_buffer.undo()
+            curbuf.undo()
 
 
 #@with_args_commands(f'{k.C_R} :red :redo')
@@ -325,7 +325,7 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
     """
     with editor.current_buffer as curbuf:
         for _ in range(count):
-            editor.current_buffer.redo()
+            curbuf.redo()
 
 #@with_args_commands(':nmap :nnoremap')
 #def do_nmap(editor, reg=None, part=None, arg=None, count=1):

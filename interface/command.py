@@ -1,8 +1,4 @@
-from pathlib import Path
-from vy import keys as k
-from vy.filetypes.basefile import DummyLine
-from vy.global_config import USER_DIR
-from vy.interface.helpers import one_inside_dict_starts_with, Completer
+from vy.interface.helpers import Completer
 
 def init(editor):
     global readline

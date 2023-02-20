@@ -1,4 +1,3 @@
-from vy.interface.helpers import one_inside_dict_starts_with
 from vy import keys as k
 
 completion_dict = {}
@@ -7,8 +6,8 @@ insert_dict = {}
 def add_to_dict(*keys):
     def inner(func):
         global completion_dict
-        for k in keys:
-            completion_dict[k] = func
+        for k_ in keys:
+            completion_dict[k_] = func
         return func
     return inner
 

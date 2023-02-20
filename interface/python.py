@@ -1,7 +1,6 @@
 from ..global_config import USER_DIR
 from rlcompleter  import Completer 
 import readline
-from pathlib import Path
 from code import InteractiveConsole
 
 class CommandCompleter:

@@ -1,4 +1,3 @@
-from time import sleep
 from threading import Thread, Event
 
 from vy.filetypes.basefile import BaseFile
@@ -24,6 +23,8 @@ class WordCompleter:
         return None
 
 try:
+    if global_config.DONT_USE_JEDI_LIB:
+        raise ImportError
     from jedi import Script, settings
     settings.add_bracket_after_function = True
     
@@ -40,14 +41,49 @@ try:
 except ImportError:
     ScriptCompleter = WordCompleter
 
+def guess_lexer_base(path_str, code_str):
+    if path_str.lower().endswith('.py'):
+        return py_lexer
+    return txt_lexer
+ 
+from keyword import iskeyword
+
+def py_lexer(string):
+    for line in string.splitlines(True):
+        if line.lstrip().startswith('#'):
+            yield 0, 'Comment', line
+        else:
+            word = ''
+            for char in line:
+                word += char
+                if iskeyword(word):
+                    yield 0, 'Keyword', word
+                    word = ''
+                elif not char.isalpha():
+                    yield 0, '', word
+                    word = ''
+            else:
+                if word:
+                    yield 0, '', word
+
+def txt_lexer(string):
+    for line in string.splitlines(True):
+        yield 0, '', line
+
 try:
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
-    from pygments.lexers import guess_lexer_for_filename as guess_lexer
+    from pygments.lexers import guess_lexer_for_filename
     from pygments.util import ClassNotFound
     from pygments.token import (Keyword, Name, Comment, 
                                 String, Error, Number, Operator, 
                                 Generic, Token, Whitespace, Text)
+    def guess_lexer(*args):
+        try:
+            return guess_lexer_for_filename(*args).get_tokens_unprocessed
+        except ClassNotFound:
+            return guess_lexer_base(*args)
+            
     colorscheme = {
       '':                 '',
       Token:              '',
@@ -67,7 +103,13 @@ try:
     }
 except ImportError:
     global_config.DONT_USE_PYGMENTS_LIB = True
-    colorscheme = {'': ''}
+    colorscheme = {
+      '':         '',
+      'Keyword':  '*blue*',
+      'Comment':  '/gray/'
+    }
+    guess_lexer = guess_lexer_base
+
 
 codes = {
         ""          : "",
@@ -92,8 +134,12 @@ def get_prefix(token):
     try:
         return colorscheme[token]
     except KeyError:
+        if not isinstance(token, str):
+            it = repr(token)
+        else:
+            it = token
         accu = ''
-        for ttype in repr(token).split('.'):
+        for ttype in it.split('.'):
             if ttype in colorscheme:
                 colorscheme[token] = colorscheme[ttype]
             accu = f'{accu}{"." if accu else ""}{ttype}'
@@ -115,7 +161,7 @@ def _resolve_prefix(color_string):
     result += codes[color_string]
     return result
 
-colorscheme = {repr(key): _resolve_prefix(value) for key, value in colorscheme.items()}
+colorscheme = {str(key): _resolve_prefix(value) for key, value in colorscheme.items()}
 
 class TextFile(BaseFile):
     """This is the class that most of files buffers should use, 
@@ -128,30 +174,20 @@ class TextFile(BaseFile):
         BaseFile.__init__(self, *args, **kwargs)
         self._lex_away_may_run = Event()
         self._lex_away_should_stop = Event()
-        #self._lexer_waiting = Event()
 
         self._lexed_cache = {}
         self._lexed_lines = list()
 
         self.pre_update_callbacks.append(self._lex_away_may_run.clear)
         self.pre_update_callbacks.append(self._lex_away_should_stop.set)
-        #self.pre_update_callbacks.append(self._lexer_waiting.wait)
-        #self.pre_update_callbacks.append(self._lexer_waiting.clear)
         
         self.update_callbacks.append(self._lex_away_should_stop.clear)
         self.update_callbacks.append(self._lex_away_may_run.set)
 
-        if global_config.DONT_USE_PYGMENTS_LIB:
-            self._lexer = None
-        else:
-            try:
-                self._lexer = guess_lexer(str(self.path), self._string).get_tokens_unprocessed
-            except ClassNotFound:
-                self._lexer = None
+        self.lexer = guess_lexer(str(self.path), self._string)
         
         self._lexer_proc = Thread(target=self._lex_away, daemon=True)
         self._lexer_proc.start()
-        #self._lexer_waiting.wait()
         self._lex_away_may_run.set()
         self._completer = None, None
 
@@ -160,6 +196,7 @@ class TextFile(BaseFile):
             if self.path.name.lower().endswith('.py'):
                 return ScriptCompleter(code=self.string, path=self.path)
         return WordCompleter(code=self.string, path=self.path)
+
     @property
     def completer_engine(self):
         with self._lock:
@@ -184,18 +221,8 @@ class TextFile(BaseFile):
             else:
                 return [], 0
 
-    def lexer(self):
-        if self._lexer is None:
-            yield from ((0, '', f'\x1b[33m{val}\x1b[0m') 
-                            if val.startswith('#')
-                        else (0, '', val)
-                for val in self.splited_lines)
-        else:
-                yield from self._lexer(self.string)
-
     def _lex_away(self):
         while True:
-            #self._lexer_waiting.set()
             self._lex_away_may_run.wait()
             if self._lex_away_should_stop.wait(0.04):
                 continue
@@ -203,10 +230,9 @@ class TextFile(BaseFile):
                 local_split = self.splited_lines
                 self.cursor_lin_col
                 self.number_of_lin
-                local_str = self.string
                 if self._lex_away_should_stop.wait(0.04):
                     continue
-                local_lexer = self.lexer()
+                local_lexer = self.lexer(self.string)
                 line = ''
                 local_lexed = list()
                 count = 0
@@ -228,12 +254,10 @@ class TextFile(BaseFile):
                                 line = ''
                             else:
                                 line += tok + token_line + '\x1b[0m'
-                                #line += f'{tok}{token_line}\x1b[0m'
                     else:
                         line += tok + val + '\x1b[0m'
                 else:
                     if line: #No eof
-                        # bug !
                         local_dict[self._splited_lines[count]] = line
                         local_lexed.append(line)
                     self._lexed_lines = local_lexed

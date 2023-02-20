@@ -1,4 +1,4 @@
-from vy.keys import C_C, _escape, C_J
+from vy.keys import _escape
 from vy.interface.helpers import one_inside_dict_starts_with
 
 def loop(editor):

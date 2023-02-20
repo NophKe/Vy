@@ -148,7 +148,7 @@ class Completer:
         elif len(self.editor.screen.minibar_completer.completion) == 1:
             self.select_item()
         else:
-            self.screen.minibar_completer.move_cursor_up()
+            self.screen.minibar_completer.move_cursor_down()
 
     def move_left(self):
         if self.buffer.cursor > 0:

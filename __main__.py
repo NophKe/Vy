@@ -46,6 +46,10 @@ parser.add_argument('--no-pygments', default=False,
             action="store_true",
             help='Do not use Pygments library for syntax hilighting even if available.')
 
+parser.add_argument('--no-jedi', default=False,
+            action="store_true",
+            help='Do not use Jedi library for code completion even if available.')
+
 parser.add_argument("files", default=None,
             help="List of files to Open.", 
             nargs='*') 
@@ -55,6 +59,7 @@ cmdline = parser.parse_args()
 ########    UPDATE CONGIGURATION    ##################################
 
 global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
+global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
 global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
 global_config.DEBUG = cmdline.debug
 

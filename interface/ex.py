@@ -4,7 +4,7 @@ from __main__ import __dict__ as global_dict
 from vy.filetypes.textfile import TextFile
 from pathlib import Path # TODO delete this import
 
-header = 'from vy import Editor\n'
+header = 'from vy.__main__ import *\n'
 def loop(editor):
 
     class Console(InteractiveConsole):
@@ -21,8 +21,6 @@ def loop(editor):
                               )
             return source.get_completions()
             
-    locals_dict = {'vy': editor}
-
     readline = Readline('ex_history', '>>> ', editor,completion_dict=global_dict )
     console = Console(locals=global_dict)
     line = readline()
