@@ -353,12 +353,14 @@ class Window():
                 else:
                     line_list.append(to_print[0])
 
-
-            if wrap and true_cursor >= self.number_of_lin:
-                to_remove = 1 + true_cursor - self.number_of_lin
-                line_list = line_list[to_remove:]
-                line_list = line_list[:self.number_of_lin]
-                #assert len(line_list) == self.number_of_lin, f'{len(line_list) = }, {self.number_of_lin = }'
+            if wrap:
+                while len(line_list) != self.number_of_lin:
+                    if true_cursor >= self.number_of_lin:
+                        line_list.pop(0)
+                        true_cursor -= 1
+                    else:
+                        line_list.pop()
+#                        true_cursor -= 1
             return line_list 
 
 class Screen(Window):

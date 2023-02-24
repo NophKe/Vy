@@ -10,6 +10,11 @@ known_file_names_tabs = {
     '.py'       : 4,
     }
 
+known_file_names_comment_string = {
+    '.py'       : ('#', ''),
+    '.c'        : ('/*', '*/'),
+    }
+
 known_file_names_wrap = {
     'Makefile'  : True,
     '.txt'      : True,
@@ -68,10 +73,19 @@ def Open_path(location):
     else:
         wrap = False
 
+    for name in known_file_names_comment_string:
+        if file_name.endswith(name) or file_other_name.endswith(name):
+            comment_string = known_file_names_comment_string[name]
+            break
+    else:
+        comment_string = ('', '')
+        
+
     return TextFile(path=location, 
                     init_text=init_text, 
                     set_tabsize=tab_size,
                     set_expandtabs=expand_tabs,
+                    set_comment_string=comment_string,
                     set_wrap=wrap,
                     )
 

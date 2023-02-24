@@ -1,4 +1,5 @@
-from .helpers import Completer
+from vy.actions import do_zz
+from vy.interface.helpers import Completer
 
 def init(editor):
     global readline
@@ -10,7 +11,10 @@ def make_word_list(string):
         
 def loop(editor):
     curbuf = editor.current_buffer
-    user_input = readline()
+    try:
+        user_input = readline()
+    except KeyboardInterrupt:
+        return 'normal'
 
     if not user_input:
         user_input = editor.registr['/']
@@ -27,7 +31,9 @@ def loop(editor):
             editor.screen.minibar('String not found!')
             return 'normal'
         curbuf.cursor = offset
+        do_zz(editor)
     else:
         curbuf.cursor = offset + 1
+        do_zz(editor)
         return 'normal'
 

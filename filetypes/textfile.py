@@ -47,7 +47,15 @@ def guess_lexer_base(path_str, code_str):
     return txt_lexer
  
 from keyword import iskeyword
+import tokenize
 
+class line_reader:
+    def __init__(self, string):
+        self.list = string.splitlines(True)
+        self.list.reverse()
+    def __call__(self):
+        return self.list.pop()
+        
 def py_lexer(string):
     for line in string.splitlines(True):
         if line.lstrip().startswith('#'):
@@ -66,11 +74,17 @@ def py_lexer(string):
                 if word:
                     yield 0, '', word
 
+def py_lexer(string):
+    for ttype, val, _, _, _ in tokenize.tokenize(line_reader(string)):
+        yield 0, ttype, val
+    
+
 def txt_lexer(string):
     for line in string.splitlines(True):
         yield 0, '', line
 
 try:
+#    import to
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
     from pygments.lexers import guess_lexer_for_filename

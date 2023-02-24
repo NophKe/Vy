@@ -1,4 +1,5 @@
-""" This module contains basic «actions» upon the Vy editor.
+""" 
+This module contains basic «actions» upon the Vy editor.
 An action is a function that accepts an editor as first
 argument, and a possibly null, arg string, or slice as
 second argument.
@@ -22,19 +23,47 @@ from vy import keys as k
 @atomic_commands('Q')
 def ex_mode(editor, reg=None, part=None, arg=None, count=1):
     return 'ex'
+
+@atomic_commands('# :comment')
+def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Comment the current line.
+    """
+    if any((token := editor.current_buffer.set_comment_string)):
+        with editor.current_buffer as curbuf:
+            before, after = token
+            curbuf.current_line = before + curbuf.current_line[:-1] + after + '\n'
+
+@atomic_commands('>> :indent')
+def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Indent the current line.
+    """
+    cur_buf = editor.current_buffer
+    cur_lin = cur_buf.current_line
+    cur_buf.current_line = (cur_buf.set_tabsize * ' ') + cur_lin
+
+@atomic_commands('<< :dedent')
+def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Dedent the current line.
+    """
+    cur_buf = editor.current_buffer
+    cur_lin = cur_buf.current_line
+    indent = cur_buf.set_tabsize * ' '
+    if cur_lin.startswith(indent):
+        cur_buf.current_line = cur_lin.removeprefix(indent)
+    elif cur_lin.startswith('\t'):
+        cur_buf.current_line = cur_lin.removeprefix('\t')
+    elif cur_lin.startswith(' '):
+        cur_buf.current_line = cur_lin.lstrip()
+
+        
+
 @with_args_commands(':source%')
 def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
     from __main__ import __dict__ as main_dict
     exec(editor.current_buffer.string, main_dict)
-
-#@atomic_commands(':source :so :source! :so')
-#def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
-    #exec(editor.current_buffer.string)
-#
-
-########    Work in progress  Start ##################################
-
-
 
 
 ########    MOTIONS (not valid command operator) #####################
@@ -190,16 +219,6 @@ def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     return 'command'
 
-@atomic_commands(':PYTHON :PY')
-def python__main__mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Python» mode in the __main__ name space.
-    """
-    from .interface import python
-    from __main__ import __dict__ as main_name_space
-    python.name_space = main_name_space
-    return 'python'
-
 @atomic_commands(':python :py')
 def python_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -305,6 +324,10 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
     """
     Undo last action in the current buffer.
     Register argument is ignored.
+    ---
+    NOTE:
+    In Vy there is no difference between 'U' and 'u'
+    ---
     """
     if arg:
         try:
@@ -327,23 +350,23 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
         for _ in range(count):
             curbuf.redo()
 
-#@with_args_commands(':nmap :nnoremap')
-#def do_nmap(editor, reg=None, part=None, arg=None, count=1):
-#    """
-#    TODO. Not working anymore (api change)
-#    """
-#    if not arg or not ' ' in arg:
-#        editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
-#        return
-#    key, value = arg.split(' ', maxsplit=1)
-#    editor.current_buffer.stand_alone_commands[key] = lambda ed, reg, part, arg, count: ed.push_macro(value)
+@with_args_commands(':nmap :nnoremap')
+def do_nmap(editor, reg=None, part=None, arg=None, count=1):
+    """
+    TODO. Not working anymore (api change)
+    """
+    if not arg or not ' ' in arg:
+        editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
+        return
+    key, value = arg.split(' ', maxsplit=1)
+    editor.current_buffer.stand_alone_commands[key] = lambda ed, reg, part, arg, count: ed.push_macro(value)
 
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
     editor.screen.minibar(str(Path('.').resolve()))
 
-@with_args_commands(':reg :registers :di :display')
+#@with_args_commands(':reg :registers :di :display')
 @atomic_commands(':reg :registers :di :display')
 def show_registers(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -487,8 +510,8 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
         editor.warning('Commmand needs arg!')
     else:
         completed = run(arg, capture_output=True, shell=True, text=True)
-        editor.screen.minibar_completer(completed.stdout.splitlines())
-        editor.warning(f'Command Finished with status: {completed.check_returncode() or "OK"}')
+#        editor.screen.minibar(completed.stdout.splitlines())
+        editor.warning( f'{completed.stdout}\nCommand Finished with status: {completed.check_returncode() or "OK"}')
 
 
 @with_args_commands(":chdir :chd :cd")
@@ -949,10 +972,11 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
             editor.screen.minibar('String not found!')
             return
         curbuf.cursor = offset
+        do_zz(editor)
     else:
         curbuf.cursor = offset + 1
+        do_zz(editor)
         return
-
 
 @atomic_commands("N")
 def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
@@ -974,15 +998,16 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
             editor.screen.minibar('String not found!')
             return
         curbuf.cursor = offset
+        do_zz(editor)
     else:
         curbuf.cursor = offset + 1
+        do_zz(editor)
         return
 
 @atomic_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
     editor.registr['/'] = editor.current_buffer['iw']
     do_normal_n(editor)
-
 
 
 @atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
@@ -1003,8 +1028,8 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
     """
     with editor.current_buffer as curbuf:
         lin, col = curbuf.cursor_lin_col
-        editor.registr[reg] = curbuf.current_line[:col]
-        curbuf.current_line = curbuf.current_line[:col] + '\n' 
+        editor.registr[reg] = curbuf.current_line[col:]
+        curbuf.current_line = curbuf.current_line[:col-1] + '\n' 
         return 'normal'
 
 
@@ -1086,19 +1111,48 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
 
 
 @sa_commands("p")
-def do_paste(editor, reg='"', part=None, arg=None, count=1):
+def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     """
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
+    ---
+    NOTE:
+    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P' (capital)
+    pastes *before* the cursor. This is the opposite of vim's defaults.
+    ---
     """
-    #from vy.editor import BP; BP()
-    editor.current_buffer.insert(editor.registr[reg])
+    to_insert = editor.registr[reg]
+    if to_insert:
+        with editor.current_buffer as curbuf:
+            if '\n' in to_insert:
+                curbuf.move_cursor('$')
+                curbuf.insert_newline()
+        editor.current_buffer.insert(to_insert)
 
+@sa_commands("P")
+def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
+    """
+    Paste the text from specified register before the cursor.
+    By default, if no register is specified the default "" register is used.
+    ---
+    NOTE:
+    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P' (capital)
+    pastes *before* the cursor. This is the opposite of vim's defaults.
+    ---
+    """
+    to_insert = editor.registr[reg]
+    if to_insert:
+        with editor.current_buffer as curbuf:
+            if '\n' in to_insert:
+                curbuf.cursor = curbuf.find_begining_of_line()
+            if curbuf.cursor and curbuf[curbuf.cursor-1] != '\n':
+                curbuf.cursor -= 1
+            curbuf.insert(editor.registr[reg])
 
 @atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
     """
-    Inserts the a newline or the selected completion.
+    Inserts the a newline.
 
     """
     editor.current_buffer.insert_newline()

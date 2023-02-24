@@ -3,19 +3,13 @@ from vy.interface.helpers import one_inside_dict_starts_with
 
 def loop(editor):
     curbuf = editor.current_buffer
-    def get_a_key():
-        #completions, lengh = curbuf.completer()
-        #editor.screen.minibar_completer(*curbuf.completer())
-        return editor.read_stdin()
-
+    get_a_key = editor.read_stdin
     minibar = editor.screen.minibar
     dictionary = editor.actions.insert
+    
+    user_input = get_a_key()
 
     while True:
-        user_input = get_a_key()
-        #editor.screen.minibar_completer.give_up()
-        minibar('')
-
         if user_input in dictionary:
             minibar(f' ( Processing command: {_escape(user_input)} )')
             rv = dictionary[user_input](editor)
@@ -24,7 +18,19 @@ def loop(editor):
                 return rv
 
         elif user_input.isprintable() or user_input.isspace():
+            curbuf.set_undo_record(True)
+            curbuf.set_undo_record(False)
             curbuf.insert(user_input)
+            while True:
+                user_input = get_a_key()
+                if user_input.isprintable() or user_input.isspace() \
+                and not user_input in dictionary                    \
+                and not any(k.startswith(user_input) for k in dictionary):
+                    curbuf.insert(user_input)
+                    continue
+                curbuf.set_undo_record(True)
+                break
+            continue
 
         elif one_inside_dict_starts_with(dictionary, user_input):
             user_input += editor.read_stdin()
@@ -43,3 +49,7 @@ def loop(editor):
         else:
             #editor.screen.minibar_completer.give_up()
             minibar(f' ( Invalid command: {_escape(user_input)} )')
+
+        user_input = get_a_key()
+        minibar('')
+

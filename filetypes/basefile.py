@@ -420,10 +420,13 @@ class BaseFile:
                 set_tabsize=4, 
                 set_expandtabs=False, 
                 cursor=0, 
+                set_comment_string=('',''),
                 init_text='', 
                 path=None):
         self._repr = '' #TODO delete me ?
+        self._undo_flag = True
         self.path = path
+        self.set_comment_string = set_comment_string
         self.set_wrap = set_wrap
         self.set_number = set_number
         self.set_tabsize = set_tabsize
@@ -501,6 +504,11 @@ class BaseFile:
     def __len__(self):
         with self._lock:
             return self._lenght
+    
+    def set_undo_record(self, bool_flag=True):
+        self._undo_flag = bool_flag
+        if bool_flag:
+            self.set_undo_point()
 
     def join_line_with_next(self):
         with self:
@@ -618,7 +626,7 @@ class BaseFile:
         self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
         
     def set_undo_point(self):
-        if self._splited_lines and self._cursor_lin_col:
+        if self._undo_flag:
             self.undo_list.append((self._splited_lines.copy(), self._cursor_lin_col))
 
     def undo(self):

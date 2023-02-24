@@ -33,13 +33,16 @@ def loop(self):
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
+    
+    info_txt = f'( Processing Command: {user_input} )'
+    self.screen.minibar(info_txt)
 
-    self.screen.minibar(f'( Processing Command: {user_input} )')
     if ARG:
         rv = action(self, arg=ARG, part=PART, reg=REG)
     else:
         rv = action(self, part=PART, reg=REG)
 
-    self.screen.minibar('')
+    if info_txt in self.screen._minibar_txt:
+        self.screen.minibar('')
 
     return rv or 'normal'

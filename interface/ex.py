@@ -4,7 +4,8 @@ from __main__ import __dict__ as global_dict
 from vy.filetypes.textfile import TextFile
 from pathlib import Path # TODO delete this import
 
-header = 'from vy.__main__ import *\n'
+header = 'from __main__ import *\n'
+header = '\n'
 def loop(editor):
 
     class Console(InteractiveConsole):

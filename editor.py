@@ -343,7 +343,7 @@ class _Editor:
     def __call__(self, buff=None, mode='normal'):
         """
         Calling the editor launches the command loop interraction.
-        If the editor is allready running it is equivalent to Editor.edit(filename)
+        If the editor is allready running it is equivalent to Editor.edit()
         """
         if self._running:
             return self.edit(buff)
@@ -359,7 +359,7 @@ class _Editor:
             while True:
                 try:
                     self.current_mode = mode if mode else self.current_mode
-                    mode = self.interface(mode)
+                    mode = self.interface(mode) # or mode
                 except BdbQuit:
                     self.start_async_io()
                     mode = 'normal'
@@ -374,7 +374,11 @@ class _Editor:
                     print_tb(exc.__traceback__)
                     print('\nThe program may be corrupted, save all and restart quickly.')
                     try:
-                        input('Press [ENTER] to resume  (or [CTRL+C] to close)')
+                        input('''
+Press [ENTER] to try resuming
+      [CTRL+C] to close immediatly
+      [CTRL+S] to save the traceback
+      ''')
                     except KeyboardInterrupt:
                         return 1
                     mode = 'normal'
@@ -383,4 +387,4 @@ class _Editor:
         finally:
             self._running = False
             self.stop_async_io()
-            return 0 # exit_code
+        return 0 # exit_code

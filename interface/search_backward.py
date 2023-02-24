@@ -1,8 +1,10 @@
 from .helpers import Completer
+from vy.actions import do_zz
 
 def init(editor):
     global readline
     readline = Completer('search_backward_history', '?', editor)
+    center_screen = editor.actions.normal[
         
 def loop(editor):
     curbuf = editor.current_buffer
@@ -23,6 +25,8 @@ def loop(editor):
             editor.screen.minibar('String not found!')
             return 'normal'
         curbuf.cursor = offset
+        do_zz(editor)
     else:
+        do_zz(editor)
         curbuf.cursor = offset + 1
         return 'normal'

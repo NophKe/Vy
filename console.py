@@ -1,5 +1,19 @@
 """
-Helper functions to deal with the linux console.
+This module contains helper functions to deal with the linux console.
+
+It defines the getch() blocking function to read a single keypress. A
+contrario, getch_noblock() is used by Editor.input_thread to feed the
+input_queue and Editor.read_stdin().
+
+setnonblocking() puts the terminal in non blocking mode allowing to
+return immediatly with an empty string from a call to stdin.read().
+This allow the thread that called the read to remain joinable after
+a given timeout.
+
+The setraw() function is a copy from the cpython standard library.
+As setnonblocking needed the same imports as the tty module that
+defines it. And setraw being a dependency of getch, copying 10 lines
+of code prevented several call to the import machinery.
 """
 
 from select import select
@@ -15,7 +29,9 @@ OSPEED = 5
 CC = 6
 
 def setraw(fd, when=TCSAFLUSH):
-    """Put terminal into a raw mode."""
+    """
+    Put terminal into a raw mode.
+    """
     mode = tcgetattr(fd)
     mode[IFLAG] = mode[IFLAG] & ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON)
     mode[OFLAG] = mode[OFLAG] & ~(OPOST)
@@ -27,6 +43,9 @@ def setraw(fd, when=TCSAFLUSH):
     tcsetattr(fd, when, mode)
 
 def setnonblocking(fd, when=TCSANOW):
+    """
+    Put terminal into a non-blocking mode.
+    """
     mode = tcgetattr(fd)
     mode[CC][VMIN] = 0
     mode[CC][VTIME] = 0
