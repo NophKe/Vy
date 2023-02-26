@@ -42,6 +42,8 @@ class Completer:
 #                self.update_minibar_completer()
                 if key == k.backspace:
                     buffer.backspace()
+                elif key == k.C_V:
+                    buffer.insert(reader())
                 elif key == k.suppr:
                     buffer.suppr()
                 elif key == k.left:
@@ -164,6 +166,7 @@ class Completer:
         else: 
             self.state = 'history'
             self.update_minibar_completer()
+            self.screen.minibar_completer.move_cursor_up()
 
     def move_cursor_down(self):
         if self.state:

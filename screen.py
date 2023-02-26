@@ -241,7 +241,14 @@ class Window():
             
     def change_buffer(self, new_buffer):
         assert self._v_split_flag is False
+        # TODO may be shorter
         self.buff = new_buffer
+        bufline = new_buffer.current_line_idx
+        maxline = new_buffer.number_of_lin
+        halfscreen = self.number_of_lin // 2
+        max_shift = maxline - halfscreen
+        new_shift = bufline - halfscreen
+        self.shift_to_lin = min(maxline, max(0, new_shift))
         return self
             
     def merge_from_left_panel(self):
@@ -375,7 +382,6 @@ class Screen(Window):
         self._infobar_right = ''
         self._infobar_left = ''
         self._minibar_txt = ['']
-        #self.minibar_completer = []
         self.minibar_completer = CompletionBanner()
 
         columns, lines = get_terminal_size()
@@ -425,11 +431,10 @@ class Screen(Window):
 
 
     def minibar(self, *lines):
-        #if DEBUG:
-            #return
-        for l in lines:
-            if l is None:
-                raise
+        if DEBUG:
+            for l in lines:
+                assert isinstance(l,str)
+                assert not '\n' in l
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
     
@@ -439,9 +444,10 @@ class Screen(Window):
             try:
                 from vy.global_config import USER_DIR
                 from pprint import pformat
+                from __main__ import Editor as vy
                 #from time import asctime
                 debug_file = USER_DIR / "debugging_values"
-                to_print = ''
+                to_print = '____' * 100 + '\n'
                 for line in debug_file.read_text().splitlines():
                     value = eval(line)
                     value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
@@ -449,6 +455,7 @@ class Screen(Window):
                 rv = list()
                 for line in to_print.splitlines():
                     rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                rv.append(self.infobar_txt)
                 for line in self.minibar_completer:
                     rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
                 for line in self._minibar_txt:
@@ -456,7 +463,10 @@ class Screen(Window):
                 #rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0))
                 return rv
             except Exception as exc:
-                return [f'{exc}']
+                rv = []
+                for line in str(exc).splitlines():
+                    rv.append(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                return rv
     else:
         @property
         def minibar_banner(self):

@@ -13,16 +13,18 @@ from vy.helpers import (sa_commands, full_commands,
                       with_args_commands, atomic_commands)
 from vy import keys as k
 
-
-
-########    Work in progress  Start ##################################
-
-
-########    RUNTIME EVALUATION   ######################################
-
 @atomic_commands('Q')
 def ex_mode(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Fed up of hitting the 'Q' key in vim? Try the new EX mode !!
+    Use the minibar as a python repl. The Editor can be accessed
+    by the 'Editor' variable.
+    """
     return 'ex'
+
+@atomic_commands(':debug')
+def raise_exc(editor, reg=None, part=None, arg=None, count=1):
+    raise RuntimeError
 
 @atomic_commands('# :comment')
 def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
@@ -32,7 +34,12 @@ def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
     if any((token := editor.current_buffer.set_comment_string)):
         with editor.current_buffer as curbuf:
             before, after = token
-            curbuf.current_line = before + curbuf.current_line[:-1] + after + '\n'
+            for index in range(count):
+                curlin = curbuf.current_line
+                if not curlin.lstrip().startswith(before):
+                    curbuf.current_line = before + curlin[:-1] + after + '\n'
+                if index != count - 1:
+                    curbuf.move_cursor('j')
 
 @atomic_commands('>> :indent')
 def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
@@ -41,7 +48,8 @@ def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     cur_buf = editor.current_buffer
     cur_lin = cur_buf.current_line
-    cur_buf.current_line = (cur_buf.set_tabsize * ' ') + cur_lin
+    indent = cur_buf.set_tabsize * ' '
+    cur_buf.current_line = indent + cur_lin
 
 @atomic_commands('<< :dedent')
 def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
@@ -51,13 +59,13 @@ def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
     cur_buf = editor.current_buffer
     cur_lin = cur_buf.current_line
     indent = cur_buf.set_tabsize * ' '
+
     if cur_lin.startswith(indent):
         cur_buf.current_line = cur_lin.removeprefix(indent)
     elif cur_lin.startswith('\t'):
         cur_buf.current_line = cur_lin.removeprefix('\t')
     elif cur_lin.startswith(' '):
         cur_buf.current_line = cur_lin.lstrip()
-
         
 
 @with_args_commands(':source%')
@@ -68,10 +76,39 @@ def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
 
 ########    MOTIONS (not valid command operator) #####################
 #
-# this means that for now you can't do things like dgd 
-# But should this be implemented?
+# This is something that bothers me... 
 #
-# In vim, dgd is valid but d<page-down> is not! Why?
+# In vim, dgd is valid but d<page-down> is not! Why? I *really* want
+# d<page-up> to work ! And for now it does not in vim and neither in
+# Vy. Why does Vim exhibit such a behaviour?
+#
+# My guess is some motion are window-related while others buffer or 
+# cursor related. And window-related motions are not consistant! By
+# this I mean a window redraw may change last shown line on screen 
+# as an exemple.
+#
+# This mean that an action like d<page-down> to work would need that
+# relative cursor position on the screen and cursor position on the
+# text itself should have properties linking them that may not change
+# asynchronously because of a window redraw by example.
+# 
+# Implementating such a thing is not trivial!
+#
+# For now in Vy things are a bit more complicated, *true* motions that 
+# can be used as operator are buffer dependent and implemented by dict
+# Basefile.motion_commands.
+# 
+# TODO: Change motions commands to be a new kind of actions that may
+# be used as atomic motion commands and operator pending mode. This
+# should unify any kind of motions.
+# 
+# But for now Basefile.motion_commands contains methods that receive
+# a Basefile instance self. Those new kind of actions would receive
+# a editor instance and need to resolve editor.current_buffer....
+#  
+# this means that for now you can't do things like dgd 
+# But should this be implemented? I'm not as 100% as with d<page-up>
+# ...
 
 @atomic_commands('gd')
 def goto_definition(editor, reg=None, part=None, arg=None, count=1):
@@ -359,7 +396,6 @@ def do_nmap(editor, reg=None, part=None, arg=None, count=1):
         editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
         return
     key, value = arg.split(' ', maxsplit=1)
-    editor.current_buffer.stand_alone_commands[key] = lambda ed, reg, part, arg, count: ed.push_macro(value)
 
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
@@ -391,9 +427,6 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     editor.warning(str(editor.cache))
     return 'normal'
 
-########    NEEDLE ###################################################
-
-
 @full_commands('c')
 def change(editor, reg='_', part=None, arg=None, count=1):
     """
@@ -411,7 +444,6 @@ def change(editor, reg='_', part=None, arg=None, count=1):
         del curbuf[start:stop]
         curbuf.cursor = part.start
         return 'insert'
-
 
 @full_commands('y')
 def yank(editor, reg='"', part=None, arg=None, count=1):
@@ -465,8 +497,8 @@ def upper_case(editor, reg='_', part=None, arg=None, count=1):
 @full_commands('g~')
 def swap_case(editor, reg='_', part=None, arg=None, count=1):
     """
-    Swaps the case of the text from the cursor position to {movement} argument,
-    or inside {movement} if it resolves to as slice of the text.
+    Swaps the case of the text from the cursor position to {movement}
+    argument, or inside {movement} if it resolves to as slice of the text.
     {register} argument is ignored.
     """
     with editor.current_buffer as curbuf:
@@ -480,17 +512,13 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.current_buffer['cursor'] = editor.read_stdin()
 
-
-########    END OF NEEDLE ############################################
-
-
 ########    command mode only ########################################
 
 @with_args_commands(":read :re :r")
 def read_file(editor, reg=None, part=None, arg=None, count=1):
     """
-    Reads the content of file specified as argument and inserts it at the current
-    cursor location.
+    Reads the content of file specified as argument and inserts it at the
+    current cursor location.
     TODO: No check is done by this function. May raise exception!
     """
     from pathlib import Path
@@ -505,15 +533,15 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
     """
     Execute a system command.
     """
-    from subprocess import run
+    from subprocess import run, CalledProcessError
     if not arg:
         editor.warning('Commmand needs arg!')
     else:
         completed = run(arg, capture_output=True, shell=True, text=True)
-#        editor.screen.minibar(completed.stdout.splitlines())
-        editor.warning( f'{completed.stdout}\nCommand Finished with status: {completed.check_returncode() or "OK"}')
-
-
+        retval = completed.returncode
+        output = completed.stdout + completed.stderr
+        editor.warning( f'{output}\nCommand Finished with status: {retval or "OK"}')
+    
 @with_args_commands(":chdir :chd :cd")
 def do_chdir(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -586,7 +614,6 @@ def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.edit(None)
 
-
 @atomic_commands(':w :write')
 @with_args_commands(':w :write')
 def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
@@ -607,22 +634,6 @@ def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
         except (IsADirectoryError, FileExistsError, PermissionError) as exc:
             editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
 
-
-@atomic_commands(":w! :write!")
-@with_args_commands(":w! :write!")
-def do_force_to_save(editor, reg=None, part=None, arg=None, count=1):
-    """
-    TODO
-    """
-    try:
-        if arg:
-            editor.current_buffer.save_as(arg,override=True)
-        else:
-            editor.current_buffer.save(override=True)
-    except (IsADirectoryError, FileExistsError, PermissionError) as exc:
-        editor.warning(f'{exc.__doc__} aborting...')
-
-
 @atomic_commands(":wa :wall")
 def do_save_all(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -631,7 +642,6 @@ def do_save_all(editor, reg=None, part=None, arg=None, count=1):
     for buf in editor.cache:
         if buf.unsaved:
             buf.save()
-
 
 @atomic_commands(':n :ne :next')
 def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
@@ -682,31 +692,30 @@ def do_keep_only_current_window(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(':wq! :x! :xit! :exit!')
 def do_save_current_buffer_and_force_leave_window(editor, reg=None, part=None, arg=None, count=1):
     """
-    Saves the current buffer and leaves its window. If it is
-    the only open window and no unsaved buffer in cache, leaves
-    the editor.
+    Saves the current buffer and leaves its window. If it is the only open
+    window and no unsaved buffer in cache, leaves the editor.
     Equivalent to :w <CR> :q <CR>
     """
     do_try_to_save(editor)
     do_force_leave_current_window(editor)
 
 
-@atomic_commands(':wq :x :xit :exit ZZ')
+@atomic_commands(':wq :x :xit :exit ZZ ')
 def do_save_current_buffer_and_try_leave_window(editor, reg=None, part=None, arg=None, count=1):
     """
-    Saves the current buffer and leaves its window. If it is
-    the only open window and no unsaved buffer in cache, leaves
-    the editor.
+    Saves the current buffer and leaves its window. If it is the only open
+    window and no unsaved buffer in cache, leaves the editor.
     Equivalent to :w <CR> :q <CR>
     """
     do_try_to_save(editor)
     do_leave_current_window(editor)
 
 
-@atomic_commands(':q! :quit! ZQ')
+@atomic_commands(f':q! :quit! ZQ {k.C_C}{k.C_D}')
 def do_force_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
     """
-    Leaves the current window, discarding its buffer, even if it has not been saved.
+    Leaves the current window, discarding its buffer, even if it has not been
+    saved.
     """
     curwin = editor.current_window
     del editor.cache[curwin.buff.cache_id]
@@ -761,8 +770,8 @@ def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(":quitall :quita :qall :qa")
 def do_exit_nice(editor, reg=None, part=None, arg=None, count=1):
     """
-    Exits Vy except if there are unsaved buffers. In this case switch current window
-    to next unsaved buffer.
+    Exits Vy except if there are unsaved buffers. In this case switch 
+    current window to next unsaved buffer.
     """
     if not any([buffer.unsaved for buffer in editor.cache]):
         do_exit_hard(editor)
@@ -818,9 +827,8 @@ def do_zz(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands("z-")
 def do_z__MINUS__(editor, reg=None, part=None, arg=None, count=1):
     """
-    Recenters the screen to make cursor line the bottom line.
-    (like zb does) but cursor is placed on the first non blank
-    caracter of the line.
+    Recenters the screen to make cursor line the bottom line.  (like zb does)
+    but cursor is placed on the first non blank caracter of the line.
     """
     curbuf = editor.current_buffer
     do_zb(editor)
@@ -830,9 +838,8 @@ def do_z__MINUS__(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands("z.")
 def do_z__DOT__(editor, reg=None, part=None, arg=None, count=1):
     """
-    Recenters the screen to make cursor line the middle line.
-    (like zz does) but cursor is placed on the first non blank
-    caracter of the line.
+    Recenters the screen to make cursor line the middle line.  (like zz does)
+    but cursor is placed on the first non blank caracter of the line.
     """
     curbuf = editor.current_buffer
     do_zz(editor)
@@ -843,8 +850,8 @@ def do_z__DOT__(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(f'{k.C_D}')
 def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     """
-    Scrolls one line down. Ajust cursor position so that it is keeps on
-    the top line, if it were to escape the current window.
+    Scrolls one line down. Ajust cursor position so that it is keeps on the
+    top line, if it were to escape the current window.
     """
     curwin = editor.current_window
     curbuf = editor.current_buffer
@@ -872,9 +879,8 @@ def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(f"z{k.C_M}")
 def do_z__CR__(editor, reg=None, part=None, arg=None, count=1):
     """
-    Recenters the screen to make cursor line the top line.
-    (like zt does) but cursor is placed on the first non blank
-    caracter of the line.
+    Recenters the screen to make cursor line the top line.  (like zt does) but
+    cursor is placed on the first non blank caracter of the line.
     """
     curbuf = editor.current_buffer
     do_zt(editor)
@@ -1117,8 +1123,9 @@ def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     By default, if no register is specified the default "" register is used.
     ---
     NOTE:
-    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P' (capital)
-    pastes *before* the cursor. This is the opposite of vim's defaults.
+    The of 'p' in vy is to paste *after* the cursor. When 'P'
+    (capital) pastes *before* the cursor. This is the opposite of vim's
+    defaults.
     ---
     """
     to_insert = editor.registr[reg]
@@ -1126,8 +1133,9 @@ def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
         with editor.current_buffer as curbuf:
             if '\n' in to_insert:
                 curbuf.move_cursor('$')
-                curbuf.insert_newline()
-        editor.current_buffer.insert(to_insert)
+                if not to_insert.startswith('\n'):
+                    curbuf.insert_newline()
+            editor.current_buffer.insert(to_insert.removesuffix('\n'))
 
 @sa_commands("P")
 def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
@@ -1136,8 +1144,9 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
     By default, if no register is specified the default "" register is used.
     ---
     NOTE:
-    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P' (capital)
-    pastes *before* the cursor. This is the opposite of vim's defaults.
+    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P'
+    (capital) pastes *before* the cursor. This is the opposite of vim's
+    defaults.
     ---
     """
     to_insert = editor.registr[reg]
@@ -1206,8 +1215,6 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     editor.screen.minibar(f'file {filename!r} not found.')
     return 'normal'
 
-
-
 ########    DEBUGGING ################################################
 
 @atomic_commands(':HELP')
@@ -1227,13 +1234,14 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
 @atomic_commands('µ')
 def print_some(editor, reg=None, part=None, arg=None, count=1):
     """
-    This command is used to print variables to debug.
-    It looks to a file called "debugging_values" from the user 
-    config directory. This file should contain a list of newline
-    separated variables from the editor object namespace.
+    This command is used to print variables to debug.  It looks to a file
+    called "debugging_values" from the user config directory. This file should
+    contain a list of newline separated variables from the editor object
+    namespace.
     """
     from vy.global_config import USER_DIR
     from pprint import pformat
+    vy = editor # shorter to type
     debug_file = USER_DIR / "debugging_values"
     to_print = ''
     for line in debug_file.read_text().splitlines():

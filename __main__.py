@@ -1,27 +1,41 @@
-#!/usr/bin/python3 -m
+#!/usr/bin/python3 -S -m
 """
 This file is the main entry point for the Vy Editor and is not supposed 
 to be executed outside the Vy package. This module is in charge of basic
-initialization. To see all available option on command line, use:
+initialization.
+
+This software is meant to be used on any modern linux platform and will
+try to perform a few sanity checks about your configuration, then parse
+the command line arguments and update the vy.global_config module 
+accordingly.
+
+It will then create the vy._Editor instance and will start the main loop
+and begin user interaction.
+
+To see all available option on command line, use:
+
  python -m vy --help
+
 """
 
-#######   BASIC INITIALISATION #############################
+#######   BASIC INITIALISATION
 
-if __name__ != '__main__':
+if __name__ != '__main__' or __package__ != 'vy':
     raise ImportError(
     'This file is the main entry point for the Vy Editor and '
     'is not supposed to be imported, but executed by: python -m vy')
-try:
-    from . import global_config
-except ImportError:
-    raise ImportError(
-    'This file is the main entry point for the Vy Editor and '
-    'is not supposed to be executed outside the Vy package. Use: python -m Vy')
+
+#######    SANITY CHECKS
+
+# Required dependency from standard library, if those are not present,
+# on current setup, we just let the exception propagate. 
+from argparse import ArgumentParser 
+from sys import stdin, stdout, exit
+
+if not stdin.isatty() or not stdout.isatty():
+    exit('VY FATAL ERROR: stdin or stdout is not a terminal.')
 
 ########   COMMAND LINE PARSING #############################
-
-from argparse import ArgumentParser 
 
 parser = ArgumentParser(prog='Vy',
                         description='LEGACY-FREE VI-LIKE EDITOR',)
@@ -58,48 +72,39 @@ cmdline = parser.parse_args()
 
 ########    UPDATE CONGIGURATION    ##################################
 
-global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
-global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
-global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
-global_config.DEBUG = cmdline.debug
+from vy import global_config
 
-if not global_config.USER_DIR.exists() and not global_config.DONT_USE_USER_CONFIG:
-    global_config.USER_DIR.mkdir()
+global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
+
+if not global_config.DONT_USE_USER_CONFIG:
+    global_config._source_config()
+
+if cmdline.no_pygments:
+    global_config.DONT_USE_PYGMENTS_LIB = True
+if cmdline.no_jedi:
+    global_config.DONT_USE_JEDI_LIB = True
+if cmdline.debug:
+    global_config.DEBUG = True
 
 ########    SIGNAL HANDLING    #######################################
 
 #from signal import signal, SIGWINCH, SIGINT
-#
-#signal(SIGWINCH, lambda a, b: Editor.show_screen(False))
-
 
 ########    DEBUG MODE     ###########################################
 
 #if cmdline.debug:
-    #""" Be Aware that debug mode is buggy !!! """
     #import sys
     #from pprint import pp
     #import faulthandler
-#
     #def dump_infos(a, b):
         #Editor.screen.original_screen()
         #sys.stdout.flush()
-        #items = [ Editor.current_buffer, 
-                #Editor.screen, Editor.cache, Editor.registr ]
-        #for item in items:
-            #pp(item.__dict__)
-            #input(repr(item) + 'ok?  ')
-        #print(repr(a) + 'ok?  ')
-        #print(repr(b) + 'ok?  ')
         #faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
-        #sys.stdin.readline()
     #signal(SIGINT, dump_infos)
-#
 #
 #########    START THE EDITOR #########################################
 
 from vy.editor import _Editor as Editor
-from sys import exit
 
 Editor = Editor(*cmdline.files, command_line=cmdline)
 

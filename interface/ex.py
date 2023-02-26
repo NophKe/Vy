@@ -10,6 +10,7 @@ def loop(editor):
 
     class Console(InteractiveConsole):
         def write(self, text):
+            return
             text = text.splitlines()
             if text:
                 editor.screen.minibar(*text)
@@ -28,7 +29,7 @@ def loop(editor):
 
     while console.push(line):
         if console.buffer:
-            screen = ['>>> ' + val for val in console.buffer]
+            screen = ['>>> ' + val.replace('\n', '') for val in console.buffer]
         else:
             screen = []
         #editor.screen.minibar(screen)

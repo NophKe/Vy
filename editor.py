@@ -3,6 +3,9 @@
 When importing Vy as a whole package, an instance of Editor is the only
 thing you get. And when executing (python -m), an Editor *instance* shall
 be the unique thing in the global dict.
+
+The Editor singleton instance you want to interract with belong to the
+__main__ module of the package.
 """
 
 from pathlib import Path

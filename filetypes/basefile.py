@@ -113,7 +113,7 @@ class BaseFile:
     It mix the classical expected features of a mutable string with some 
     traditionnal concepts of vim buffers, like mouvements.
     
-    >>> file = BaseFile(init_text='Hello World\n\t42\t\nno End-of-file?', cursor=0)
+    >>> file = BaseFile(init_text='Hello World\n\t42\t\nno End-of-file?' cursor=0)
     >>> file.move_cursor('w')           # moves to next word ( regex \b )
     >>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
 
@@ -125,9 +125,10 @@ class BaseFile:
     ...     assert file.number_of_lin == len(file.splited_lines) \
     ...     == len(file.lines_offsets)
 
-    To modify the content of the buffer: use one of its three setters properties. (string, 
-    current_line and cursor). Any modifications of one of those properties will immediatly 
-    invalidate any other property that depend on it. 
+    To modify the content of the buffer: use one of its three setters 
+    properties. (string,  current_line and cursor). Any modifications of one
+    of those properties will immediatly invalidate any other property that 
+    depend on it. 
 
     ### TODO  --  Tests and explanations about line ending should go to in TextLine 
 
@@ -155,21 +156,21 @@ class BaseFile:
     >>> file.splited_lines
     >>> file.cursor_lin_col
 
-    Properties being lazily evaluated, a few «fast paths» are provided 
-    to speed up common operations upon the internal data structure. Do 
-    not rely on them! Being lazily computed, a lot of the properties 
-    assert themselves towards each other. Some assertions are clearly 
-    redundant but will be maintained for correctness. Moreover speed 
-    on that matter may strongly depend on you python implementation.
+    Properties being lazily evaluated, a few «fast paths» are provided to
+    speed up common operations upon the internal data structure. Do not rely
+    on them! Being lazily computed, a lot of the properties assert themselves
+    towards each other. Some assertions are clearly redundant but will be
+    maintained for correctness. Moreover speed on that matter may strongly
+    depend on you python implementation.
 
     >>> file.insert_newline()
     >>> file.insert('\n')
 
-    By definition, one line should allways end by a newline. Also one 
-    empty line is represented by EMPTY STRING + NEWLINE.
-    The newline character has no special treatment anywhere in the file,
-    you can delete them and insert new ones any time, but the last newline 
-    character that ends the buffer cannot be deleted.
+    By definition, one line should allways end by a newline. Also one empty
+    line is represented by EMPTY STRING + NEWLINE.  The newline character has
+    no special treatment anywhere in the file, you can delete them and insert
+    new ones any time, but the last newline character that ends the buffer
+    cannot be deleted.
     
     >>> file.backspace()
     >>> file.suppr()
@@ -210,8 +211,9 @@ class BaseFile:
         triggers the registered callbacks and invalidates the properties that
         depend on it.
         
-        As there is no way of knowing in advance what the new value will be, avoid 
-        modifying it directly. This will invalidate most computation allready done.
+        As there is no way of knowing in advance what the new value will be,
+        avoid modifying it directly. This will invalidate most computation
+        allready done.
         """
         local = self._string
         if local:
@@ -312,11 +314,6 @@ class BaseFile:
         with self._lock:
             if not self._splited_lines:
                 self._splited_lines = self.string.splitlines(True)
-                #local = []
-                #for line in self.string.splitlines(True):
-                #    local.append(intern(line))
-                #self._splited_lines = local
-                #return local
             return self._splited_lines
 
     @property
@@ -399,7 +396,6 @@ class BaseFile:
         self._current_line = ''
         self._cursor_lin_col = ()
         self._splited_lines = []
-
 
     def _list_insert(self, value):
         lin, col = self.cursor_lin_col
@@ -517,7 +513,8 @@ class BaseFile:
             if next_line_idx == self.number_of_lin:
                 return # nothing to do, we are on last line
 
-            self._current_line = self.current_line.removesuffix('\n') + self.splited_lines[next_line_idx]
+            self._current_line = self.current_line.removesuffix('\n') \
+                                 + self.splited_lines[next_line_idx]
             self._splited_lines[line_idx] = self._current_line
             self._splited_lines.pop(next_line_idx)
             self._lines_offsets.clear()
@@ -586,8 +583,9 @@ class BaseFile:
     @property
     def cursor(self):
         """
-        The cursor is a property that returns the position of 
-        the cursor as an opaque integer value.
+        The cursor is a property that returns the position of the cursor as an
+        opaque integer value.
+
         >>> len('国')
         1
         """
@@ -604,13 +602,12 @@ class BaseFile:
 
     @string.setter
     def string(self, value):
+        if not self.modifiable or self._string == value:
+            return
         with self:
-            if not self.modifiable or self._string == value:
-                return
-
             self._current_line = ''
             self._number_of_lin = 0
-            self._splited_lines = []
+            self._splited_lines.clear()
             self._lines_offsets.clear()
             if not value.endswith(self.ending):
                 self._string = value + self.ending

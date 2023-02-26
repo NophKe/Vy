@@ -32,13 +32,13 @@ class CommandCompleter:
 local_completer = CommandCompleter('python_history')
 
 def loop(editor, source=None):
+    editor.stop_async_io()
     try:
-        editor.stop_async_io()
-        console = InteractiveConsole(locals={'Editor': editor})#, editor=editor)
+        console = InteractiveConsole(locals={'vy': editor})#, editor=editor)
+        console
         if source:
             print('=====')
             for line in source.splitlines():
-                #editor.stop_async_io(); breakpoint()
                 if line and not line.isspace():
                     console.push(line)
             print('=====')
