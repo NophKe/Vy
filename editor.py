@@ -1,4 +1,5 @@
-"""This module contains the implementation of the «editor» class.
+"""
+This module contains the implementation of the «editor» class.
 
 When importing Vy as a whole package, an instance of Editor is the only
 thing you get. And when executing (python -m), an Editor *instance* shall
@@ -11,6 +12,7 @@ __main__ module of the package.
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
+from pdb import post_mortem, pm
 from itertools import repeat, chain
 from time import sleep, time
 from threading import Thread
@@ -133,6 +135,9 @@ class _Register:
 
         if key == '_':
             return
+        
+        elif key in ':.':
+            self.dico[key] = value
 
         elif key == '"':
             for k in range(9,0,-1):
@@ -165,12 +170,13 @@ class _Register:
             raise RuntimeError
 
 class NameSpace:
+    __slots__ = ('insert', 'command', 'visual', 'normal', 'motion')
     def __init__(self):
         self.insert = dict()
         self.command= dict()
         self.visual = dict()
         self.normal = dict()
-
+        self.motion = dict()
 
 class _Editor:
     """ This class is the data structure representing the state of the Vym editor.
@@ -189,7 +195,7 @@ class _Editor:
                 if action.v_alias:
                     for k in action.v_alias:
                         actions.visual[k]= action
-                if action.n_alias:
+                if action.n_alias and not action.motion:
                     for k in action.n_alias:
                         actions.normal[k]= action
                 if action.i_alias:
@@ -198,6 +204,10 @@ class _Editor:
                 if action.c_alias:
                     for k in action.c_alias: 
                         actions.command[k]= action
+                if action.n_alias and action.motion:
+                    for k in action.n_alias:
+                        actions.normal[k]= action
+                        actions.motion[k]= action
         self.actions = actions
 
     def __init__(self, *buffers, command_line=''):
@@ -225,7 +235,6 @@ class _Editor:
         self._input_queue.task_done()
         return key_press
 
-
     def push_macro(self, string):
         assert isinstance(string, str)
         self._macro_keys = f'{string}{self._macro_keys}'
@@ -239,6 +248,8 @@ class _Editor:
         ( you don't have access to the editor variable ) you should raise an 
         exception.
         """
+        if not self._running:
+            return print(msg)
         if self._macro_keys:
             self.screen.minibar_completer(
               'this happened during the execution of a macro that is still running',
@@ -274,7 +285,7 @@ class _Editor:
 
 ### TODO -- move this fonction to screen module
 ###
-### - replace self._asyncio_flag by a threading.Condition
+### - replace self._asyncio_flag by a threading.Condition ?
 ###
     def print_loop(self):
         old_screen = list()
@@ -286,8 +297,8 @@ class _Editor:
         start = time()
 
         while self._async_io_flag:
-            sleep(0.04) # cant try more than  25fps
-            if time() - start > 5:
+            sleep(0.04)             # do not try more than  25fps
+            if time() - start > 10: # and force redraw every 10 seconds
                 old_screen = []
                 start = time()
 
@@ -370,18 +381,23 @@ class _Editor:
                 except SystemExit:
                     raise
                 except BaseException as exc:
+                    import sys
+                    type_, value_, trace_ = sys.exc_info()
+                    
                     self.stop_async_io()
                     print(self.screen.infobar_txt)
-                    print(  'The following *unhandled* exception was encountered:\n  >  ' + repr(exc),
-                            'indicating:\n  >  ' + str(exc) + '\n')
+                    print(  'The following *unhandled* exception was encountered:\n'
+                           f'  >  {repr(exc)} indicating:\n'
+                           f'  >  {str(exc)}\n')
                     print_tb(exc.__traceback__)
                     print('\nThe program may be corrupted, save all and restart quickly.')
                     try:
-                        input('''
-Press [ENTER] to try resuming
-      [CTRL+C] to close immediatly
-      [CTRL+S] to save the traceback
-      ''')
+                        input(('Press [ENTER] to try resuming\n'
+                               'or    [CTRL+C] to close immediatly\n'
+                               'or    [CTRL+D] to start debugger\n\r\t'))
+                    except EOFError:
+                        self.screen.original_screen()
+                        post_mortem(trace_)
                     except KeyboardInterrupt:
                         return 1
                     mode = 'normal'

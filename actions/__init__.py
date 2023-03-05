@@ -8,25 +8,74 @@ As defined in the Vym grammar, some commands require motion
 argument, some possibly require a register to work on.
 
 """
+from vy.actions.helpers import (sa_commands,
+                                with_args_commands,
+                                atomic_commands)
 
-from vy.helpers import (sa_commands, full_commands,
-                      with_args_commands, atomic_commands)
+from vy.actions.mode_change import *
+from vy.actions.motions import *
+from vy.actions.commands import *
 from vy import keys as k
 
-@atomic_commands('Q')
-def ex_mode(editor, reg=None, part=None, arg=None, count=1):
+@sa_commands('M')
+@atomic_commands('µ')
+def print_some(editor, reg=None, part=None, arg=None, count=1):
     """
-    Fed up of hitting the 'Q' key in vim? Try the new EX mode !!
-    Use the minibar as a python repl. The Editor can be accessed
-    by the 'Editor' variable.
+    This command is used to print variables to debug.  It looks to a file
+    called "debugging_values" from the user config directory. This file should
+    contain a list of newline separated variables from the editor object
+    namespace.
     """
-    return 'ex'
+    from vy.global_config import USER_DIR
+    from pprint import pformat
+    vy = editor # shorter to type
+    debug_file = USER_DIR / "debugging_values"
+    to_print = ''
+    for line in debug_file.read_text().splitlines():
+        parent = eval(line)
+        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+    editor.warning(to_print)
 
-@atomic_commands(':debug')
-def raise_exc(editor, reg=None, part=None, arg=None, count=1):
-    raise RuntimeError
+@atomic_commands(f'i_{k.C_A}')
+def insert_last_inserted_text(editor, **kwargs):
+    """
+    Re-insert last inserted text at cursor position.
+    """
+    editor.current_buffer.insert(editor.registr['.'])
+    
+@with_args_commands(':%s')
+def replace_all(editor, reg=None, part=None, arg=None, count=1):
+    if not arg or not ' ' in arg:
+        editor.warning('bad syntax')
+        return
+    with editor.current_buffer as curbuf:
+        old, new = arg.split(' ', maxsplit=1)
+        for idx, line in enumerate(curbuf.splited_lines):
+            curbuf._splited_lines[idx] = line.replace(old, new)
+        curbuf._lines_offsets.clear()
+        curbuf._string = ''.join(curbuf._splited_lines)
+        curbuf._lengh = len(curbuf._string)
+        
 
-@atomic_commands('# :comment')
+@atomic_commands(f'{k.C_A} i_{k.C_A}')
+def increment(editor, reg=None, part=None, arg=None, count=1):
+    # this is buggy because iw is buggy         # bug
+    cur_word = editor.current_buffer['iw']      .replace('\n','')
+#    editor.warning(repr(cur_word))
+    if cur_word.isnumeric():
+        editor.current_buffer['iw'] = str(int(cur_word)+1)
+
+@with_args_commands(':debug')
+def debug_tool(editor, reg=None, part=None, arg='reload', count=1):
+    from vy import debug_tools
+    func = getattr(debug_tools, arg, None)
+    if func is None:
+        editor.screen.minibar('debug func not found', f'{dir(debug_tools) = }')
+    else:
+        func(editor)
+
+@sa_commands('# :comment')
 def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Comment the current line.
@@ -41,284 +90,52 @@ def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
                 if index != count - 1:
                     curbuf.move_cursor('j')
 
-@atomic_commands('>> :indent')
+@sa_commands('>> :indent')
 def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Indent the current line.
     """
-    cur_buf = editor.current_buffer
-    cur_lin = cur_buf.current_line
-    indent = cur_buf.set_tabsize * ' '
-    cur_buf.current_line = indent + cur_lin
+    with editor.current_buffer as curbuf:
+        last_line = curbuf.number_of_lin
+        last_target = curbuf.current_line_idx + count
+        max_line = min(last_line, last_target)
+        indent = curbuf.set_tabsize * ' '
+        curbuf.move_cursor('_')
+        for idx in range(curbuf.current_line_idx, max_line):
+            cur_lin = curbuf.current_line
+            curbuf.current_line = indent + cur_lin
+            if idx != max_line - 1:
+                curbuf.move_cursor('j')
 
-@atomic_commands('<< :dedent')
+@sa_commands('<< :dedent')
 def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Dedent the current line.
     """
-    cur_buf = editor.current_buffer
-    cur_lin = cur_buf.current_line
-    indent = cur_buf.set_tabsize * ' '
+    with editor.current_buffer as cur_buf:
+        indent = cur_buf.set_tabsize * ' '
+        last_line = cur_buf.number_of_lin
+        last_target = cur_buf.current_line_idx + count
+        max_line = min(last_line, last_target)
+        indent = cur_buf.set_tabsize * ' '
+        cur_buf.move_cursor('_')
+        for idx in range(cur_buf.current_line_idx, max_line):
+            cur_lin = cur_buf.current_line
+            if cur_lin.startswith(indent):
+                cur_buf.current_line = cur_lin.removeprefix(indent)
+            elif cur_lin.startswith('\t'):
+                cur_buf.current_line = cur_lin.removeprefix('\t')
+            elif cur_lin.startswith(' '):
+                cur_buf.current_line = cur_lin.lstrip()
+            if idx != max_line - 1:
+                cur_buf.move_cursor('j')
+        cur_buf.move_cursor('_')
 
-    if cur_lin.startswith(indent):
-        cur_buf.current_line = cur_lin.removeprefix(indent)
-    elif cur_lin.startswith('\t'):
-        cur_buf.current_line = cur_lin.removeprefix('\t')
-    elif cur_lin.startswith(' '):
-        cur_buf.current_line = cur_lin.lstrip()
-        
-
-@with_args_commands(':source%')
+@atomic_commands(':source%')
 def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
     from __main__ import __dict__ as main_dict
     exec(editor.current_buffer.string, main_dict)
 
-
-########    MOTIONS (not valid command operator) #####################
-#
-# This is something that bothers me... 
-#
-# In vim, dgd is valid but d<page-down> is not! Why? I *really* want
-# d<page-up> to work ! And for now it does not in vim and neither in
-# Vy. Why does Vim exhibit such a behaviour?
-#
-# My guess is some motion are window-related while others buffer or 
-# cursor related. And window-related motions are not consistant! By
-# this I mean a window redraw may change last shown line on screen 
-# as an exemple.
-#
-# This mean that an action like d<page-down> to work would need that
-# relative cursor position on the screen and cursor position on the
-# text itself should have properties linking them that may not change
-# asynchronously because of a window redraw by example.
-# 
-# Implementating such a thing is not trivial!
-#
-# For now in Vy things are a bit more complicated, *true* motions that 
-# can be used as operator are buffer dependent and implemented by dict
-# Basefile.motion_commands.
-# 
-# TODO: Change motions commands to be a new kind of actions that may
-# be used as atomic motion commands and operator pending mode. This
-# should unify any kind of motions.
-# 
-# But for now Basefile.motion_commands contains methods that receive
-# a Basefile instance self. Those new kind of actions would receive
-# a editor instance and need to resolve editor.current_buffer....
-#  
-# this means that for now you can't do things like dgd 
-# But should this be implemented? I'm not as 100% as with d<page-up>
-# ...
-
-@atomic_commands('gd')
-def goto_definition(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor to the definition of the variable it is on.
-    """
-    curbuf = editor.current_buffer
-    if curbuf.completer_engine is not None:
-        lin, col = curbuf.cursor_lin_col
-        loc = curbuf.completer_engine.goto(lin+1, col-1)
-        if loc:
-            lin, col = loc[0].get_definition_start_position()
-            curbuf.cursor_lin_col = lin-1, col+1 
-
-@atomic_commands(f'i_{k.left} {k.left} h')
-def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one character left.
-    """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin, col-count)
-
-@atomic_commands(f'i_{k.down} {k.down} j + {k.C_M} {k.C_J} {k.CR}'
-                 f'{k.C_J} {k.C_N}')
-def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move one line down.
-    """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin+count, col)
-
-@atomic_commands(f'i_{k.up} {k.up} {k.C_P} k -')
-def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move one line up.
-    """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin-count, col)
-
-@atomic_commands(f'l i_{k.right} {k.space} {k.right}')
-def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one character right.
-    """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin, col+count)
-
-@atomic_commands('0')
-def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor to beginning of line.
-    """
-    curbuf = editor.current_buffer
-    curbuf.cursor = curbuf.find_begining_of_line()
-
-@atomic_commands(f'$ {k.end} i_{k.end}')
-def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor to end of line.
-    """
-    curbuf = editor.current_buffer
-    curbuf.cursor = curbuf.find_end_of_line()
-
-@atomic_commands('G')
-def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor to the end of file.
-    ---
-    NOTE:
-    This does not correspond to the vim behaviour. In vim, G move to the last
-    line on the first collumn, whereas dG deletes till the end of last line.
-    In Vy, G is allways last collumn, last line.
-    ---
-    """
-    curbuf = editor.current_buffer
-    curbuf.cursor = len(curbuf) - 1
-
-@atomic_commands('gg')
-def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor to first line first character.
-    """
-    curbuf = editor.current_buffer
-    curbuf.cursor = 0
-
-@atomic_commands('_')
-def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor to the first character of the current line.
-    """
-    curbuf = editor.current_buffer
-    curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
-
-@atomic_commands(f'B i_{k.C_left} {k.C_left}')
-def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one WORD backwards.
-    """
-    curbuf = editor.current_buffer
-    for _ in range(count):
-        curbuf.cursor = curbuf.find_normal_B()
-
-@atomic_commands(f'b i_{k.S_left} {k.S_left}')
-def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one word backwards.
-    """
-    curbuf = editor.current_buffer
-    for _ in range(count):
-        curbuf.cursor = curbuf.find_previous_delim()
-
-@atomic_commands(f'W i_{k.C_right} {k.C_right}')
-def do_normal_W(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one WORD right.
-    """
-    curbuf = editor.current_buffer
-    for _ in range(count):
-        curbuf.cursor = curbuf.find_next_WORD()
-
-@atomic_commands(f'w i_{k.S_right} {k.S_right}')
-def do_normal_w(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Move cursor one word right.
-    """
-    curbuf = editor.current_buffer
-    for _ in range(count):
-        curbuf.cursor = curbuf.find_next_delim()
-
-########    end of motions ###########################################
-
-########    start of mode switching ##################################
-
-@atomic_commands(f'i {k.insert}')
-def insert_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Insert» mode at cursor position.
-    """
-    return 'insert'
-
-@atomic_commands(f': {k.C_W}:')
-def command_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Command» mode.
-    """
-    return 'command'
-
-@atomic_commands(':python :py')
-def python_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Python» mode.
-    """
-    return 'python'
-
-@atomic_commands(f'{k.escape} i_{k.escape} i_{k.C_C} :vi :visual :stopi :stopinsert')
-def normal_mode(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «Normal» mode.
-    """
-    return 'normal'
-
-@atomic_commands('I')
-def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Starts «insert» mode at beginning of line.
-    """
-    editor.current_buffer.move_cursor('#.')
-    return 'insert'
-
-@atomic_commands('o')
-def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor on a new empty line below the current line.
-    And starts «Insert» mode.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf.move_cursor('$')
-        curbuf.insert_newline()
-        return 'insert'
-
-@atomic_commands('?')
-def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
-    return 'search_backward'
-
-@atomic_commands('/')
-def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
-    return 'search_forward'
-
-@atomic_commands('O')
-def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor on a new empty line under the current line.
-    And starts «Insert» mode.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf.move_cursor('#.')
-        curbuf.insert_newline()
-        do_normal_k(editor)
-        return 'insert'
-
-@atomic_commands('A')
-def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor on the last character on the current line.
-    And starts «Insert» mode.
-    """
-    editor.current_buffer.move_cursor('$')
-    return 'insert'
-
-########    COMMAND THAT MAY TAKE AN OPERATOR ########################
 
 @sa_commands('J')
 def join_lines(editor, reg=None, part=None, arg=None, count=1):
@@ -330,7 +147,7 @@ def join_lines(editor, reg=None, part=None, arg=None, count=1):
             lin, col = curbuf.cursor_lin_col
             if lin + 1 == curbuf.number_of_lin:
                 return
-            curbuf.current_line = curbuf.current_line.strip() + ' \n'
+            curbuf.current_line = curbuf.current_line.rstrip() + ' \n'
             curbuf.cursor_lin_col = lin+1, 0
             curbuf.current_line = curbuf.current_line.lstrip(' ')
             curbuf.cursor_lin_col = lin, col
@@ -356,7 +173,7 @@ def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
         return
     curwin.parent.move_v_split_left(count)
 
-@atomic_commands('U u :u :un :undo')
+@sa_commands('U u :u :un :undo')
 def undo(editor, reg=None, part=None, arg=None, count=1):
     """
     Undo last action in the current buffer.
@@ -376,8 +193,6 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
         for _ in range(count):
             curbuf.undo()
 
-
-#@with_args_commands(f'{k.C_R} :red :redo')
 @sa_commands(f'{k.C_R} :red :redo')
 def redo(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -390,12 +205,16 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
 @with_args_commands(':nmap :nnoremap')
 def do_nmap(editor, reg=None, part=None, arg=None, count=1):
     """
-    TODO. Not working anymore (api change)
+    WARNING RECURSIVE MAPPING !!!!
     """
     if not arg or not ' ' in arg:
         editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
         return
     key, value = arg.split(' ', maxsplit=1)
+    func = lambda ed, *args, **kwargs: ed.push_macro(value)
+    func.motion = False
+    func.atomic = True
+    editor.actions.normal[key] = func
 
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
@@ -418,7 +237,6 @@ def show_registers(editor, reg=None, part=None, arg=None, count=1):
         editor.warning(str(editor.registr))
     return 'normal'
 
-
 @atomic_commands(':files :ls :buffers')
 def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -426,84 +244,6 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.warning(str(editor.cache))
     return 'normal'
-
-@full_commands('c')
-def change(editor, reg='_', part=None, arg=None, count=1):
-    """
-    Deletes the text from the cursor position to MOTION argument, or inside
-    MOTION if it resolves to as slice of the text. The discarded text is also
-    copied to the {register}.  Then starts 'insert' mode.
-    By default, if no register is specified the black hole "_ register is used.
-    """
-    with editor.current_buffer as curbuf:
-        stop = part.stop or len(curbuf) - 1
-        start = part.start or 0
-        if stop - 1 > start and curbuf[stop - 1] == '\n':
-            stop = stop - 1
-        editor.registr[reg] = curbuf[start:stop]
-        del curbuf[start:stop]
-        curbuf.cursor = part.start
-        return 'insert'
-
-@full_commands('y')
-def yank(editor, reg='"', part=None, arg=None, count=1):
-    """
-    Yanks (copies) the text from the cursor position to {movement} argument,
-    or inside {movement} if it resolves to as slice of the text.
-    By default, if no register is specified the default "" register is used.
-    """
-    text = editor.current_buffer[part]
-    editor.current_buffer.cursor = part.stop
-    editor.registr[reg] = text
-
-
-@full_commands('d')
-def delete(editor, reg='"', part=None, arg=None, count=1):
-    """
-    Deletes the text from the cursor position to {movement} argument,
-    or inside {movement} if it resolves to as slice of the text.
-    The discarded text is also copied to the {register}.
-    By default, if no register is specified the default "" register is used.
-    """
-    to_be_del = editor.current_buffer[part]
-    del editor.current_buffer[part]
-    editor.registr[reg] = to_be_del
-
-
-@full_commands('gu')
-def lower_case(editor, reg='_', part=None, arg=None, count=1):
-    """
-    Makes the text lower case from the cursor position to {movement} argument,
-    or inside {movement} if it resolves to as slice of the text.
-    {register} argument is ignored.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf[part] = curbuf[part].lower()
-        curbuf.cursor = part.stop
-
-
-@full_commands('gU')
-def upper_case(editor, reg='_', part=None, arg=None, count=1):
-    """
-    Makes the text upper case from the cursor position to {movement} argument,
-    or inside {movement} if it resolves to as slice of the text.
-    {register} argument is ignored.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf[part] = curbuf[part].upper()
-        curbuf.cursor = part.stop
-
-
-@full_commands('g~')
-def swap_case(editor, reg='_', part=None, arg=None, count=1):
-    """
-    Swaps the case of the text from the cursor position to {movement}
-    argument, or inside {movement} if it resolves to as slice of the text.
-    {register} argument is ignored.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf[part] = curbuf[part].swapcase()
-        curbuf.cursor = part.stop
 
 @atomic_commands("r")
 def do_r(editor, reg=None, part=None, arg=None, count=1):
@@ -555,7 +295,8 @@ def do_chdir(editor, reg=None, part=None, arg=None, count=1):
         os.chdir(arg)
     except FileNotFoundError:
         editor.warning(f'File not found: {arg}')
-
+    except NotADirectoryError:
+        editor.warning(f'Not a directory: {arg}')
 
 @with_args_commands(":set :se")
 def do_set(editor, reg=None, part=None, arg=None, count=1):
@@ -605,7 +346,6 @@ def do_edit(editor, reg=None, part=None, arg=None, count=1):
     """
     if arg:
         editor.edit(arg)
-
 
 @atomic_commands(f"{k.C_W}n {k.C_W}{k.C_N} :new :enew :ene")
 def do_enew(editor, reg=None, part=None, arg=None, count=1):
@@ -727,7 +467,6 @@ def do_force_leave_current_window(editor, reg=None, part=None, arg=None, count=1
     else:
         curwin.parent.merge_from_left_panel()
 
-
 @atomic_commands(f':q :quit {k.C_W}{k.C_Q} {k.C_W}q')
 def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -763,8 +502,11 @@ def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
     Evaluates a python buffer.
     Use 'from __main__ import Editor' to make use of it.
     """
-    from .interface import python
-    return python.loop(editor, source=editor.current_buffer.string)
+    from vy.interface import python
+    local_dict = {}
+    editor.stop_async_io()
+    exec(editor.current_buffer.string, {}, local_dict)
+    return python.loop(editor, source=local_dict)
 
 
 @atomic_commands(":quitall :quita :qall :qa")
@@ -805,7 +547,6 @@ def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
     import sys
     sys.exit(0)
 
-
 @atomic_commands("zz")
 def do_zz(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -813,9 +554,9 @@ def do_zz(editor, reg=None, part=None, arg=None, count=1):
     Warning: not to confund with ZZ. 
     """
     curwin = editor.current_window
-    middle = (curwin.number_of_lin + 1) / 2
+    middle = (curwin.number_of_lin + 1) // 2
     lin, _ = curwin.buff.cursor_lin_col
-    new_pos = int(lin - middle)
+    new_pos = lin - middle
     if new_pos <= 0:
         curwin.shift_to_lin = 0
     elif new_pos > curwin.buff.number_of_lin:
@@ -903,7 +644,6 @@ def do_zt(editor, reg=None, part=None, arg=None, count=1):
     else:
         curwin.shift_to_lin = new_pos
 
-
 @atomic_commands("zb")
 def do_zb(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -919,103 +659,6 @@ def do_zb(editor, reg=None, part=None, arg=None, count=1):
     else:
         curwin.shift_to_lin = new_pos
 
-
-@atomic_commands(f'{k.page_down} i_{k.page_down} {k.C_B}')
-def do_page_down(editor, reg=None, part=None, arg=None, count=1):
-    """
-    First keystrike puts the cursor on last line shown in the current 
-    windows. Next keystrokes scrolls the text one page down.
-    """
-    curbuf = editor.current_buffer
-    curwin = editor.current_window
-    line_shift = curwin.shift_to_lin
-    page_size = curwin.number_of_lin
-    lin, col = curbuf.cursor_lin_col
-    new_lin = (line_shift + page_size - 1)
-
-    if lin < new_lin:
-        curbuf.cursor_lin_col = (new_lin, col)
-    else:
-        curbuf.cursor_lin_col = (new_lin + page_size, col)
-
-@atomic_commands(f'{k.page_up} i_{k.page_up} {k.C_F}')
-def do_page_up(editor, reg=None, part=None, arg=None, count=1):
-    """
-    First keystrike puts the cursor on the first line shown in the current 
-    windows. Next keystrokes scrolls the text one page up.
-    """
-    curbuf = editor.current_buffer
-    curwin = editor.current_window
-    line_shift = curwin.shift_to_lin
-    page_size = curwin.number_of_lin
-    lin, col = curbuf.cursor_lin_col
-
-    if lin > line_shift:
-        curbuf.cursor_lin_col = (line_shift, col)
-    else:
-        curbuf.cursor_lin_col = (lin - page_size, col)
-
-
-@atomic_commands("n")
-def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor to next occurrence of last searched text.
-    """
-    # This code is sadly a duplicate of vy.interface.search_*
-    # TODO find a place to merge it all
-    needle = editor.registr['/']
-
-    if not needle:
-        editor.screen.minibar('No previous search!')
-        return
-    curbuf = editor.current_buffer
-
-    offset = curbuf._string.find(needle, curbuf.cursor+1)
-    if offset == -1:
-        editor.screen.minibar('String not found: back to the top.')
-        offset = curbuf._string.find(needle)
-        if offset == -1:
-            editor.screen.minibar('String not found!')
-            return
-        curbuf.cursor = offset
-        do_zz(editor)
-    else:
-        curbuf.cursor = offset + 1
-        do_zz(editor)
-        return
-
-@atomic_commands("N")
-def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor to previous occurrence of last searched text.
-    """
-    needle = editor.registr['/']
-
-    if not needle:
-        editor.screen.minibar('No previous search!')
-        return
-    curbuf = editor.current_buffer
-
-    offset = curbuf._string.rfind(needle, 0, curbuf.cursor)
-    if offset == -1:
-        editor.screen.minibar('String not found: back to the bottom.')
-        offset = curbuf._string.rfind(needle)
-        if offset == -1:
-            editor.screen.minibar('String not found!')
-            return
-        curbuf.cursor = offset
-        do_zz(editor)
-    else:
-        curbuf.cursor = offset + 1
-        do_zz(editor)
-        return
-
-@atomic_commands('*')
-def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
-    editor.registr['/'] = editor.current_buffer['iw']
-    do_normal_n(editor)
-
-
 @atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
 def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -1024,7 +667,6 @@ def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     Does nothing if on the first position of the buffer.
     """
     editor.current_buffer.backspace()
-
 
 @sa_commands('D')
 def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
@@ -1115,7 +757,6 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
     editor.start_async_io()
     return 'normal'
 
-
 @sa_commands("p")
 def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     """
@@ -1202,18 +843,21 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     dots (as in a python package), Vym will search in the parents directories.
     """
     from pathlib import Path
-    filename = editor.current_buffer['iw']
-    guess1 = editor.current_buffer.path.with_name(filename)
-    guess2 = editor.current_buffer.path.with_name(filename + '.py')
-    guess3 = editor.current_buffer.path.parent / (filename.removeprefix('.') + '.py')
-    guess4 = editor.current_buffer.path.parent.parent / (filename.removeprefix('..') + '.py')
-
-    for guess in [Path(filename), guess1, guess2, guess3, guess4]:
+    filename = editor.current_buffer['iw'].lstrip().strip()
+    if filename.startswith('/') or filename[1:3] == ':\\':
+        if Path(filename).exists():
+            return editor.edit(filename)
+    cur_buf = editor.current_buffer
+    for guess in [ cur_buf.path.parent / filename,
+        cur_buf.path.parent / (filename + '.py'),
+        cur_buf.path.parent / (filename.removeprefix('.').replace('.','/') + '.py'),
+        cur_buf.path.parent.parent.parent / (filename.removeprefix('..').replace('.','/') + '.py'),
+        cur_buf.path.parent / (filename.removeprefix('.').replace('.','/') + '.py'),
+        ]:
+#        editor.warning(str(guess))
         if guess.exists():
             editor.edit(guess)
-            return 'normal'
-    editor.screen.minibar(f'file {filename!r} not found.')
-    return 'normal'
+        editor.screen.minibar(f'file {filename!r} not found.')
 
 ########    DEBUGGING ################################################
 
@@ -1231,27 +875,5 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
         curbuf.cursor = 0
         curbuf.string
 
-@atomic_commands('µ')
-def print_some(editor, reg=None, part=None, arg=None, count=1):
-    """
-    This command is used to print variables to debug.  It looks to a file
-    called "debugging_values" from the user config directory. This file should
-    contain a list of newline separated variables from the editor object
-    namespace.
-    """
-    from vy.global_config import USER_DIR
-    from pprint import pformat
-    vy = editor # shorter to type
-    debug_file = USER_DIR / "debugging_values"
-    to_print = ''
-    for line in debug_file.read_text().splitlines():
-        parent = eval(line)
-        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
-        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-    editor.warning(to_print)
 
-
-########    start of motions #########################################
-
-del sa_commands, full_commands, atomic_commands
-del with_args_commands, k
+del sa_commands, atomic_commands, with_args_commands, k

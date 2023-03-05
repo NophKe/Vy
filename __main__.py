@@ -108,6 +108,8 @@ from vy.editor import _Editor as Editor
 
 Editor = Editor(*cmdline.files, command_line=cmdline)
 
+global_config._source_rcfile(Editor)
+
 if cmdline.profile:
     import cProfile, pstats, io
     from pstats import SortKey

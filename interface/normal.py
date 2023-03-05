@@ -5,7 +5,8 @@ def init(editor):
     global minibar
     minibar = editor.screen.minibar
 
-def loop(editor):
+
+def loop(editor, capture=True):
     """ Normal mode event-loop function """
 
     dictionary = dict()
@@ -40,7 +41,13 @@ def loop(editor):
             minibar(texte)
         return editor.read_stdin()
 
-    while True:
+    stop = not capture
+    capture = True
+
+    while True and capture:
+        if stop:
+            capture = False
+
         update_globals()
         key = REG = CMD = RANGE = MOTION_COUNT = ''
         COUNT = ''
@@ -70,23 +77,18 @@ def loop(editor):
         if key in local_actions:
             return local_actions[key](editor)
 
-        #from vy.editor import BP; BP()
-
-        #if key in motion_cmd: #and dictionary[key] is motion_cmd[key]:
-            #editor.screen.minibar(f' ( Processing Command {_escape(key)} {COUNT} times )')
-            #for _ in range(COUNT):
-                #curbuf.move_cursor(key)
-            #editor.screen.minibar('')
-            #continue
-
-        #from vy.editor import BP
-        #BP()
-
-        #editor.current_buffer.set_undo_point()
         action = dictionary[key]
+        
+        if action.motion:
+            minibar(f' ( Processing Motion: {str(COUNT) + " times " if COUNT != 1 else ""}{_escape(key)} )')
+            rv = action(editor, count=COUNT)
+            minibar('')
+            if rv and rv != 'normal':
+                return rv
+            continue
 
         if action.atomic:
-            minibar(f' ( Processing Command {_escape(key)} )')
+            minibar(f' ( Processing Command: {_escape(key)} )')
             rv = action(editor, count=COUNT)
             minibar('')
             if rv and rv != 'normal':

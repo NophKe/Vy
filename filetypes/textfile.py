@@ -105,7 +105,7 @@ try:
       Comment.Preproc:    'cyan',         Keyword:            '*blue*',
       Keyword.Type:       'cyan',         Operator.Word:      'magenta',
       Name.Builtin:       'cyan',         Name.Function:      'green',
-      Name.Namespace:     '_cyan_',       Name.Class:         '*green*',
+      Name.Namespace:     '*cyan*',       Name.Class:         '*green*',
       Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
       Name.Variable:      'red',          Name.Constant:      'red',
       Name.Attribute:     'cyan',         Name.Tag:           'brightblue',
@@ -113,7 +113,7 @@ try:
       Generic.Deleted:    'brightred',    Text:               '',
       Generic.Inserted:   'green',        Generic.Heading:    '**',
       Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
-      Generic.Error:      'brightred',    Error:              '_brightred_',
+      Generic.Error:      'brightred',    Error:              '*brightred*',
     }
 except ImportError:
     global_config.DONT_USE_PYGMENTS_LIB = True
@@ -261,15 +261,15 @@ class TextFile(BaseFile):
                             if self._lex_away_should_stop.is_set():
                                 break
                             if token_line.endswith('\n'):
-                                line += tok + token_line[:-1] + ' \x1b[0m'
+                                line += tok + token_line[:-1] + ' \x1b[39;49;21;22;24m'
                                 local_lexed.append(line)
                                 local_dict[local_split[count]] = line
                                 count += 1
                                 line = ''
                             else:
-                                line += tok + token_line + '\x1b[0m'
+                                line += tok + token_line + '\x1b[39;49;00;21;22;24m'
                     else:
-                        line += tok + val + '\x1b[0m'
+                        line += tok + val + '\x1b[39;49;21;22;24m'
                 else:
                     if line: #No eof
                         local_dict[self._splited_lines[count]] = line

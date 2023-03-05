@@ -1,4 +1,3 @@
-#from sys import intern
 from threading import RLock
 from vy import keys as k
 
@@ -215,12 +214,9 @@ class BaseFile:
         avoid modifying it directly. This will invalidate most computation
         allready done.
         """
-        local = self._string
-        if local:
-            return local
         with self._lock:
-            #assert self._splited_lines
-            self._string = ''.join(self._splited_lines)
+            if not self._string:
+                self._string = ''.join(self._splited_lines)
         return self._string
 
     @property
@@ -410,6 +406,52 @@ class BaseFile:
         self._lines_offsets.clear()
         self._lenght += len(value)
 
+    def start_selection(self):
+        self._selected = self.cursor_lin_col
+    
+    def stop_selection(self):
+        self._selected = ()
+
+    @property
+    def selected_offsets(self):
+        if self._selected:
+            lin, col = self._selected
+            a = self.lines_offsets[lin] + col - 1
+            b = self.cursor
+            return slice(min(a, b), max(a, b))
+        raise RuntimeError
+
+    @property
+    def selected_lin_col(self):
+        if not self._selected:
+            return 
+        a_lin, a_col = self._selected
+        b_lin, b_col = self.cursor_lin_col
+        if a_lin < b_lin:
+            return (a_lin, a_col), (b_lin, b_col)
+        elif a_lin == b_lin:
+            if a_col < b_col:
+                return (a_lin, a_col), (b_lin, b_col)
+            return (a_lin, b_col), (b_lin, a_col)
+        return (b_lin, b_col), (a_lin, a_col)
+            
+    @property
+    def selected_lines_off(self):
+        a = self.lines_offsets[self.current_line_idx]
+        try:
+            b = self.lines_offsets[self._selected[0]+1]
+        except IndexError:
+            b = len(self)
+        return slice(min(a, b), max(a, b))
+
+    @property
+    def selected_lines(self):
+        if self._selected:
+            actual_lin = self.current_line_idx
+            other_lin = self._selected[0]
+            return range(min(actual_lin, other_lin), max(actual_lin, other_lin)+1)
+        return ()
+
     def __init__(self,
                 set_number=True, 
                 set_wrap=False, 
@@ -419,6 +461,7 @@ class BaseFile:
                 set_comment_string=('',''),
                 init_text='', 
                 path=None):
+        self._selected = None
         self._repr = '' #TODO delete me ?
         self._undo_flag = True
         self.path = path
@@ -427,6 +470,7 @@ class BaseFile:
         self.set_number = set_number
         self.set_tabsize = set_tabsize
         self.set_expandtabs = set_expandtabs
+        self._init_text = init_text
         self._number_of_lin = 0
         self._cursor = 0
         self._cursor_lin_col = ()
@@ -1011,7 +1055,7 @@ class BaseFile:
         assert self.path is not None
         self.path.write_text(self.string)
 
-    def save_as(self, new_path=None, override=False):
+    def save_as(self, override=False):
         from pathlib import Path
         new_path = Path(new_path).resolve()
                 
@@ -1021,16 +1065,15 @@ class BaseFile:
             self.save()
         else:
             if not new_path.is_file():
-                if not new_path.is_dir():
-                    raise FileExistsError('this file exists and is not a file nor a dir!')
-                else:
+                if new_path.is_dir():
                     raise IsADirectoryError('cannot write text onto a directory!')
+                raise FileExistsError('this file exists and is not a file nor a dir!')
+
+            if override or not new_path.exists():
+                self.path = new_path
+                self.save()
             else:
-                if override: 
-                    self.path = new_path
-                    self.save()
-                else:
-                    raise FileExistsError('Add ! in interface or override=True in *kwargs ....')
+                raise FileExistsError('Add ! in interface or override=True in *kwargs ....')
 
     @property
     def unsaved(self):

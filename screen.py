@@ -7,70 +7,11 @@ from sys import stdout
 
 from vy.global_config import DEBUG
 
-def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len):
-    #assert '/n' not in text
-    number = f'{on_lin:{num_len}}: '
-    line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
-
-    retval: list = list()
-    on_col: int = len(number)
-    cursor_col += on_col - 1
+def expand_quick(max_col, text):
+    line = ''
+    on_col = 1
+    retval = []
     esc_flag: bool = False
-    cursor_flag: bool = cursor_lin == on_lin
-    cursor_char_flag = False
-
-    char: str
-    for char in text:
-        if esc_flag:
-            line += char
-            if char == 'm':
-                esc_flag = False
-            continue
-
-        if char == '\x1b':
-            esc_flag = True
-            line += char
-            continue
-
-        if on_col ==  max_col:
-            line += '\x1b[39;49m'
-            retval.append(line)
-            line = '\x1b[90;40m' + ' ' * len(number)+ '\x1b[39;49m'
-            cursor_col  = cursor_col - (max_col - len(number))
-            on_col = len(number)
-            esc_flag = False
-
-        if cursor_flag and on_col == cursor_col:
-            cursor_char_flag = True
-            line += '\x1b[5;7m'
-
-        if char == '\t':
-            nb_of_tabs =  tab_size - ((on_col - len(number)) % tab_size)
-            line += ' ' * nb_of_tabs
-            on_col += nb_of_tabs
-            cursor_col += (nb_of_tabs-1)
-        else:
-            on_col += 1
-            line += char
-        if cursor_char_flag:
-            cursor_char_flag = False
-            line += '\x1b[25;27m'
-
-    retval.append(line + (' ' * (max_col - on_col)))
-    return retval
-
-        
-#@cache
-def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
-    #assert '/n' not in text
-    retval: list = list()
-    line: str = '\x1b[39;49m'
-    on_col: int = 1
-    cursor_col += on_col - 1
-    esc_flag: bool = False
-    cursor_flag: bool = False
-
-    char: str
     for char in text:
         if esc_flag:
             line += char
@@ -87,13 +28,137 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             line += '\x1b[39;49m'
             retval.append(line)
             line = '\x1b[39;49m'
+            on_col = 1
+            esc_flag = False
+
+        if char == '\t':
+            line += ' '
+        else:
+            line += char
+        on_col += 1
+
+    retval.append(line + (' ' * (max_col - on_col)))
+    return retval
+
+def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
+    #assert '/n' not in text
+    number = f'{on_lin:{num_len}}: '
+    line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
+    start_cursor = '\x1b[5;7m'
+    stop_cursor = '\x1b[25;27m'
+    retval: list = list()
+    on_col: int = len(number)
+    cursor_col += on_col - 1
+    esc_flag: bool = False
+    cursor_flag: bool = cursor_lin == on_lin
+    cursor_char_flag = False
+
+    if visual:
+        start_v, stop_v = visual
+        visual = bool(visual)
+        start_v += on_col - 1
+        stop_v += on_col - 1
+#        if stop_v == start_v:
+#            visual = False
+
+    char: str
+    for char in text:
+        if esc_flag:
+            line += char
+            if char == 'm':
+                esc_flag = False
+            continue
+
+        if char == '\x1b':
+            esc_flag = True
+            line += char
+            continue
+
+        if visual and on_col == start_v: # and on_col == cursor_col:
+                line += '\x1b[7m'
+                start_cursor = '\x1b[27;5;4m'
+                stop_cursor = '\x1b[7;25;24m'
+
+        if on_col ==  max_col:
+            line += '\x1b[39;49m'
+            retval.append(line)
+            line = '\x1b[90;40m' + ' ' * len(number)+ '\x1b[39;49m'
+            cursor_col  = cursor_col - (max_col - len(number))
+            on_col = len(number)
+            esc_flag = False
+
+        if cursor_flag and on_col == cursor_col:
+            cursor_char_flag = True
+            line += start_cursor
+
+        if char == '\t':
+            nb_of_tabs =  tab_size - ((on_col - len(number)) % tab_size)
+            line += ' ' * nb_of_tabs
+            on_col += nb_of_tabs
+            cursor_col += (nb_of_tabs-1)
+        else:
+            on_col += 1
+            line += char
+
+        if cursor_char_flag:
+            cursor_char_flag = False
+            line += stop_cursor
+
+        if visual and on_col == stop_v + 1:
+            line += '\x1b[22;25;27m'
+
+    retval.append(line + (' ' * (max_col - on_col)))
+    return retval
+        
+#@cache
+def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
+    #assert '/n' not in text
+    retval: list = list()
+    line: str = '\x1b[00;39;49m'
+    start_cursor = '\x1b[5;7m'
+    stop_cursor = '\x1b[25;27m'
+    on_col: int = 1
+    cursor_col += on_col - 1
+    esc_flag: bool = False
+    cursor_flag: bool = False
+
+    if visual:
+        start_v, stop_v = visual
+        visual = bool(visual)
+        start_v += on_col - 1
+        stop_v += on_col - 1
+#        if stop_v == start_v:
+#            visual = False
+
+    char: str
+    for char in text:
+        if esc_flag:
+            line += char
+            if char == 'm':
+                esc_flag = False
+            continue
+
+        if char == '\x1b':
+            esc_flag = True
+            line += char
+            continue
+
+        if visual and on_col == start_v: # and on_col == cursor_col:
+                line += '\x1b[7m'
+                start_cursor = '\x1b[27;5;4m'
+                stop_cursor = '\x1b[7;25;24m'
+
+        if on_col ==  max_col:
+            line += '\x1b[39;49m'
+            retval.append(line)
+            line = '\x1b[39;49m'
             cursor_col  = cursor_col - max_col + 1
             on_col = 1
             esc_flag = False
 
         cursor_flag = on_col == cursor_col and on_lin == cursor_lin
         if cursor_flag:
-            line += '\x1b[5;7m'
+            line += start_cursor
 
         if char == '\t':
             nb_of_tabs =  tab_size - (on_col % tab_size)
@@ -104,7 +169,10 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col):
             on_col += 1
             line += char
         if cursor_flag:
-            line += '\x1b[25;27m'
+            line += stop_cursor
+
+        if visual and on_col == stop_v + 1:
+            line += '\x1b[22;25;27m'
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
@@ -337,6 +405,10 @@ class Window():
             wrap = self.buff.set_wrap
             if (number := self.buff.set_number):
                 num_len = len(str(max_lin))
+                expand = expandtabs_numbered
+            else:
+                expand = expandtabs
+                num_len = None
             tab_size = self.buff.set_tabsize
             default = f"~{' ':{max_col- 1}}"
             true_cursor = 0
@@ -345,16 +417,22 @@ class Window():
                     = self.buff.get_raw_screen(min_lin, max_lin)
 
             line_list = list()
-            for on_lin, pretty_line in zip(range(min_lin, max_lin), raw_line_list):
+            for on_lin, pretty_line in enumerate(raw_line_list, start=min_lin):
                 if pretty_line is None:
                     line_list.append(default)
                     continue
                 if on_lin == cursor_lin and true_cursor == 0:
                     true_cursor = len(line_list)
-                if number:
-                    to_print = expandtabs_numbered(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len)
-                else:
-                    to_print = expandtabs(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col)
+           
+                if (visual := on_lin in self.buff.selected_lines):
+                    (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
+                    if on_lin != start_lin:
+                        start_col = 1
+                    if on_lin != stop_lin:
+                        stop_col = -1
+                    visual = (start_col, stop_col)
+
+                to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, visual)
                 if wrap:
                     line_list.extend(to_print)
                 else:
@@ -367,7 +445,6 @@ class Window():
                         true_cursor -= 1
                     else:
                         line_list.pop()
-#                        true_cursor -= 1
             return line_list 
 
 class Screen(Window):
@@ -429,12 +506,7 @@ class Screen(Window):
         rv.extend(minibar)
         return rv, ok_flag
 
-
     def minibar(self, *lines):
-        if DEBUG:
-            for l in lines:
-                assert isinstance(l,str)
-                assert not '\n' in l
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
     
@@ -445,37 +517,37 @@ class Screen(Window):
                 from vy.global_config import USER_DIR
                 from pprint import pformat
                 from __main__ import Editor as vy
-                #from time import asctime
+#                from time import asctime
                 debug_file = USER_DIR / "debugging_values"
-                to_print = '____' * 100 + '\n'
+                to_print = '_' * (self.number_of_col - 1)
                 for line in debug_file.read_text().splitlines():
                     value = eval(line)
                     value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
                     to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
                 rv = list()
                 for line in to_print.splitlines():
-                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                    rv.extend(expand_quick(self.number_of_col, line))
                 rv.append(self.infobar_txt)
                 for line in self.minibar_completer:
-                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                    rv.extend(expand_quick(self.number_of_col, line))
                 for line in self._minibar_txt:
-                    rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
-                #rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0))
+                    rv.extend(expand_quick(self.number_of_col, line))
+#                rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
                 return rv
             except Exception as exc:
                 rv = []
                 for line in str(exc).splitlines():
-                    rv.append(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                    rv.extend(expand_quick(self.number_of_col, line))
                 return rv
     else:
         @property
         def minibar_banner(self):
             rv = list()
             for line in self.minibar_completer:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                rv.extend(expand_quick(self.number_of_col, line))
             rv.append(self.infobar_txt)
             for line in self._minibar_txt:
-                rv.extend(expandtabs(3, self.number_of_col , line, 1, 0, 0))
+                rv.extend(expand_quick(self.number_of_col, line))
             return rv
 
     def infobar(self, left='', right=''):
@@ -486,7 +558,7 @@ class Screen(Window):
     def infobar_txt(self):
         left = self._infobar_left
         right = self._infobar_right
-        middle = int(self.number_of_col / 2)
+        middle = self.number_of_col // 2
         if len(right) + 5 > middle:
             right = right[:middle - 5] + '....'
         else:

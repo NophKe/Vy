@@ -35,7 +35,7 @@ class command:
             header += self.i_header % (i_alias[0] ,
                                     ' '.join(_escape(item) for item in i_alias).ljust(60))
 
-        func.stand_alone = func.with_args  = func.full = func.atomic = False
+        func.motion = func.stand_alone = func.with_args  = func.full = func.atomic = False
         setattr(func, self.category, True)
 
         func.n_alias = n_alias if n_alias else None
@@ -43,7 +43,9 @@ class command:
         func.v_alias = v_alias if v_alias else None
         func.i_alias = i_alias if i_alias else None
 
-        func.__doc__ = header + func.__doc__ if func.__doc__ else ''
+#        func.__doc__ = header + func.__doc__ + '\n' if func.__doc__ else ''
+        if func.__doc__:
+            func.__doc__ = header + func.__doc__ + '\n'
         return func
 
     def __call__(self, alias):
@@ -64,7 +66,7 @@ i_sa_header = """
 c_sa_header = """
     This command is part of command mode «stand-alone commands» commands.
 
-    [SYNTAX]      :[%s] {register}
+    [SYNTAX]      :%s {register}
     aliases: %s
     -------------------------------------------------------------------- """
 n_sa_header = """
@@ -79,7 +81,7 @@ sa_commands = command(c_sa_header, n_sa_header, v_sa_header, i_sa_header, "stand
 v_full_header = """
     This command is part of visual mode «full» commands.
 
-    [SYNTAX]    MAY BE LATER DEFINED %s 
+    [SYNTAX]      [{count}] {motion} %s 
     aliases: %s
     -------------------------------------------------------------------- """
 i_full_header = """
@@ -100,7 +102,7 @@ n_full_header = """
     [SYNTAX]      ["{register}] [{count}] %s [{count}] {motion}
     aliases: %s
     -------------------------------------------------------------------- """
-full_commands = command(c_full_header, n_sa_header, v_sa_header, i_sa_header, "full")
+full_commands = command(c_full_header, n_full_header, v_full_header, i_full_header, "full")
 
 
 v_atomic_header = """
@@ -127,7 +129,7 @@ n_atomic_header = """
     [SYNTAX]      %s
     aliases: %s
     -------------------------------------------------------------------- """
-atomic_commands = command(c_atomic_header, n_sa_header, v_sa_header, i_sa_header, "atomic")
+atomic_commands = command(c_atomic_header, n_atomic_header, v_atomic_header, i_atomic_header, "atomic")
 
 
 v_with_args_header = """
@@ -157,28 +159,29 @@ n_with_args_header = """
 with_args_commands = command(c_with_args_header, n_with_args_header, v_with_args_header, i_with_args_header, "with_args")
 
 
-v_with_args_header = """
-    This command is part of visual mode «with args» commands.
+v_motion_header = """
+    This command is part of visual mode «motion» commands.
+
+    [SYNTAX]      [{count}] %s
+    aliases: %s
+    -------------------------------------------------------------------- """
+i_motion_header = """
+    This command is part of insert mode «motion» commands.
+
+    [SYNTAX]      %s
+    aliases: %s
+    -------------------------------------------------------------------- """
+c_motion_header = """
+    This command is part of command mode «motion» commands.
 
     [SYNTAX]      MAY BE LATER DEFINED %s
     aliases: %s
     -------------------------------------------------------------------- """
-i_with_args_header = """
-    This command is part of insert mode «with args» commands.
+n_motion_header = """
+    This command is part of normal mode «motion» commands.
 
-    [SYNTAX]      MAY BE LATER DEFINED %s
+    [SYNTAX]      ["{register}] [{count}] [{command}] [{count}] %s
     aliases: %s
     -------------------------------------------------------------------- """
-c_with_args_header = """
-    This command is part of command mode «with args» commands.
+motion_commands = command(c_motion_header, n_motion_header, v_motion_header, i_motion_header, "motion")
 
-    [SYNTAX]      :%s {argument}
-    aliases: %s
-    -------------------------------------------------------------------- """
-n_with_args_header = """
-    This command is part of normal mode «with args» commands.
-
-    [SYNTAX]      MAY BE LATER DEFINED %s
-    aliases: %s
-    -------------------------------------------------------------------- """
-with_args_commands = command(c_with_args_header, n_with_args_header, v_with_args_header, i_with_args_header, "with_args")

@@ -103,7 +103,8 @@ def _escape(text):
         if any( [item.startswith(char) for item in _reprs]): 
             evaluing += char
             continue
-        final += char
+        if char.isprintable():
+            final += char
     if evaluing:
         final += ('<' + _reprs[evaluing] + '>').replace('_','-')
     #TODO insert assertion to check for '\t' or '\n' or alike in final

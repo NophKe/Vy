@@ -1,5 +1,15 @@
 from vy.interface.helpers import Completer
 
+def starts_with_valid_range(string):
+    buffer = ''
+    for char in string:
+        buffer += char
+        if buffer.startswith('<') and buffer.endswith('>'):
+            return buffer
+        if buffer in ('%', '.'):
+            return buffer
+    return ''
+
 def init(editor):
     global readline
     readline = Completer('command_history', ':', editor, editor.actions.command)
@@ -10,6 +20,7 @@ def loop(self):
     """
 
     ARG = PART = REG = None
+
     try:
         user_input = readline().lstrip()
     except KeyboardInterrupt:
@@ -19,8 +30,8 @@ def loop(self):
     if not user_input:
         return 'normal'
 
-    if user_input.isdigit():
-        self.current_buffer.move_cursor(f'#{user_input}')
+    elif user_input.isdigit():
+        self.current_buffer.cursor_lin_col = int(user_input), 0
         return 'normal'
 
     if ' ' in user_input:
@@ -28,15 +39,17 @@ def loop(self):
     else:
         cmd = user_input.strip()
 
+    cmd = cmd.lstrip(':')
     try:
-        action = self.actions.command[cmd.lstrip(':')]
+        action = self.actions.command[cmd]
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         return 'normal'
     
     info_txt = f'( Processing Command: {user_input} )'
     self.screen.minibar(info_txt)
-
+    self.registr[':'] = user_input
+    
     if ARG:
         rv = action(self, arg=ARG, part=PART, reg=REG)
     else:

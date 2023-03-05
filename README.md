@@ -3,6 +3,7 @@ Vy
 
 What is Vy?
 -----------
+
 First, Vy is an experiment.
 
 When I first discovered Python, the first that came to my mind was:
@@ -31,7 +32,8 @@ traditionnal vi, and the ability to have the python repl inside the editor would
 make me prefer it over vim for python oriented stuff where you would like to evaluate
 expressions in real time.
 
-This is not supposed to be a clone of Vim or Vi. And this has important consquences.
+Not a clone and legacy-free
+---------------------------
 
 First It is meant to be legacy-free. Even if it might feel the same while using it,
 some quirks or the vi/vim grammar are to be eliminated. Indeed Vy tries to provide 
@@ -54,7 +56,7 @@ It imports very few from stdlib, doesn't use readline, doesn't use curses, nor a
 library for terminal manipulation. The goal is to keep the code as «low level» and «de-
 pendency free» as possible.
 
-It must be self-documenting, and the application API must be discoverable.
+It **must** be self-documenting, and the application API must be discoverable.
 
 Vym will will never be better at encodings than vanilla python allready is, and
 will never handle binary files.
@@ -90,14 +92,21 @@ The repl inside the editor.
 
     :python
             You are now in a python repl.
-            You can access Vy by the «Editor» variable
-            risk and profit...
-            
-            note that you are back in __main__ no matter what this means!
-    >>> _
+            You can access Vy by the «Editor» variable.
 
-from vy.textfile import TextFile
----------------------------------
+    >>> from time import asctime
+	>>> from vy.keys import C_T
+	>>> 
+	>>> def insert_time_in_buffer(editor, **kwargs):
+	... 	"""
+	...		Inserts a timestamp at the cursor position
+	...		"""
+    ... 	editor.current_buffer.insert(asctime())
+	...
+	>>> Editor.action.normal[C_T] = insert_time_in_buffer
+
+from vy.filetypes.textfile import TextFile
+------------------------------------------
 
 ```
     >>> buffer = TextFile('/etc/hosts')

@@ -1,4 +1,5 @@
-from importlib import import_module
+from importlib import import_module, reload
+from sys import modules
 
 class Interface():
     __slots__ = ('inst', 'mode_dict')
@@ -11,8 +12,11 @@ class Interface():
         loop = self.mode_dict.get(name, None)
 
         if loop is None:
+            mod_name = f'vy.interface.{name}'
+            if mod_name in modules:
+                reload(modules[mod_name])
             try:
-                module = import_module(f'vy.interface.{name}', __package__)
+                module = import_module(mod_name, __package__)
                 if hasattr(module, 'init'):
                     module.init(self.inst)
                 loop = module.loop

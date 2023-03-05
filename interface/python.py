@@ -1,4 +1,4 @@
-from ..global_config import USER_DIR
+from vy.global_config import USER_DIR
 from rlcompleter  import Completer 
 import readline
 from code import InteractiveConsole
@@ -32,17 +32,11 @@ class CommandCompleter:
 local_completer = CommandCompleter('python_history')
 
 def loop(editor, source=None):
+    if source is None:
+        source = {}
     editor.stop_async_io()
     try:
-        console = InteractiveConsole(locals={'vy': editor})#, editor=editor)
-        console
-        if source:
-            print('=====')
-            for line in source.splitlines():
-                if line and not line.isspace():
-                    console.push(line)
-            print('=====')
-        
+        console = InteractiveConsole(locals=source)
         try:
             with local_completer:
                 try:
@@ -54,6 +48,5 @@ def loop(editor, source=None):
         except SystemExit:
             pass
         return 'normal'
-
     finally:
         editor.start_async_io()

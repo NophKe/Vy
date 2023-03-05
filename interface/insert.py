@@ -6,6 +6,7 @@ def loop(editor):
     get_a_key = editor.read_stdin
     minibar = editor.screen.minibar
     dictionary = editor.actions.insert
+    last_insert = ''
     
     user_input = get_a_key()
 
@@ -21,15 +22,19 @@ def loop(editor):
             curbuf.set_undo_record(True)
             curbuf.set_undo_record(False)
             curbuf.insert(user_input)
+            last_insert += user_input
             while True:
                 user_input = get_a_key()
                 if user_input.isprintable() or user_input.isspace() \
-                and not user_input in dictionary                    \
-                and not any(k.startswith(user_input) for k in dictionary):
+                        and not user_input in dictionary            \
+                        and not any(k.startswith(user_input) for k in dictionary):
                     curbuf.insert(user_input)
+                    last_insert += user_input
                     continue
                 curbuf.set_undo_record(True)
                 break
+            editor.registr['.'] = last_insert
+            last_insert = ''
             continue
 
         elif one_inside_dict_starts_with(dictionary, user_input):
