@@ -109,7 +109,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
-        
+
 #@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
     #assert '/n' not in text
@@ -205,7 +205,6 @@ class CompletionBanner:
         self.view_start = 0
         self.max_selected = len(self.completion) - 1
         self._update()
-
     
     def give_up(self):
         self.__init__()
@@ -359,8 +358,7 @@ class Window():
     def focused(self):
         if self._focused is not self:
             return self._focused.focused
-        else:
-            return self
+        return self
 
     @property
     def number_of_col(self):
@@ -509,19 +507,23 @@ class Screen(Window):
     def minibar(self, *lines):
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
+        copy = self._minibar_txt.copy()
+        return lambda: (self._minibar_txt.clear(),
+                        self._minibar_txt.append('')) if self._minibar_txt == copy else None
     
     if DEBUG:
         @property
         def minibar_banner(self):
             try:
+                from time import sleep
+                
                 from vy.global_config import USER_DIR
                 from pprint import pformat
                 from __main__ import Editor as vy
 #                from time import asctime
                 debug_file = USER_DIR / "debugging_values"
-                to_print = '_' * (self.number_of_col - 1)
+                to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m'
                 for line in debug_file.read_text().splitlines():
-                    value = eval(line)
                     value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
                     to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
                 rv = list()

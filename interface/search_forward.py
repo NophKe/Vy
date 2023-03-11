@@ -5,12 +5,9 @@ def init(editor):
     global readline
     readline = Completer('search_forward_history', '/', editor)
 
-def make_word_list(string):
-    from re import split
-    return set(split(r'[ :,()\[\]]|$', string))
-        
 def loop(editor):
     curbuf = editor.current_buffer
+    current_offset = curbuf.cursor
     try:
         user_input = readline()
     except KeyboardInterrupt:
@@ -23,17 +20,19 @@ def loop(editor):
     if not user_input:
         return 'normal'
 
-    offset = curbuf.string.find(user_input, curbuf.cursor)
+    offset = curbuf.string.find(user_input, current_offset) 
+    if offset == current_offset:
+        offset = curbuf.string.find(user_input, current_offset + 1)
+
     if offset == -1:
-        editor.warning('chaine de caractere non trouvée. (recherche vers l\'avant)')
+        editor.screen.minibar('String not found, retrying from first line.')
         offset = curbuf._string.find(user_input)
-        if offset == -1:
-            editor.screen.minibar('String not found!')
-            return 'normal'
-        curbuf.cursor = offset
-        do_zz(editor)
-    else:
-        curbuf.cursor = offset + 1
-        do_zz(editor)
+
+    if offset == -1:
+        editor.screen.minibar('String not found!')
         return 'normal'
 
+    curbuf.cursor = offset
+    do_zz(editor)
+    return 'normal'
+    

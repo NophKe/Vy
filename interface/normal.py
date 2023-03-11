@@ -13,7 +13,7 @@ def loop(editor, capture=True):
     last_buffer = curbuf = motion_cmd = local_actions = None
     valid_registers     = ( 'abcdefghijklmnopqrstuvwxyz'
                             'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                            '+-*/.:%#"=!' )
+                            '+-*/.:%#"=!0123456789')
 
     def update_globals():
         """if the current buffer has changed, update the action dictionnary"""
@@ -88,17 +88,17 @@ def loop(editor, capture=True):
             continue
 
         if action.atomic:
-            minibar(f' ( Processing Command: {_escape(key)} )')
+            cancel_minibar = minibar(f' ( Processing Command: {_escape(key)} )')
             rv = action(editor, count=COUNT)
-            minibar('')
+            cancel_minibar()
             if rv and rv != 'normal':
                 return rv
             continue
 
         elif action.stand_alone:
-            minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
+            cancel_minibar = minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
             rv = action(editor, reg=REG if REG else '"', count=COUNT)
-            minibar('')
+            cancel_minibar()
             if rv and rv != 'normal':
                 return rv
             continue

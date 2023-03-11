@@ -1,7 +1,7 @@
 from vy import keys as k
 from vy.actions.helpers import atomic_commands
 
-@atomic_commands(f'{k.escape} i_{k.escape} v_{k.escape} i_{k.C_C} v_{k.C_C}'
+@atomic_commands(f'{k.escape} ² i_² v_² i_{k.escape} v_{k.escape} i_{k.C_C} v_{k.C_C}'
                   ' :vi :visual :stopi :stopinsert')
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -27,7 +27,8 @@ def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «insert» mode at beginning of line.
     """
-    editor.current_buffer.move_cursor('#.')
+    lin, col = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = lin, 0
     return 'insert'
 
 @atomic_commands('o')
@@ -102,9 +103,10 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     And starts «Insert» mode.
     """
     with editor.current_buffer as curbuf:
-        curbuf.move_cursor('#.')
+        lin, col = curbuf.cursor_lin_col
+        curbuf.cursor_lin_col = lin, 0
         curbuf.insert_newline()
-        curbuf.move_cursor('k')
+        curbuf.cursor_lin_col = lin, 0
         return 'insert'
 
 @atomic_commands('A')

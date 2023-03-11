@@ -4,23 +4,23 @@ from ..global_config import USER_DIR
 from ..filetypes.basefile import DummyLine
 from .. import keys as k
 
+
 class Completer:
-    def __init__(self, file, prompt, editor, completion_dict={}):
+    def __init__(self, file, prompt, editor):
         histfile = USER_DIR / file
         if not histfile.exists():
             histfile.touch()
         self.histfile = histfile
-        self.history = [ item for item in set(histfile.read_text().splitlines()) ]
+        self.history = [ item for item in histfile.read_text().splitlines() ]
         self.state = ''
         self.prompt = f'\x1b[39;49;1m{prompt}\x1b[39;49;22m'
         self.editor = editor
         self.reader = editor.read_stdin
         self.screen = editor.screen
         self.buffer = DummyLine()
-        self.dictionary = completion_dict
         self._last_comp = self.state, self.buffer.string, self.buffer.cursor
         self.buffered = []
-
+    
     def __call__(self, buffered=None):
         """
         Read from stdin until ^C, ^D or newline.
@@ -39,7 +39,6 @@ class Completer:
             while True:
                 self.update_minibar()
                 key = reader()
-#                self.update_minibar_completer()
                 if key == k.backspace:
                     buffer.backspace()
                 elif key == k.C_V:
@@ -95,7 +94,26 @@ class Completer:
                 )
         self.screen.minibar(*(self.buffered + [mini_text]))
 
-    def get_completions(self):
+    def get_filenames(self, arg=None):
+        if arg is None:
+            arg = self.buffer.string
+        user_input = Path(arg)
+
+        if arg.endswith('/') and (pth := Path(arg)).is_dir():
+            pth = user_input.iterdir() 
+        else:
+            pth = user_input.parent.iterdir()
+
+        path_list = [k for k in pth if str(k).startswith(arg)]
+        dir_list = [k for k in path_list if k.is_dir()]
+        file_list = [k for k in path_list if k not in dir_list]
+        rv = [str(k) + '/' for k in dir_list]
+        rv.extend(str(k) for k in file_list)
+        #if len(rv) == 1 and user_input.is_dir():
+            #prefix = len(arg)
+        return rv, len(arg)
+
+    def _get_completions(self):
         if self.state:
             if self.buffer.cursor != len(self.buffer.string):
                 self.state = ''
@@ -115,30 +133,12 @@ class Completer:
         if not self.state:
             self.screen.minibar_completer.give_up()
         else:
-            self.screen.minibar_completer.set_callbacks(lambda: self.get_completions(), lambda: self.check_completion())
+            self.screen.minibar_completer.set_callbacks(lambda: self._get_completions(), lambda: self.check_completion())
 
     def get_history(self):
         return [item for item in self.history if item.startswith(self.buffer.string)], len(self.buffer.string)
-
+    
     def get_complete(self):
-        user_input = self.buffer.string
-
-        if ' ' in user_input:
-            cmd, arg = user_input.split(' ', maxsplit=1)
-            cmds = cmd.strip()
-            args = arg.strip()
-            if cmds in self.dictionary and self.dictionary[cmds].with_args:   
-                if (pth := Path(args)).is_dir():
-                    pth = pth.iterdir() 
-                else:
-                    pth = pth.parent.iterdir()
-                rv = [str(k) for k in pth if str(k).startswith(args)]
-                prefix = len(arg)
-                return rv, prefix
-
-        elif one_inside_dict_starts_with(self.dictionary, user_input):
-            rv = [k for k in self.dictionary if k.startswith(user_input)]
-            return rv, len(user_input)
         return [], 0
 
     def start_complete(self):

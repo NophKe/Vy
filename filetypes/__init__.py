@@ -10,6 +10,12 @@ known_file_names_tabs = {
     '.py'       : 4,
     }
 
+known_file_names_autoindent = {
+    '.py'       : True,
+    'Makefile'  : True,
+    '.c'        : True,
+    }
+
 known_file_names_comment_string = {
     '.py'       : ('#', ''),
     '.c'        : ('/*', '*/'),
@@ -26,7 +32,7 @@ known_file_names_expandtabs = {
     }
 
 def Open_path(location):
-    if (location is None):
+    if location is None:
         return TextFile(path=None, init_text='\n')
     elif isinstance(location, str):
         location = Path(location).resolve()
@@ -47,7 +53,7 @@ def Open_path(location):
 
 
     file_name = location.name
-    file_other_name = location.name.lower()
+    file_other_name = file_name.lower()
 
     if '\t' in init_text:
         expand_tabs = False
@@ -79,13 +85,19 @@ def Open_path(location):
             break
     else:
         comment_string = ('', '')
-        
+    
+    for name in known_file_names_autoindent:
+        if file_name.endswith(name) or file_other_name.endswith(name):
+            autoindent = known_file_names_autoindent[name]
+            break
+    else:
+        autoindent = False
 
     return TextFile(path=location, 
                     init_text=init_text, 
+                    set_autoindent=autoindent,
                     set_tabsize=tab_size,
                     set_expandtabs=expand_tabs,
                     set_comment_string=comment_string,
                     set_wrap=wrap,
                     )
-

@@ -212,55 +212,20 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to next occurrence of last searched text.
     """
-    from vy.actions import do_zz
-    # This code is sadly a duplicate of vy.interface.search_*
-    # TODO find a place to merge it all
-    needle = editor.registr['/']
-
-    if not needle:
-        editor.screen.minibar('No previous search!')
-        return
-    curbuf = editor.current_buffer
-
-    offset = curbuf._string.find(needle, curbuf.cursor+1)
-    if offset == -1:
-        editor.screen.minibar('String not found: back to the top.')
-        offset = curbuf._string.find(needle)
-        if offset == -1:
-            editor.screen.minibar('String not found!')
-            return
-        curbuf.cursor = offset
-        do_zz(editor)
-    else:
-        curbuf.cursor = offset + 1
-        do_zz(editor)
-        return
+    from vy.interface.search_forward import loop
+    from vy.keys import C_M
+    editor.push_macro(C_M)
+    loop(editor)
 
 @motion_commands("N")
 def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to previous occurrence of last searched text.
     """
-    needle = editor.registr['/']
-
-    from vy.actions import do_zz
-    if not needle:
-        editor.screen.minibar('No previous search!')
-        return
-    curbuf = editor.current_buffer
-
-    for _ in range(count):
-        offset = curbuf._string.rfind(needle, 0, curbuf.cursor)
-        if offset == -1:
-            editor.screen.minibar('String not found: back to the bottom.')
-            offset = curbuf._string.rfind(needle)
-            if offset == -1:
-                editor.screen.minibar('String not found!')
-                return
-            curbuf.cursor = offset
-        else:
-            curbuf.cursor = offset + 1
-    do_zz(editor)
+    from vy.interface.search_backward import loop
+    from vy.keys import C_M
+    editor.push_macro(C_M)
+    loop(editor)
 
 @motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):

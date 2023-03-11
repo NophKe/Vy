@@ -419,12 +419,12 @@ class BaseFile:
             a = self.lines_offsets[lin] + col - 1
             b = self.cursor
             return slice(min(a, b), max(a, b))
-        raise RuntimeError
+        return slice(self.cursor, self.cursor + 1)
 
     @property
     def selected_lin_col(self):
         if not self._selected:
-            return 
+            return
         a_lin, a_col = self._selected
         b_lin, b_col = self.cursor_lin_col
         if a_lin < b_lin:
@@ -450,13 +450,14 @@ class BaseFile:
             actual_lin = self.current_line_idx
             other_lin = self._selected[0]
             return range(min(actual_lin, other_lin), max(actual_lin, other_lin)+1)
-        return ()
+        return range(0)
 
     def __init__(self,
                 set_number=True, 
                 set_wrap=False, 
                 set_tabsize=4, 
                 set_expandtabs=False, 
+                set_autoindent=False, 
                 cursor=0, 
                 set_comment_string=('',''),
                 init_text='', 
@@ -470,6 +471,7 @@ class BaseFile:
         self.set_number = set_number
         self.set_tabsize = set_tabsize
         self.set_expandtabs = set_expandtabs
+        self.set_autoindent = set_autoindent
         self._init_text = init_text
         self._number_of_lin = 0
         self._cursor = 0
@@ -638,6 +640,8 @@ class BaseFile:
 
     @cursor.setter
     def cursor(self, value):
+        assert isinstance(value, int)
+        assert 0 <= value <= len(self)
         with self._lock:
             self._current_line = ''
             self._cursor_lin_col = ()

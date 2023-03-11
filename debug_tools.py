@@ -29,6 +29,10 @@ def reload_actions(ed):
 	from vy.actions import motions
 	from vy.actions import mode_change
 	from vy.actions import commands
+	from vy.actions import edition
+	from vy.actions import with_arg
+	_reload(with_arg)
+	_reload(edition)
 	_reload(helpers)
 	_reload(motions)
 	_reload(mode_change)
@@ -45,5 +49,6 @@ def reload_debug(ed):
 
 def reload_interface(ed):
 	from vy import interface
-	_reload(interface)
-	ed.interface.__init__(ed)
+	interface = _reload(interface)
+	ed.interface = interface.Interface(ed)
+

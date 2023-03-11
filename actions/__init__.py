@@ -8,77 +8,25 @@ As defined in the Vym grammar, some commands require motion
 argument, some possibly require a register to work on.
 
 """
+from vy.actions import action_dicts
+# should stay first, hope one day its even the only line here
+
 from vy.actions.helpers import (sa_commands,
-                                with_args_commands,
                                 atomic_commands)
 
 from vy.actions.mode_change import *
+from vy.actions.with_arg import *
 from vy.actions.motions import *
 from vy.actions.commands import *
+from vy.actions.edition import *
 from vy import keys as k
 
-@sa_commands('M')
-@atomic_commands('µ')
-def print_some(editor, reg=None, part=None, arg=None, count=1):
-    """
-    This command is used to print variables to debug.  It looks to a file
-    called "debugging_values" from the user config directory. This file should
-    contain a list of newline separated variables from the editor object
-    namespace.
-    """
-    from vy.global_config import USER_DIR
-    from pprint import pformat
-    vy = editor # shorter to type
-    debug_file = USER_DIR / "debugging_values"
-    to_print = ''
-    for line in debug_file.read_text().splitlines():
-        parent = eval(line)
-        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
-        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-    editor.warning(to_print)
 
-@atomic_commands(f'i_{k.C_A}')
-def insert_last_inserted_text(editor, **kwargs):
-    """
-    Re-insert last inserted text at cursor position.
-    """
-    editor.current_buffer.insert(editor.registr['.'])
-    
-@with_args_commands(':%s')
-def replace_all(editor, reg=None, part=None, arg=None, count=1):
-    if not arg or not ' ' in arg:
-        editor.warning('bad syntax')
-        return
-    with editor.current_buffer as curbuf:
-        old, new = arg.split(' ', maxsplit=1)
-        for idx, line in enumerate(curbuf.splited_lines):
-            curbuf._splited_lines[idx] = line.replace(old, new)
-        curbuf._lines_offsets.clear()
-        curbuf._string = ''.join(curbuf._splited_lines)
-        curbuf._lengh = len(curbuf._string)
-        
-
-@atomic_commands(f'{k.C_A} i_{k.C_A}')
-def increment(editor, reg=None, part=None, arg=None, count=1):
-    # this is buggy because iw is buggy         # bug
-    cur_word = editor.current_buffer['iw']      .replace('\n','')
-#    editor.warning(repr(cur_word))
-    if cur_word.isnumeric():
-        editor.current_buffer['iw'] = str(int(cur_word)+1)
-
-@with_args_commands(':debug')
-def debug_tool(editor, reg=None, part=None, arg='reload', count=1):
-    from vy import debug_tools
-    func = getattr(debug_tools, arg, None)
-    if func is None:
-        editor.screen.minibar('debug func not found', f'{dir(debug_tools) = }')
-    else:
-        func(editor)
-
-@sa_commands('# :comment')
+@sa_commands('# v_# :comment')
 def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
-    Comment the current line.
+    Comment the current line. If the current buffer has no .set_comment_string
+    attribute set, does nothing.
     """
     if any((token := editor.current_buffer.set_comment_string)):
         with editor.current_buffer as curbuf:
@@ -90,7 +38,7 @@ def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
                 if index != count - 1:
                     curbuf.move_cursor('j')
 
-@sa_commands('>> :indent')
+@sa_commands('>> v_> :indent')
 def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Indent the current line.
@@ -107,7 +55,7 @@ def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
             if idx != max_line - 1:
                 curbuf.move_cursor('j')
 
-@sa_commands('<< :dedent')
+@sa_commands('<< v_< :dedent')
 def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Dedent the current line.
@@ -137,7 +85,7 @@ def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
     exec(editor.current_buffer.string, main_dict)
 
 
-@sa_commands('J')
+@sa_commands('J v_J')
 def join_lines(editor, reg=None, part=None, arg=None, count=1):
     """
     Joins the {count} next lines together.
@@ -202,24 +150,10 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
         for _ in range(count):
             curbuf.redo()
 
-@with_args_commands(':nmap :nnoremap')
-def do_nmap(editor, reg=None, part=None, arg=None, count=1):
-    """
-    WARNING RECURSIVE MAPPING !!!!
-    """
-    if not arg or not ' ' in arg:
-        editor.minibar('[SYNTAX]    :nmap [key] [mapping]')
-        return
-    key, value = arg.split(' ', maxsplit=1)
-    func = lambda ed, *args, **kwargs: ed.push_macro(value)
-    func.motion = False
-    func.atomic = True
-    editor.actions.normal[key] = func
-
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
-    editor.screen.minibar(str(Path('.').resolve()))
+    editor.screen.minibar(str(Path.cwd()))
 
 #@with_args_commands(':reg :registers :di :display')
 @atomic_commands(':reg :registers :di :display')
@@ -252,101 +186,6 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.current_buffer['cursor'] = editor.read_stdin()
 
-########    command mode only ########################################
-
-@with_args_commands(":read :re :r")
-def read_file(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Reads the content of file specified as argument and inserts it at the
-    current cursor location.
-    TODO: No check is done by this function. May raise exception!
-    """
-    from pathlib import Path
-    if not arg:
-        editor.screen.minibar('Commmand needs arg!')
-        return
-    editor.current_buffer.insert(Path(arg).read_text())
-
-
-@with_args_commands(":!")
-def do_system(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Execute a system command.
-    """
-    from subprocess import run, CalledProcessError
-    if not arg:
-        editor.warning('Commmand needs arg!')
-    else:
-        completed = run(arg, capture_output=True, shell=True, text=True)
-        retval = completed.returncode
-        output = completed.stdout + completed.stderr
-        editor.warning( f'{output}\nCommand Finished with status: {retval or "OK"}')
-    
-@with_args_commands(":chdir :chd :cd")
-def do_chdir(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Change current directory
-    """
-    if not arg:
-        editor.screen.minibar('Commmand needs arg!')
-        return
-    import os
-    try:
-        os.chdir(arg)
-    except FileNotFoundError:
-        editor.warning(f'File not found: {arg}')
-    except NotADirectoryError:
-        editor.warning(f'Not a directory: {arg}')
-
-@with_args_commands(":set :se")
-def do_set(editor, reg=None, part=None, arg=None, count=1):
-    """
-    [SYNTAX]      :set {argument}          >>> set to True
-    [SYNTAX]      :set no{argument}        >>> set to False
-    [SYNTAX]      :set {argument}!         >>> toggle True/False
-    [SYNTAX]      :set {argument} {number} >>> set to integer value
-    """
-
-    if not arg:
-        editor.warning(do_set.__doc__)
-        return
-
-    toggle = object()
-
-    arg = arg.strip().lower()
-    if ' ' in arg:
-        arg, value = arg.split(' ', maxsplit=1)
-        value = int(value)
-    elif arg.startswith('no'):
-        arg = arg[2:]
-        value = False
-    elif arg.endswith('!'):
-        arg = arg[:-1]
-        value = toggle
-    else:
-        value = True
-
-    try:
-        option = getattr(editor.current_buffer, 'set_' + arg)
-    except AttributeError:
-        editor.screen.minibar(f"Invalid option {arg}")
-        return
-
-    if isinstance(option, type(value)):
-        setattr(editor.current_buffer, f'set_{arg}', value)
-    if value is toggle:
-        setattr(editor.current_buffer, f'set_{arg}', not option)
-
-
-@with_args_commands(":e :edit :ex")
-def do_edit(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Start editing a file in the current window. If the file has allready
-    being visited, the file is not read again and the cached version in served
-    """
-    if arg:
-        editor.edit(arg)
-
 @atomic_commands(f"{k.C_W}n {k.C_W}{k.C_N} :new :enew :ene")
 def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -354,10 +193,13 @@ def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.edit(None)
 
+#@with_args_commands(':w :write')
 @atomic_commands(':w :write')
-@with_args_commands(':w :write')
 def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
-    '''anything'''
+    """
+    Saves the current buffer. If optionnal {filename} is given, save as
+    this new name modifying the current buffer to point to this location.
+    """
     if not arg:
         if not editor.current_buffer.unsaved:
             return
@@ -386,7 +228,7 @@ def do_save_all(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(':n :ne :next')
 def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
     """
-    Edit next unsaved buffer. If no buffer is unsaved, leaves. 
+    Edit next unsaved buffer. If no buffer is unsaved, exits the editor.
     """
     next_one = False
     for buf in editor.cache:
@@ -395,7 +237,7 @@ def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
             break
     if next_one:
         editor.edit(next_one.path)
-        editor.warning('buffer: ' + repr(editor.current_buffer) + ' save (:w)  or leave! (:q!)')
+        editor.warning('buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)')
     else:
         if editor.current_window is editor.screen:
             do_exit_nice(editor, arg)
@@ -440,7 +282,7 @@ def do_save_current_buffer_and_force_leave_window(editor, reg=None, part=None, a
     do_force_leave_current_window(editor)
 
 
-@atomic_commands(':wq :x :xit :exit ZZ ')
+@atomic_commands(':wq :x :xit :exit ZZ')
 def do_save_current_buffer_and_try_leave_window(editor, reg=None, part=None, arg=None, count=1):
     """
     Saves the current buffer and leaves its window. If it is the only open
@@ -539,7 +381,7 @@ def do_save_all_and_try_leave_all(editor, arg=None, reg=None, part=None, count=1
     do_exit_nice(editor)
 
 
-@atomic_commands(":quitall! :quita! :qall! :qa! ZZ")
+@atomic_commands(":quitall! :quita! :qall! :qa!")
 def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
     """
     Exits Vy immediatly without checking for any unsaved buffer.
@@ -659,15 +501,6 @@ def do_zb(editor, reg=None, part=None, arg=None, count=1):
     else:
         curwin.shift_to_lin = new_pos
 
-@atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
-def do_backspace(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Deletes the character on the left of the cursor, joining current line
-    with the previous one if on the first position of the line.
-    Does nothing if on the first position of the buffer.
-    """
-    editor.current_buffer.backspace()
-
 @sa_commands('D')
 def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
     """
@@ -680,15 +513,6 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
         curbuf.current_line = curbuf.current_line[:col-1] + '\n' 
         return 'normal'
 
-
-@atomic_commands(f'i_{k.suppr} x')
-def do_suppr(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Deletes the character under the cursor, joining current line with the
-    next one if on the last position of the line.
-    Does nothing if on the last position of the buffer.
-    """
-    editor.current_buffer.suppr()
 
 
 @sa_commands("~")
@@ -706,8 +530,8 @@ def do_normal_tilde(editor, reg=None, part=None, arg=None, count=1):
 @sa_commands("C")
 def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
     """
-    Yanks the text from the cursor to the register, the delete it and starts
-    'insert' mode.
+    Yanks the text from the cursor to the end of the line, into given
+    register, then deletes it and starts 'insert' mode.
     By default, if no register is specified the default "" register is used.
     Optionnal {count} argument is ignored.
     """
@@ -718,7 +542,8 @@ def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
 
 
 # TODO Add k.F1 and i_k.F1( but set value in keys.py first ) 
-@with_args_commands(':help :h')
+#@with_args_commands(':help :h')
+@atomic_commands(':help :h')
 def do_help(editor, reg=None, part=None, arg=':help', count=1):
     """
     [SYNTAX] :help TOPIC
@@ -736,8 +561,8 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
         :help ~
 
     For help on using help, press h now!
-
-    TODO: To enter a "special key" prepend [CTRL+V].
+    ---
+    NOTE: To enter a "special key" prepend [CTRL+V].
     """
     try:
         if arg.startswith(':'):
@@ -799,41 +624,6 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
                 curbuf.cursor -= 1
             curbuf.insert(editor.registr[reg])
 
-@atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
-def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Inserts the a newline.
-
-    """
-    editor.current_buffer.insert_newline()
-
-@atomic_commands('i_\t')
-def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Inserts the necessery number of spaces to reach next level of indentation
-
-    """
-    completer = editor.screen.minibar_completer
-    curbuf = editor.current_buffer
-    if not completer:
-        lin, col = curbuf.cursor_lin_col
-        curline = curbuf.current_line
-        before = curline[:col-1]
-        if before and (not before.isspace() and not before.endswith(' ')): # and (before[col-1] not in '\t\n '):
-            completer.set_callbacks(lambda: curbuf.get_completions(), lambda: curbuf.check_completions())
-            if completer:
-                return 'completion'
-            else:
-                completer.give_up()
-
-    with editor.current_buffer as curbuf:
-        curbuf.insert('\t')
-        if curbuf.set_expandtabs:
-            orig = curbuf['0:$']  # TODO use current_line property
-            after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-            curbuf['0:$'] = after
-            curbuf.cursor += len(after) - len(orig)
-
 @atomic_commands("gf")
 def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -843,7 +633,7 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     dots (as in a python package), Vym will search in the parents directories.
     """
     from pathlib import Path
-    filename = editor.current_buffer['iw'].lstrip().strip()
+    filename = editor.current_buffer['IW'].lstrip().strip()
     if filename.startswith('/') or filename[1:3] == ':\\':
         if Path(filename).exists():
             return editor.edit(filename)
@@ -857,7 +647,8 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
 #        editor.warning(str(guess))
         if guess.exists():
             editor.edit(guess)
-        editor.screen.minibar(f'file {filename!r} not found.')
+        else:
+            editor.screen.minibar(f'file {filename!r} not found.')
 
 ########    DEBUGGING ################################################
 
@@ -870,10 +661,30 @@ def dump_help(editor, reg=None, arg=None, part=None, count=1):
     editor.edit(None)
     with editor.current_buffer as curbuf:
         for k, v in globals().items():
-            if not k.startswith('_'):
-                curbuf.insert(v.__doc__ + '\n')
+            if not k.startswith('_') and callable(v):
+                if v.__doc__:
+                    curbuf.insert(v.__doc__ + '\n')
         curbuf.cursor = 0
         curbuf.string
 
+#@sa_commands('M')
+@atomic_commands('µ')
+def print_some(editor, reg=None, part=None, arg=None, count=1):
+    """
+    This command is used to print variables to debug.  It looks to a file
+    called "debugging_values" from the user config directory. This file should
+    contain a list of newline separated variables from the editor object
+    namespace.
+    """
+    from vy.global_config import USER_DIR
+    from pprint import pformat
+    vy = editor # shorter to type
+    debug_file = USER_DIR / "debugging_values"
+    to_print = ''
+    for line in debug_file.read_text().splitlines():
+        parent = eval(line)
+        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+    editor.warning(to_print)
 
-del sa_commands, atomic_commands, with_args_commands, k
+del sa_commands, atomic_commands, k

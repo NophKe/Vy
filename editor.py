@@ -190,25 +190,30 @@ class _Editor:
 
         actions = NameSpace()
 
-        for name, action in action_dict.items():
-            if callable(action) and not name.startswith('_'):
-                if action.v_alias:
-                    for k in action.v_alias:
-                        actions.visual[k]= action
-                if action.n_alias and not action.motion:
-                    for k in action.n_alias:
-                        actions.normal[k]= action
-                if action.i_alias:
-                    for k in action.i_alias: 
-                        actions.insert[k]= action
-                if action.c_alias:
-                    for k in action.c_alias: 
-                        actions.command[k]= action
-                if action.n_alias and action.motion:
-                    for k in action.n_alias:
-                        actions.normal[k]= action
-                        actions.motion[k]= action
-        self.actions = actions
+        try:
+            for name, action in action_dict.items():
+                if callable(action) and not name.startswith('_'):
+                    if action.v_alias:
+                        for k in action.v_alias:
+                            actions.visual[k]= action
+                    if action.n_alias and not action.motion:
+                        for k in action.n_alias:
+                            actions.normal[k]= action
+                    if action.i_alias:
+                        for k in action.i_alias: 
+                            actions.insert[k]= action
+                    if action.c_alias:
+                        for k in action.c_alias: 
+                            actions.command[k]= action
+                    if action.n_alias and action.motion:
+                        for k in action.n_alias:
+                            actions.normal[k]= action
+                            actions.motion[k]= action
+            self.actions = actions
+        except:
+            print(f'{action = }, {name = }')
+            raise
+
 
     def __init__(self, *buffers, command_line=''):
         self._init_actions()
@@ -319,17 +324,20 @@ class _Editor:
 
             print(filtered, end='\r', flush=True)
 
-            missed = missed + 1 if not ok_flag else 0
             if ok_flag:
                 old_screen = new_screen
+                missed = 0
+            else:
+                missed += 1
 
     def input_loop(self):
+        #assert not self._async_io_flag
         for key_press in getch_noblock():
-            if not self._async_io_flag:
-                break
-            elif not key_press:
+            if self._async_io_flag:
+                if key_press:
+                    self._input_queue.put(key_press)
                 continue
-            self._input_queue.put(key_press)
+            break
 
     def start_async_io(self):
         assert not self._async_io_flag
@@ -374,6 +382,9 @@ class _Editor:
                 try:
                     self.current_mode = mode if mode else self.current_mode
                     mode = self.interface(mode) # or mode
+                    if mode and ':' in mode:
+                        mode, command = mode.split(':', maxsplit = 1)
+                        self.push_macro(command)
                 except BdbQuit:
                     self.start_async_io()
                     mode = 'normal'

@@ -84,7 +84,6 @@ def txt_lexer(string):
         yield 0, '', line
 
 try:
-#    import to
     if global_config.DONT_USE_PYGMENTS_LIB:
         raise ImportError
     from pygments.lexers import guess_lexer_for_filename

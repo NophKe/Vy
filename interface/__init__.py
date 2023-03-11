@@ -22,7 +22,7 @@ class Interface():
                 loop = module.loop
                 self.mode_dict[name] = loop
             except ImportError:
-                self.inst.warning(f"Vy can't find the definition of {name} mode."
+                self.inst.warning(f"Vy can't find the definition of {name} mode.\n"
                                     "or syntaxError while reading mode defintion")
                 return "normal"
 
