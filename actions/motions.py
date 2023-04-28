@@ -1,48 +1,112 @@
-from vy.actions.helpers import motion_commands
-from vy import keys as k
-#
-# not documented, look at tis old comment
-# WORKK IN PROGRESS
-#
-########    MOTIONS (not valid command operator) #####################
-#
-# This is something that bothers me... 
-#
-# In vim, dgd is valid but d<page-down> is not! Why? I *really* want
-# d<page-up> to work ! And for now it does not in vim and neither in
-# Vy. Why does Vim exhibit such a behaviour?
-#
-# My guess is some motion are window-related while others buffer or 
-# cursor related. And window-related motions are not consistant! By
-# this I mean a window redraw may change last shown line on screen 
-# as an exemple.
-#
-# This mean that an action like d<page-down> to work would need that
-# relative cursor position on the screen and cursor position on the
-# text itself should have properties linking them that may not change
-# asynchronously because of a window redraw by example.
-# 
-# Implementating such a thing is not trivial!
-#
-# For now in Vy things are a bit more complicated, *true* motions that 
-# can be used as operator are buffer dependent and implemented by dict
-# Basefile.motion_commands.
-# 
-# TODO: Change motions commands to be a new kind of actions that may
-# be used as motion motion commands and operator pending mode. This
-# should unify any kind of motions.
-# DONE
-# 
-# TODO: But for now Basefile.motion_commands contains methods that receive
-# a Basefile instance self. Those new kind of actions would receive
-# a editor instance and need to resolve editor.current_buffer....
-# should be moved to here.
-#  
-# this means that for now you can't do things like dgd 
-# But should this be implemented? I'm not as 100% as with d<page-up>
-# But working on it anyway...
+"""
+    ***************************
+    ****    Motions        ****
+    ***************************
 
-@motion_commands('gd')
+In vim, dgd is valid but d<page-down> is not!  Why?  I *really* want
+d<page-up> to work!  And for now it does not in vim and neither in  Vy.
+Why does Vim exhibit such a behaviour?
+ 
+My guess is some motion are window-related while others buffer or cursor
+related.  And window-related motions are not consistant!  By  this I mean a
+window redraw may change last shown line on screen for example.
+
+This mean that an action like d<page-down> to work would need that  relative
+cursor position on the screen and cursor position on the  text itself should
+have properties linking them that may not change asynchronously because of a
+window redraw by example.
+ 
+ For now in Vy things are a bit more complicated, *true* motions that can be
+ used as operator are buffer dependent and implemented by dict
+ Basefile.motion_commands.  This is work in progress.
+ 
+ TODO: But for now Basefile.motion_commands contains methods that receive  a
+ Basefile instance self.  Those new kind of actions would receive a editor
+ instance and need to resolve editor.current_buffer....  should be moved to
+ here.
+
+"""
+
+from vy.keys import _escape
+from vy import keys as _k
+
+class _motion:
+    v_header = """
+    This command is part of visual mode «motion» commands.
+
+    [SYNTAX]      ["{register}] [{count}] %s
+    aliases: %s
+    ---
+    NOTE: {register} will be ignored."""
+    
+    i_header = """
+    This command is part of insert mode «motion» commands.
+
+    [SYNTAX]      %s
+    aliases: %s"""
+    
+    n_header = """
+    This command is part of normal mode «motion» commands and can be used as an
+    operator for {command} or single with an optionnal {count}.
+
+    [SYNTAX]      ["{register}] [{count}] [{command}] [{count}] %s
+    [SYNTAX]      ["{register}] [{count}] %s
+    aliases: %s
+    ---
+    NOTE: if used without {command}, {register} is ignored."""
+
+    category = "motion"
+    def update_func(self, alias, func):
+        n_alias: list = list()
+        v_alias: list = list()
+        i_alias: list = list()
+
+        for item in alias.split(" "):
+            if item.startswith('v_')  :
+                v_alias.append(item.removeprefix('v_'))
+            elif item.startswith('i_'):
+                i_alias.append(item.removeprefix('i_'))
+            else:
+                n_alias.append(item)
+
+        separator = '\n    ' + '-' * 68 #+ '\n'
+        header = separator
+        if n_alias:
+            header += self.n_header % (_escape(n_alias[0]) , _escape(n_alias[0]),
+                                    ' '.join(_escape(item) for item in n_alias).ljust(60))
+            header += separator
+        if v_alias:
+            header += self.v_header % (_escape(v_alias[0]) ,
+                                    ' '.join(_escape(item) for item in v_alias).ljust(60))
+            header += separator
+        if i_alias:
+            header += self.i_header % (_escape(i_alias[0]) ,
+                                    ' '.join(_escape(item) for item in i_alias).ljust(60))
+            header += separator
+        if any((i_alias, n_alias, v_alias,)):
+            header += '\n'
+
+        if func.__doc__:
+            func.__doc__ += """
+    ---
+    NOTE: This may be recorded in jump list."""
+        func.motion = True
+        func.stand_alone = func.with_args  = func.full = func.atomic = False
+
+        func.n_alias = n_alias if n_alias else None
+        func.c_alias = None
+        func.v_alias = v_alias if v_alias else None
+        func.i_alias = i_alias if i_alias else None
+
+        func.__doc__ = header + (func.__doc__ or '')
+        return func
+
+    def __call__(self, alias):
+        return lambda func : self.update_func(alias, func)
+
+_motion_commands = _motion()
+
+@_motion_commands('gd')
 def goto_definition(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to the definition of the variable it is on.
@@ -55,7 +119,7 @@ def goto_definition(editor, reg=None, part=None, arg=None, count=1):
             lin, col = loc[0].get_definition_start_position()
             curbuf.cursor_lin_col = lin-1, col+1 
 
-@motion_commands(f'i_{k.left} {k.left} h')
+@_motion_commands(f'i_{_k.left} {_k.left} h')
 def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor one character left.
@@ -63,8 +127,8 @@ def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin, col-count)
 
-@motion_commands(f'i_{k.down} {k.down} j + {k.C_M} {k.C_J} {k.CR}'
-                 f'{k.C_J} {k.C_N}')
+@_motion_commands(f'i_{_k.down} {_k.down} j + {_k.C_M} {_k.C_J} {_k.CR}'
+                 f'{_k.C_J} {_k.C_N}')
 def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
     """
     Move one line down.
@@ -72,7 +136,7 @@ def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin+count, col)
 
-@motion_commands(f'i_{k.up} {k.up} {k.C_P} k -')
+@_motion_commands(f'i_{_k.up} {_k.up} {_k.C_P} k -')
 def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
     """
     Move one line up.
@@ -80,7 +144,7 @@ def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin-count, col)
 
-@motion_commands(f'l i_{k.right} {k.space} {k.right}')
+@_motion_commands(f'l i_{_k.right} {_k.space} {_k.right}')
 def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor one character right.
@@ -88,23 +152,23 @@ def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin, col+count)
 
-@motion_commands('0')
+@_motion_commands('0')
 def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to beginning of line.
     """
-    curbuf = editor.current_buffer
-    curbuf.cursor = curbuf.find_begining_of_line()
+    with editor.current_buffer as curbuf:
+        curbuf.cursor = curbuf.find_begining_of_line()
 
-@motion_commands(f'$ {k.end} i_{k.end}')
+@_motion_commands(f'$ {_k.end} i_{_k.end}')
 def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to end of line.
     """
-    curbuf = editor.current_buffer
-    curbuf.cursor = curbuf.find_end_of_line()
+    with editor.current_buffer as curbuf:
+        curbuf.cursor = curbuf.find_end_of_line()
 
-@motion_commands('G')
+@_motion_commands('G')
 def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to the end of file.
@@ -117,8 +181,9 @@ def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     curbuf.cursor = len(curbuf) - 1
+#    curbuf.cursor_lin_col
 
-@motion_commands('gg')
+@_motion_commands('gg')
 def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to first line first character.
@@ -126,7 +191,7 @@ def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = 0
 
-@motion_commands('_')
+@_motion_commands('_')
 def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to the first character of the current line.
@@ -134,7 +199,7 @@ def do_normal_underscore(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
 
-@motion_commands(f'B i_{k.C_left} {k.C_left}')
+@_motion_commands(f'B i_{_k.C_left} {_k.C_left}')
 def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor one WORD backwards.
@@ -143,7 +208,7 @@ def do_normal_B(editor, reg=None, part=None, arg=None, count=1):
     for _ in range(count):
         curbuf.cursor = curbuf.find_normal_B()
 
-@motion_commands(f'b i_{k.S_left} {k.S_left}')
+@_motion_commands(f'b i_{_k.S_left} {_k.S_left}')
 def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor one word backwards.
@@ -152,7 +217,7 @@ def do_normal_b(editor, reg=None, part=None, arg=None, count=1):
     for _ in range(count):
         curbuf.cursor = curbuf.find_previous_delim()
 
-@motion_commands(f'W i_{k.C_right} {k.C_right}')
+@_motion_commands(f'W i_{_k.C_right} {_k.C_right}')
 def do_normal_W(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor one WORD right.
@@ -161,17 +226,16 @@ def do_normal_W(editor, reg=None, part=None, arg=None, count=1):
     for _ in range(count):
         curbuf.cursor = curbuf.find_next_WORD()
 
-@motion_commands(f'w i_{k.S_right} {k.S_right}')
+@_motion_commands(f'w i_{_k.S_right} {_k.S_right}')
 def do_normal_w(editor, reg=None, part=None, arg=None, count=1):
     """
-    Move cursor one word right.
+    Move cursor one word forward.
     """
-    curbuf = editor.current_buffer
-    for _ in range(count):
-        curbuf.cursor = curbuf.find_next_delim()
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            curbuf.cursor = curbuf.find_next_delim()
 
-
-@motion_commands(f'{k.page_down} i_{k.page_down} {k.C_B}')
+@_motion_commands(f'{_k.page_down} i_{_k.page_down} {_k.C_B}')
 def do_page_down(editor, reg=None, part=None, arg=None, count=1):
     """
     First keystrike puts the cursor on last line shown in the current 
@@ -189,11 +253,11 @@ def do_page_down(editor, reg=None, part=None, arg=None, count=1):
     else:
         curbuf.cursor_lin_col = (new_lin + page_size, col)
 
-@motion_commands(f'{k.page_up} i_{k.page_up} {k.C_F}')
+@_motion_commands(f'{_k.page_up} i_{_k.page_up} {_k.C_F}')
 def do_page_up(editor, reg=None, part=None, arg=None, count=1):
     """
-    First keystrike puts the cursor on the first line shown in the current 
-    windows. Next keystrokes scrolls the text one page up.
+    First keystrike puts the cursor on the first line shown in the current
+    windows.  Next keystrokes scrolls the text one page up.
     """
     curbuf = editor.current_buffer
     curwin = editor.current_window
@@ -206,8 +270,7 @@ def do_page_up(editor, reg=None, part=None, arg=None, count=1):
     else:
         curbuf.cursor_lin_col = (lin - page_size, col)
 
-
-@motion_commands("n")
+@_motion_commands("n")
 def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to next occurrence of last searched text.
@@ -217,7 +280,7 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     editor.push_macro(C_M)
     loop(editor)
 
-@motion_commands("N")
+@_motion_commands("N")
 def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to previous occurrence of last searched text.
@@ -227,10 +290,8 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     editor.push_macro(C_M)
     loop(editor)
 
-@motion_commands('*')
+@_motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
     editor.registr['/'] = editor.current_buffer['iw']
     do_normal_n(editor)
 
-del motion_commands
-del k

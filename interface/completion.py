@@ -14,40 +14,43 @@ def add_to_dict(*keys):
 @add_to_dict(k.up)
 def move_up(editor):
     editor.screen.minibar_completer.move_cursor_up()
+    return True
 
 @add_to_dict('\t')
 def switch_or_select(editor):
-    if not editor.screen.minibar_completer.completion:
-        return 'insert'
-    elif len(editor.screen.minibar_completer.completion) == 1:
-        select_item(editor, or_new_line=False)
+    if len(editor.screen.minibar_completer.completion) == 1:
+        return select_item(editor)
     else:
         editor.screen.minibar_completer.move_cursor_down()
+        return True
 
 @add_to_dict(k.down)
 def move_down(editor):
     editor.screen.minibar_completer.move_cursor_down()
+    return True
 
 @add_to_dict('\r', '\n')
-def select_item(editor, or_new_line=True):
+def select_item(editor):
     to_insert, to_delete = editor.screen.minibar_completer.select_item()
     curbuf = editor.current_buffer
     old = curbuf.string
     cursor = curbuf.cursor
     curbuf[cursor - to_delete:cursor] = to_insert
     curbuf.cursor += len(to_insert) - to_delete
-    if old == curbuf.string and or_new_line:
-        curbuf.insert_newline()
-        return 'insert'
+    if old == curbuf.string:
+        return False
+    return True
 
 @add_to_dict(k.backspace)
 def backspace(editor):
     editor.current_buffer.backspace()
+    return True
 
-@add_to_dict(k.escape)
+@add_to_dict(k.escape, k.C_C)
 def give_up(editor):
-    editor.screen.minibar('giving up completion, press ESC again for normal mode')
-    return 'insert'
+    editor.screen.minibar(' ( Auto-completion aborted ) User intervention.')
+    editor.read_stdin()
+    return False
 
 def init(editor):
     global insert_dict
@@ -55,26 +58,31 @@ def init(editor):
 
 def loop(editor):
     try:
+        editor.current_buffer.set_undo_record(False)
+        
+        editor.screen.minibar_completer.set_callbacks(
+                        lambda: editor.current_buffer.get_completions(), 
+                        lambda: editor.current_buffer.check_completions())
+               
         while True:
-            if not editor.screen.minibar_completer.completion:
-                return 'insert'
-            key_press = editor.read_stdin()
-            if key_press in completion_dict:
-                rv = completion_dict[key_press](editor)
-                if rv:
-                    return rv
-                continue
-            elif key_press.isalnum() or key_press == '.':
-                editor.current_buffer.insert(key_press)
-                continue
-            elif key_press in insert_dict:
-                insert_dict[key_press](editor)
-                return 'insert'
-            elif key_press.isprintable():
-                editor.current_buffer.insert(key_press)
-                return 'insert'
+            if not editor.screen.minibar_completer:
+                editor.screen.minibar(' ( Auto-completion aborted ) No more matches.')
+                break
             else:
-                editor.screen.minibar(f'unrecognized key: {k._escape(key_press)}')
-                return 'insert'
+                key_press = editor.visit_stdin()
+            
+            if key_press in completion_dict:
+                if completion_dict[key_press](editor):
+                    editor.read_stdin()
+                    continue
+            elif not key_press.isspace() \
+                 and key_press not in editor.actions.insert \
+                 and key_press.isprintable():
+                editor.current_buffer.insert(key_press)
+                editor.read_stdin()
+                continue
+            break
     finally:
+        editor.current_buffer.set_undo_record(True)
         editor.screen.minibar_completer.give_up()
+        return 'insert'

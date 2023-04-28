@@ -1,9 +1,8 @@
 from pathlib import Path
 from vy.keys import _escape
-from ..global_config import USER_DIR
-from ..filetypes.basefile import DummyLine
-from .. import keys as k
-
+from vy.global_config import USER_DIR
+from vy.filetypes.basefile import DummyLine
+from vy import keys as k
 
 class Completer:
     def __init__(self, file, prompt, editor):
@@ -39,12 +38,14 @@ class Completer:
             while True:
                 self.update_minibar()
                 key = reader()
-                if key == k.backspace:
+                if key in (k.backspace, k.linux_backpace):
                     buffer.backspace()
+                    self.state = ''
                 elif key == k.C_V:
                     buffer.insert(reader())
                 elif key == k.suppr:
                     buffer.suppr()
+                    self.state = ''
                 elif key == k.left:
                     self.move_left()
                 elif key == k.right:
@@ -56,6 +57,9 @@ class Completer:
                 elif key == k.down:
                     self.move_cursor_down()
                 elif key == k.C_C or key == '\x1b':
+                    if self.state:
+                        self.state = ''
+                        continue
                     raise KeyboardInterrupt
                 elif key == k.CR:
                     if self.state:
@@ -69,6 +73,7 @@ class Completer:
                     buffer.insert(key)
                 else:
                     self.editor.warning(f'unrecognized key: {_escape(key)}')
+                    self.state = ''
         finally:
             self.buffered = []
             screen.minibar_completer.give_up()
@@ -155,10 +160,12 @@ class Completer:
     def move_left(self):
         if self.buffer.cursor > 0:
             self.buffer.cursor -= 1
+        self.state = ''
 
     def move_right(self):
         if self.buffer.cursor < len(self.buffer.string):
             self.buffer.cursor += 1
+        self.state = ''
 
     def move_cursor_up(self):
         if self.state:

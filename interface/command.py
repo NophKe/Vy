@@ -16,6 +16,20 @@ def init(editor):
     dictionary = editor.actions.command
 
     class CommandCompleter(Completer):
+        def get_option(self, args):
+            if ' ' in args:
+                option, value = args.split(' ', maxsplit=1)
+                try:
+                    option = getattr(editor.current_buffer, 'set_' + option)
+                except AttributeError:
+                    return [], 0
+                return self.get_history()
+            elif args.startswith('no'):
+                option = args.removeprefix('no')
+                return [name[4:] for name in dir(editor.current_buffer) if name.startswith('set_' + option)], len(args) - 2
+            else:
+                return [name[4:] for name in dir(editor.current_buffer) if name.startswith('set_' + args)], len(args)
+                
         def get_buffer(self, args):
             rv = []
             for buff in editor.cache:
@@ -32,13 +46,14 @@ def init(editor):
                 args = arg.strip()
                 if cmds in dictionary:
                     func =  dictionary[cmds]
-                    if func.with_args:
+                    if func.with_args and hasattr(func, 'completer'):
                         if func.completer == 'filename':
                             return self.get_filenames(args)
                         elif func.completer == 'buffer':
                             return self.get_buffer(args)
-                        else:
-                            return self.get_history()
+                        elif func.completer == 'option':
+                            return self.get_option(args)
+                    return self.get_history()
                          
             elif one_inside_dict_starts_with(dictionary, user_input):
                 rv = [k for k in dictionary if k.startswith(user_input)]
@@ -65,6 +80,7 @@ def loop(self):
 
     elif user_input.isdigit():
         self.current_buffer.cursor_lin_col = int(user_input), 0
+        self.save_in_jump_list()
         return 'normal'
 
     if ' ' in user_input:
@@ -80,8 +96,7 @@ def loop(self):
         readline.history.pop()
         return 'normal'
     
-    info_txt = f'( Processing Command: {user_input} )'
-    self.screen.minibar(info_txt)
+    cancel = self.screen.minibar(f'( Processing Command: {user_input} )')
     self.registr[':'] = user_input
     
     if ARG:
@@ -89,7 +104,5 @@ def loop(self):
     else:
         rv = action(self, part=PART, reg=REG)
 
-    if info_txt in self.screen._minibar_txt:
-        self.screen.minibar('')
-
+    cancel()
     return rv or 'normal'

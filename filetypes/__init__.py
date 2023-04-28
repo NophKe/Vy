@@ -1,3 +1,17 @@
+"""
+    ****************************************
+    ****    The Different File-Types    ****
+    ****************************************
+
+Vy has two fundamental buffer types, the folder and the text-file.  Both
+are implemented as a python class that inherit from a base class
+'BaseFile'.  See ':help! filetypes.basefile' for more informations.
+
+The vy.filetype module defines a few mappings of known file extensions
+with the appropriate settings.  It is the place for adding custom
+settings.
+
+"""
 from pathlib import Path
 from os import access, W_OK
 
@@ -6,32 +20,50 @@ from .textfile import TextFile
 
 
 known_file_names_tabs = {
+    '.vy.doc'   : 4,
     'Makefile'  : 8,
     '.py'       : 4,
     }
 
 known_file_names_autoindent = {
+    '.vy.doc'   : True,
     '.py'       : True,
     'Makefile'  : True,
     '.c'        : True,
     }
 
 known_file_names_comment_string = {
+    '.vy.doc'   : ('~', ''),
     '.py'       : ('#', ''),
     '.c'        : ('/*', '*/'),
     }
 
 known_file_names_wrap = {
+    '.vy.doc'   : False,
     'Makefile'  : True,
     '.txt'      : True,
     }
 
 known_file_names_expandtabs = {
+    '.vy.doc'   : False,
     'Makefile'  : False,
     '.py'       : True,
     }
 
 def Open_path(location):
+    """
+    The Open_path function is responsible for creating new buffers.
+    Depending on the given path argument, it will return a 'Folder' or
+    a 'TextFile' instance.
+    ---
+    If the given path matches a known file extension, buffer locals
+    settings will be applied to it.
+    ---
+    This function allways returns a new object, use it from any python
+    repl and save the result in a local variable, while editing or
+    writing a Vy-script Editor.edit() and Editor.cache should be
+    prefered as they remember previously visited buffers.
+    """
     if location is None:
         return TextFile(path=None, init_text='\n')
     elif isinstance(location, str):
@@ -41,7 +73,6 @@ def Open_path(location):
                         ' argument must be None, str or Path object')
 
     location = location.resolve()
-
     try:
         init_text = location.read_text() 
     except FileNotFoundError:
@@ -50,7 +81,6 @@ def Open_path(location):
         return TextFile(path=location, init_text='\n')
     except IsADirectoryError:
         return Folder(path=location)
-
 
     file_name = location.name
     file_other_name = file_name.lower()

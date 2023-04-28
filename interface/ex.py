@@ -1,9 +1,25 @@
+"""
+    ***************************
+    ****    The Ex Mode    ****
+    ***************************
+
+If you only want to execute a code snippet, or get the result of some
+random evaluation, you do not need to leave the window.  Just press 'Q'
+in normal mode and enter a python prompt.
+
+sys.displayhook is temporarly remapped to print a formatted repr into
+the editor minibar.  If the result is a str object, it will be used
+instead of its repr.
+
+Just before prompting user input, the 'cb' and 'cw' variables,
+respectively for current buffer and current window are inserted into the
+global namespace.
+"""
 from code import InteractiveConsole
 from vy.interface.helpers import Completer
 from vy.global_config import DONT_USE_JEDI_LIB
 from __main__ import __dict__ as global_dict
 from vy.filetypes.textfile import TextFile
-from pathlib import Path # TODO delete this import
 import sys
 from pprint import pformat
 
@@ -29,6 +45,7 @@ except ImportError:
 def init(editor):
     global readline
     global console
+    global displayer
 
     readline = Readline('ex_history', '>>> ', editor)
     
@@ -40,12 +57,23 @@ def init(editor):
             
     console = Console(locals=global_dict)
 
+    def displayer(arg):
+        if isinstance(arg, str):
+            editor.screen.minibar(arg)    
+        else:
+            editor.screen.minibar(*pformat(arg).splitlines())    
+        
 def loop(editor):
     origin = sys.displayhook
+    if 'cb' not in global_dict:
+        global_dict['cb'] = editor.current_buffer
+    if 'cw' not in global_dict:
+        global_dict['cw'] = editor.current_window
 
     try:
         line = readline()
-        sys.displayhook = lambda arg: editor.screen.minibar(*pformat(arg).splitlines())    
+        sys.displayhook = displayer
+        editor.registr['>'] = line
 
         while console.push(line):
             if console.buffer:
@@ -53,9 +81,13 @@ def loop(editor):
             else:
                 screen = []
             line = readline(buffered=screen)
+            editor.registr['>'] += line
+            
     except (KeyboardInterrupt, EOFError):
         pass
     finally:
+        del global_dict['cb']
+        del global_dict['cw']
         sys.displayhook = origin
         return 'normal'
 

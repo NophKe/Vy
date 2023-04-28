@@ -1,40 +1,102 @@
+"""
+Those are the command-mode commands that can take an argument Depending on how
+the argument will be named, you will get differnet autocompletion.
+"""
 from vy.actions.helpers import with_args_commands as _with_args
-from vy.actions.helpers import command as _command
+from vy.actions.helpers import _command
 
 class _CompletableCommand(_command):
+    category = "with_args"
     def __init__(self, header, completer):
-        super().__init__(header, None, None, None, "with_args")
+        self.c_header = header
         self.completer = completer
     def update_func(self, alias, func):
         func = super().update_func(alias, func)
-        func.completer = self.completer
+        if self.completer:
+            func.completer = self.completer
+            if func.__doc__:
+                func.__doc__ += """
+    ---
+    NOTE: Use <TAB> to list possible completions."""
         return func
         
 _c_with_args_header = """
     This command is part of command mode «with args» commands.
 
     [SYNTAX]      :%s {argument}
-    aliases: %s
-    -------------------------------------------------------------------- """
+    aliases: %s"""
 _with_args = _CompletableCommand(_c_with_args_header, '')
 
 _c_with_filename_header = """
     This command is part of command mode «with filename» commands.
 
     [SYNTAX]      :%s {filename}
-    aliases: %s
-    -------------------------------------------------------------------- """
+    aliases: %s"""
 _with_filename = _CompletableCommand(_c_with_filename_header, 'filename')
-
 
 _c_with_buffer_header = """
     This command is part of command mode «with cached buffer» commands.
 
     [SYNTAX]      :%s {cached_buffer}
-    aliases: %s
-    -------------------------------------------------------------------- """
+    aliases: %s"""
 _with_buffer = _CompletableCommand(_c_with_buffer_header, 'buffer')
 
+@_with_filename(':w :write')
+def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Saves the current buffer. If {filename} is given, saves as this
+    new name modifying the current buffer to point to this location.
+    """
+    if not arg:
+        if not editor.current_buffer.unsaved:
+            return
+        elif editor.current_buffer.path:
+            try:
+                return editor.current_buffer.save()
+            except (IsADirectoryError, FileExistsError, PermissionError) as exc:
+                editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
+        else:
+            editor.warning('give your file a path (:w some_name) or forget it (:q!).')
+    elif arg:
+        try:
+            return editor.current_buffer.save_as(arg)
+        except (IsADirectoryError, FileExistsError, PermissionError) as exc:
+            editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
+
+@_with_args(':reg :registers :di :display')
+def show_registers(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Shows the content of registers.
+    If an argument is given, only shows the content of this register.
+    """
+    if arg:
+        if arg in editor.registr:
+            editor.warning(arg + ': ' + str(editor.registr[arg]))
+        else:
+            editor.warning(f'{arg} is not a valid register')
+    else:
+        editor.warning(str(editor.registr))
+    return 'normal'
+
+@_with_buffer(":bd :bdel :bdelete")
+def do_remove_cached_buffer(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Deletes a buffer from the cache.
+    """
+    if arg is None:
+        buffer = editor.current_buffer
+    else:
+        buffer = editor.cache[arg]
+    del editor.cache[buffer]
+    
+    for window in editor.screen:
+        if window.buff is buffer:
+            if window is editor.screen:
+                window.change_buffer(editor.cache['.'])
+            elif window is window.parent.left_panel:
+                window.parent.merge_from_right_panel()
+            elif window is window.parent.right_panel:
+                window.parent.merge_from_left_panel()
 
 @_with_buffer(":b :bu :buf :buffer")
 def do_edit_cached_buffer(editor, reg=None, part=None, arg=None, count=1):
@@ -76,6 +138,12 @@ def substitute(editor, arg=None, **kwargs):
     """
     [SYNTAX]      :s {rhs} {lhs}          
     Replace {rhs} by {lhs} on current line.
+    ---
+    NOTE: This command does not follow the vim-syntax.  The main
+    difference being the use of spaces to delimit {rhs} and {lhs}.
+    ---
+    NOTE: As allways with 'command mode' in Vy, a space is needed after
+    the command before the first argument.
     """
     if not arg or ' ' not in arg:
         editor.warning(substitute.__doc__)
@@ -110,8 +178,6 @@ def do_nmap(editor, reg=None, part=None, arg=None, count=1):
     func.atomic = True
     editor.actions.normal[key] = func
 
-
-
 @_with_filename(":read :re :r")
 def read_file(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -125,13 +191,12 @@ def read_file(editor, reg=None, part=None, arg=None, count=1):
         return
     editor.current_buffer.insert(Path(arg).read_text())
 
-
 @_with_args(":!")
 def do_system(editor, reg=None, part=None, arg=None, count=1):
     """
     Execute a system command.
     """
-    from subprocess import run, CalledProcessError
+    from subprocess import run
     if not arg:
         editor.warning('Commmand needs arg!')
     else:
@@ -156,13 +221,22 @@ def do_chdir(editor, reg=None, part=None, arg=None, count=1):
     except NotADirectoryError:
         editor.warning(f'Not a directory: {arg}')
 
-@_with_args(":set :se")
-def do_set(editor, reg=None, part=None, arg=None, count=1):
-    """
+_c_with_option_header = """
+    This command is part of command mode «with args» commands.
+
+    [SYNTAX]      :%s                      >>> show help
     [SYNTAX]      :set {argument}          >>> set to True
     [SYNTAX]      :set no{argument}        >>> set to False
     [SYNTAX]      :set {argument}!         >>> toggle True/False
     [SYNTAX]      :set {argument} {number} >>> set to integer value
+    aliases: %s"""
+_with_option = _CompletableCommand(_c_with_option_header, 'option')
+
+@_with_option(":set :se")
+def do_set(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Sets an option. Valid options are all buffer attributes starting
+    with 'set_*'.
     """
 
     if not arg:
@@ -194,3 +268,14 @@ def do_set(editor, reg=None, part=None, arg=None, count=1):
         setattr(editor.current_buffer, f'set_{arg}', value)
     if value is toggle:
         setattr(editor.current_buffer, f'set_{arg}', not option)
+
+@_with_args(':draw_box')
+def draw_a_box_around_text(editor, reg=None, part=None, arg=' ', count=1):
+    txt = '    ****    ' + arg.strip().title() + '    ****'
+    line = '    ' + '*' * (len(txt)-4) + '\n'
+    to_insert = line + txt + '\n' + line
+    with editor.current_buffer as cur_buf:
+        cur_buf.cursor_lin_col = cur_buf.current_line_idx, 0
+        cur_buf.insert(to_insert)
+
+

@@ -1,10 +1,41 @@
+"""
+    ***********************************
+    ****    Modes And Interface    ****
+    ***********************************
+    
+In Vy, Modes are responsible for parsing user input, and trigerring
+appropriate actions.
+
+The 'vy.interface' module contains the implementation of the basic
+modes.  Custom modes may be added and reloaded at any time.  All you
+need is an action that returns a string, that correspond to one of the
+files inside vy/interface/ directory.
+
+Modes can be divided in two categories, some parsing user key-strokes at
+character level (like 'normal' and 'visual' modes), other operating on a
+line, (like 'command' and 'ex' mode).
+
+For reading single characters, modes can use the Editor.read_stdin()
+method.  If the main mode is currently delegating its job to a sub-mode,
+the sub-mode is expected to use the Editor.visit_stdin() method.
+
+If the sub-mode succeeds in handling the key that was pressed, it make a
+call to Editor.read_stdin() to discard the character from the input
+queue, otherwise it just return its parent mode name as a string.
+
+The 'vy.interface.helpers' module contains an implementation of a
+readline() function with editing capacities and per-mode history, see 
+':help! interface.helpers'.
+"""
 from importlib import import_module, reload
 from sys import modules
+
+from .normal import __doc__ as doc_normal_mode
 
 class Interface():
     __slots__ = ('inst', 'mode_dict')
 
-    def __init__(self, inst): #, mode='normal'):
+    def __init__(self, inst):
         self.inst = inst
         self.mode_dict = {}
     
@@ -15,15 +46,11 @@ class Interface():
             mod_name = f'vy.interface.{name}'
             if mod_name in modules:
                 reload(modules[mod_name])
-            try:
-                module = import_module(mod_name, __package__)
-                if hasattr(module, 'init'):
-                    module.init(self.inst)
-                loop = module.loop
-                self.mode_dict[name] = loop
-            except ImportError:
-                self.inst.warning(f"Vy can't find the definition of {name} mode.\n"
-                                    "or syntaxError while reading mode defintion")
-                return "normal"
-
+            
+            module = import_module(mod_name, __package__)
+            if hasattr(module, 'init'):
+                module.init(self.inst)
+            loop = module.loop
+            self.mode_dict[name] = loop
+            
         return loop(self.inst)

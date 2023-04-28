@@ -1,11 +1,47 @@
-from vy.global_config import USER_DIR
-from rlcompleter  import Completer 
+from vy import global_config
+from rlcompleter import Completer 
 import readline
 from code import InteractiveConsole
 
+try:
+    if global_config.DONT_USE_JEDI_LIB:
+        raise ImportError
+    from jedi import Interpreter
+    import os
+    import sys
+
+    def jedi_setup_readline(namespace_module, fuzzy=False):
+        class JediRL:
+            def complete(self, text, state):
+                if state == 0:
+                    sys.path.insert(0, os.getcwd())
+                    # Calling python doesn't have a path, so add to sys.path.
+                    try:
+                        interpreter = Interpreter(text, [namespace_module])
+                        completions = interpreter.complete(fuzzy=fuzzy)
+
+                        self.matches = [
+                            text[:len(text) - c._like_name_length] + c.name_with_symbols
+                            for c in completions ]
+                    finally:
+                        sys.path.pop(0)
+                try:
+                    return self.matches[state]
+                except IndexError:
+                    return None
+        readline.set_completer(JediRL().complete)
+        readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set completion-ignore-case on")
+        readline.parse_and_bind("set show-all-if-unmodified")
+        readline.parse_and_bind("set show-all-if-ambiguous on")
+        readline.parse_and_bind("set completion-prefix-display-length 2")
+        readline.set_completer_delims('')
+except ImportError:
+    jedi_setup_readline = None
+
 class CommandCompleter:
     def __init__(self, file):
-        histfile = USER_DIR / file
+        histfile = global_config.USER_DIR / file
         if not histfile.exists():
             histfile.touch()
         restric = set(histfile.read_text().splitlines(True))
@@ -32,21 +68,18 @@ class CommandCompleter:
 local_completer = CommandCompleter('python_history')
 
 def loop(editor, source=None):
-    if source is None:
-        source = {}
+    source = source or {}
     editor.stop_async_io()
     try:
         console = InteractiveConsole(locals=source)
-        try:
-            with local_completer:
-                try:
-                    from jedi.utils import setup_readline
-                    setup_readline()
-                except ImportError:
-                    readline.set_completer(Completer(console.locals).complete)
-                console.interact()
-        except SystemExit:
-            pass
-        return 'normal'
+        with local_completer:
+            if jedi_setup_readline is not None:
+                jedi_setup_readline(source)
+            else:
+                readline.set_completer(Completer(console.locals).complete)
+            console.interact()
+    except SystemExit:
+        pass
     finally:
         editor.start_async_io()
+    return 'normal'

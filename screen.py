@@ -75,9 +75,9 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
             continue
 
         if visual and on_col == start_v: # and on_col == cursor_col:
-                line += '\x1b[7m'
-                start_cursor = '\x1b[27;5;4m'
-                stop_cursor = '\x1b[7;25;24m'
+            line += '\x1b[7m'
+            start_cursor = '\x1b[27;5;4m'
+            stop_cursor = '\x1b[7;25;24m'
 
         if on_col ==  max_col:
             line += '\x1b[39;49m'
@@ -182,8 +182,8 @@ class CompletionBanner:
         self.view_start = 0
         self.max_selected = -1
         self.selected = -1
-        self.completion = list()
-        self.pretty_completion = list()
+        self.completion = []
+        self.pretty_completion = []
         self.prefix_len = 0
         self.check_func = lambda: False
         self.make_func = lambda: ([], 0)
@@ -193,18 +193,20 @@ class CompletionBanner:
         self.make_func = make_func
         self.check_func = check_func
         self.generate()
-        if self.completion:
-            self._active = True
 
     def generate(self):
         try:
             self.completion, self.prefix_len = self.make_func()
         except TypeError: #Jedi-completer returned None
             return self.give_up()
-        self.selected = 0
-        self.view_start = 0
-        self.max_selected = len(self.completion) - 1
-        self._update()
+        if self.completion:
+            self.selected = 0
+            self.view_start = 0
+            self.max_selected = len(self.completion) - 1
+            self._active = True
+            self._update()
+        else:
+            self.give_up()
     
     def give_up(self):
         self.__init__()
@@ -256,6 +258,27 @@ class Window():
         self._v_split_flag: bool = False
         self.v_split_shift: int = 0
         self._focused: Window = self 
+        self._iter = []
+        self._last = ()
+    
+    def __iter__(self):
+        if self._v_split_flag:
+            yield from self.left_panel
+        if self._v_split_flag:
+            yield from self.right_panel
+        else:
+            yield self
+        
+    def needs_redraw(self):
+        actual = self._last_shown()
+        if self._last != actual:
+            return True
+        return False
+
+    #def __iter__(self):
+        #if self.needs_redraw():
+            #self._iter = self.gen_window()
+        #yield from self._iter
 
     def set_focus(self):
         if self.parent is self:
@@ -310,11 +333,11 @@ class Window():
         assert self._v_split_flag is False
         # TODO may be shorter
         self.buff = new_buffer
-        bufline = new_buffer.current_line_idx
+        cursor_line = new_buffer.current_line_idx
         maxline = new_buffer.number_of_lin
         halfscreen = self.number_of_lin // 2
         max_shift = maxline - halfscreen
-        new_shift = bufline - halfscreen
+        new_shift = cursor_line - halfscreen
         self.shift_to_lin = min(maxline, max(0, new_shift))
         return self
             
@@ -393,60 +416,85 @@ class Window():
 
     def gen_window(self):
         if self.vertical_split:
+            if not self.right_panel.needs_redraw() and not self.left_panel.needs_redraw():
+                return [f'{left}|{right}' for left, right in zip(
+                                            self.left_panel._last_computed,
+                                            self.right_pane_last_computed)]
+                
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
                                             self.right_panel.gen_window())]
-        else:
-            max_col = self.number_of_col
-            min_lin = self.shift_to_lin
-            max_lin = self.number_of_lin + self.shift_to_lin
-            wrap = self.buff.set_wrap
-            if (number := self.buff.set_number):
-                num_len = len(str(max_lin))
-                expand = expandtabs_numbered
-            else:
-                expand = expandtabs
-                num_len = None
-            tab_size = self.buff.set_tabsize
-            default = f"~{' ':{max_col- 1}}"
-            true_cursor = 0
-            
-            cursor_lin, cursor_col, raw_line_list \
-                    = self.buff.get_raw_screen(min_lin, max_lin)
-
-            line_list = list()
-            for on_lin, pretty_line in enumerate(raw_line_list, start=min_lin):
-                if pretty_line is None:
-                    line_list.append(default)
-                    continue
-                if on_lin == cursor_lin and true_cursor == 0:
-                    true_cursor = len(line_list)
+#        if not self.needs_redraw():
+#            return self._last_computed
            
-                if (visual := on_lin in self.buff.selected_lines):
-                    (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
-                    if on_lin != start_lin:
-                        start_col = 1
-                    if on_lin != stop_lin:
-                        stop_col = -1
-                    visual = (start_col, stop_col)
+        max_col = self.number_of_col
+        min_lin = self.shift_to_lin
+        max_lin = self.number_of_lin + self.shift_to_lin
+        wrap = self.buff.set_wrap
+        if (number := self.buff.set_number):
+            num_len = len(str(max_lin))
+            expand = expandtabs_numbered
+        else:
+            expand = expandtabs
+            num_len = None
+        tab_size = self.buff.set_tabsize
+        default = f"~{' ':{max_col- 1}}"
+        true_cursor = 0
+        visual = self.buff.selected_lin_col
+        
+        cursor_lin, cursor_col, raw_line_list \
+                = self.buff.get_raw_screen(min_lin, max_lin)
 
-                to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, visual)
-                if wrap:
-                    line_list.extend(to_print)
-                else:
-                    line_list.append(to_print[0])
+        line_list = list()
+        for on_lin, pretty_line in enumerate(raw_line_list, start=min_lin):
+            if pretty_line is None:
+                line_list.append(default)
+                continue
+            if on_lin == cursor_lin and true_cursor == 0:
+                true_cursor = len(line_list)
+       
+            if visual and (visual := on_lin in self.buff.selected_lines):
+                (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
+                if on_lin != start_lin:
+                    start_col = 1
+                if on_lin != stop_lin:
+                    stop_col = -1
+                visual = (start_col, stop_col)
 
+            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, visual)
             if wrap:
-                while len(line_list) != self.number_of_lin:
-                    if true_cursor >= self.number_of_lin:
-                        line_list.pop(0)
-                        true_cursor -= 1
-                    else:
-                        line_list.pop()
-            return line_list 
+                line_list.extend(to_print)
+            else:
+                line_list.append(to_print[0])
+
+        if wrap:
+            while len(line_list) != self.number_of_lin:
+                if true_cursor >= self.number_of_lin:
+                    line_list.pop(0)
+                    true_cursor -= 1
+                else:
+                    line_list.pop()
+
+        self._last = self._last_shown()
+        self._last_computed = line_list
+        return line_list
+
+    def _last_shown(self):
+        return (self.number_of_col, 
+                self.number_of_lin, 
+                self.shift_to_lin, 
+                self.shift_to_col,
+                self.buff.set_wrap,
+                self.buff.set_number,
+                self.buff.set_tabsize,
+                self.buff.selected_offsets,
+                self.buff._string,
+                len(self.buff._splited_lines) + len(self.buff._lexed_lines),
+                )
 
 class Screen(Window):
     def __init__(self, buff):
+        self._last = None
         self.buff = buff
         self._v_split_flag = False
         self.v_split_shift = 0
@@ -480,10 +528,10 @@ class Screen(Window):
     def get_line_list(self):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        minibar = self.minibar_banner
+        minibar = self.minibar_banner.copy()
         self._number_of_lin = lines - len(minibar)
-
         curwin = self.focused
+
         try:
             lin, col = curwin.buff._cursor_lin_col
         except ValueError:
@@ -491,17 +539,17 @@ class Screen(Window):
         else:
             if lin < curwin.shift_to_lin:
                 curwin.shift_to_lin = lin
-            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-                curwin.shift_to_lin = lin - self.number_of_lin + 1
+            elif lin > curwin.shift_to_lin + curwin._number_of_lin - 1:
+                curwin.shift_to_lin = lin - self._number_of_lin + 1
             ok_flag = True
 
         try:
-            rv = self.gen_window()
+            rv = self.gen_window().copy()
         except RuntimeError:
-            rv = [''] * self.number_of_lin
+            rv = [''] * self._number_of_lin
             ok_flag = False
 
-        rv.extend(minibar)
+        rv.extend(self.minibar_banner)
         return rv, ok_flag
 
     def minibar(self, *lines):
@@ -514,33 +562,32 @@ class Screen(Window):
     if DEBUG:
         @property
         def minibar_banner(self):
-            try:
-                from time import sleep
-                
-                from vy.global_config import USER_DIR
-                from pprint import pformat
-                from __main__ import Editor as vy
+            from time import sleep
+            
+            from vy.global_config import USER_DIR
+            from pprint import pformat
+            from __main__ import Editor
 #                from time import asctime
-                debug_file = USER_DIR / "debugging_values"
-                to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m'
-                for line in debug_file.read_text().splitlines():
-                    value = ('\n' + pformat(eval(line))).replace('\n', '\n\t')
-                    to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-                rv = list()
-                for line in to_print.splitlines():
-                    rv.extend(expand_quick(self.number_of_col, line))
-                rv.append(self.infobar_txt)
-                for line in self.minibar_completer:
-                    rv.extend(expand_quick(self.number_of_col, line))
-                for line in self._minibar_txt:
-                    rv.extend(expand_quick(self.number_of_col, line))
+            debug_file = USER_DIR / "debugging_values"
+            to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m\n'
+            for line in debug_file.read_text().splitlines():
+                if line:
+                    try:
+                        value = pformat(eval(line))
+                        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+                    except BaseException as exc:
+                        value = str(exc)
+                        to_print += f'\x1b[35;1m{line}\n     <<< ___ERROR____ >>>\n{value}\x1b[0m'
+            rv = list()
+            for line in to_print.splitlines():
+                rv.extend(expand_quick(self.number_of_col, line))
+            rv.append(self.infobar_txt)
+            for line in self.minibar_completer:
+                rv.extend(expand_quick(self.number_of_col, line))
+            for line in self._minibar_txt:
+                rv.extend(expand_quick(self.number_of_col, line))
 #                rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
-                return rv
-            except Exception as exc:
-                rv = []
-                for line in str(exc).splitlines():
-                    rv.extend(expand_quick(self.number_of_col, line))
-                return rv
+            return rv
     else:
         @property
         def minibar_banner(self):
@@ -621,3 +668,7 @@ class Screen(Window):
 
     def clear_screen(self):
         stdout.write('\x1b[2J')
+        
+def _tests():
+    test_str = '01234567890\x1b[1m234567890'
+    

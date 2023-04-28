@@ -32,7 +32,7 @@ if __name__ != '__main__' or __package__ != 'vy':
 from argparse import ArgumentParser 
 from sys import stdin, stdout, exit
 
-if not stdin.isatty() or not stdout.isatty():
+if not (stdin.isatty() and stdout.isatty()):
     exit('VY FATAL ERROR: stdin or stdout is not a terminal.')
 
 ########   COMMAND LINE PARSING #############################
@@ -79,18 +79,23 @@ global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
 if not global_config.DONT_USE_USER_CONFIG:
     global_config._source_config()
 
-if cmdline.no_pygments:
-    global_config.DONT_USE_PYGMENTS_LIB = True
-if cmdline.no_jedi:
-    global_config.DONT_USE_JEDI_LIB = True
-if cmdline.debug:
-    global_config.DEBUG = True
+global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
+global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
+global_config.DEBUG = cmdline.debug
 
 ########    SIGNAL HANDLING    #######################################
 
 #from signal import signal, SIGWINCH, SIGINT
 
 ########    DEBUG MODE     ###########################################
+
+import sys
+
+def enter_debugger():
+    from __main__ import Editor
+    Editor.stop_async_io()
+    sys.__breakpointhook__()
+sys.breakpointhook = enter_debugger
 
 #if cmdline.debug:
     #import sys
@@ -108,7 +113,7 @@ from vy.editor import _Editor as Editor
 
 Editor = Editor(*cmdline.files, command_line=cmdline)
 
-global_config._source_rcfile(Editor)
+#global_config._source_rcfile(Editor)
 
 if cmdline.profile:
     import cProfile, pstats, io

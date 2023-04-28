@@ -13,6 +13,10 @@ class Folder(BaseFile):
     actions = { k.CR: DO_open_file, }
     unsaved = False
     modifiable = False
+    
+    @property
+    def _lexed_lines(self):
+        return self._splited_lines
 
     @property
     def _string(self):

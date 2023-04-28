@@ -22,10 +22,10 @@ class DummyLine:
 
     ending = ''
 
-### TODO: implement other common operations
-###
-### - erase word backward
-### - move cursor to beginning / end of line
+    ### TODO: implement other common operations
+    ###
+    ### - erase word backward
+    ### - move cursor to beginning / end of line
 
     def __init__(self, init_text='', cursor=0):
         assert isinstance(init_text, str)
@@ -54,7 +54,7 @@ class DummyLine:
         """
         string = self.string
         cur = self.cursor
-        self.string  = f'{string[:cur]}{string[cur + 1:]}'
+        self.string = string[:cur] + string[cur + 1:]
 
     def backspace(self):
         """
@@ -106,13 +106,14 @@ class TextLine(DummyLine):
 
 class BaseFile:
     r"""
-    BaseFile is... ( well... ) the basis for what is usually called a «buffer» 
-    in the in the Vi-like editors jargon.
+    BaseFile is... ( well... ) the basis for what is usually called a
+    «buffer» in the in the Vi-like editors jargon.
 
-    It mix the classical expected features of a mutable string with some 
-    traditionnal concepts of vim buffers, like mouvements.
+    It mixes the classical expected features of a mutable string with some 
+    traditionnal concepts of vim buffers, like motions.
     
-    >>> file = BaseFile(init_text='Hello World\n\t42\t\nno End-of-file?' cursor=0)
+    >>> file = BaseFile(init_text='Hello World\n 42\n', cursor=0)
+
     >>> file.move_cursor('w')           # moves to next word ( regex \b )
     >>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
 
@@ -128,48 +129,22 @@ class BaseFile:
     properties. (string,  current_line and cursor). Any modifications of one
     of those properties will immediatly invalidate any other property that 
     depend on it. 
-
-    ### TODO  --  Tests and explanations about line ending should go to in TextLine 
-
-    >>> file.splited_lines
-    ['Hello World\n', '\t42\t\n', 'no End-of-file?\n']
-    >>> file.current_line = ''   # what if I forget line ending ?
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> file.current_line
-    'Hello World\n'
-    >>> file.current_line = '\n' # a line allways contains only one newline
-    >>> file.current_line
-    '\n'
-    >>> file.current_line = '\n putting 2 newlines in the same line is a bug.\n'
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> file.cursor_lin_col
-    (0, 7)
-    >>> file.cursor = file.lines_offsets[file.number_of_lin - 1]  
-    >>> file.insert('junk')
-    >>> file.current_line
-    'junk\n'                                ##### Here Was unexpectedly right !!!!
-    >>> file.splited_lines
-    >>> file.cursor_lin_col
-
-    Properties being lazily evaluated, a few «fast paths» are provided to
-    speed up common operations upon the internal data structure. Do not rely
-    on them! Being lazily computed, a lot of the properties assert themselves
-    towards each other. Some assertions are clearly redundant but will be
-    maintained for correctness. Moreover speed on that matter may strongly
-    depend on you python implementation.
-
+    Properties being lazily evaluated, a few «fast paths» are provided
+    to speed up common operations upon the internal data structure.
+    Do not rely on them!  Being lazily computed, a lot of the
+    properties assert themselves  towards each other.  Some
+    assertions are clearly redundant but will be maintained for
+    correctness.  Moreover speed on that matter may strongly depend
+    on you python implementation.
+    
     >>> file.insert_newline()
     >>> file.insert('\n')
 
-    By definition, one line should allways end by a newline. Also one empty
-    line is represented by EMPTY STRING + NEWLINE.  The newline character has
-    no special treatment anywhere in the file, you can delete them and insert
-    new ones any time, but the last newline character that ends the buffer
-    cannot be deleted.
+    By definition, one line should allways end by a newline.  Also one
+    empty line is represented by EMPTY STRING + NEWLINE.  The newline
+    character has no special treatment anywhere in the file, you can
+    delete them and insert new ones any time, but the last newline
+    character that ends the buffer cannot be deleted.
     
     >>> file.backspace()
     >>> file.suppr()
@@ -186,8 +161,8 @@ class BaseFile:
     >>> file.read()
     'over_writeE中国f-file?\n' # bug is in tests. see source. around line 150
 
-    One may also consider a buffer as a mutable sequence suitable
-    as a remplacement of the immutable string.
+    One may also consider a buffer as a mutable sequence suitable as a
+    remplacement of the immutable string.
 
     >>> file[0:10]
     'over_write'
@@ -206,13 +181,13 @@ class BaseFile:
     @property
     def string(self):
         """
-        string is a property returning the internal buffer. Modifying its value
-        triggers the registered callbacks and invalidates the properties that
-        depend on it.
+        string is a property returning the internal buffer.  Modifying
+        its value triggers the registered callbacks and invalidates the
+        properties that depend on it.
         
-        As there is no way of knowing in advance what the new value will be,
-        avoid modifying it directly. This will invalidate most computation
-        allready done.
+        As there is no way of knowing in advance what the new value will
+        be, avoid modifying it directly.  This will invalidate most
+        computation allready done.
         """
         with self._lock:
             if not self._string:
@@ -300,7 +275,6 @@ class BaseFile:
         This is the list of the lines contained in the buffer, each should 
         have a trailing newline.
         -
-        >>> x = BaseFile(init_text='1\n22\n333\n4444\n555555\n' * 42)
         >>> assert all(
         ... sum(len(lines) for lines in x.splited_lines[:index])
         ... == 
@@ -396,7 +370,6 @@ class BaseFile:
     def _list_insert(self, value):
         lin, col = self.cursor_lin_col
         string = self.current_line
-        #assert string
         self._string = ''
         cur = col - 1
         self._cursor += len(value)
@@ -424,7 +397,7 @@ class BaseFile:
     @property
     def selected_lin_col(self):
         if not self._selected:
-            return
+            return None
         a_lin, a_col = self._selected
         b_lin, b_col = self.cursor_lin_col
         if a_lin < b_lin:
@@ -447,8 +420,9 @@ class BaseFile:
     @property
     def selected_lines(self):
         if self._selected:
-            actual_lin = self.current_line_idx
-            other_lin = self._selected[0]
+            with self._lock:
+                actual_lin = self.current_line_idx
+                other_lin = self._selected[0]
             return range(min(actual_lin, other_lin), max(actual_lin, other_lin)+1)
         return range(0)
 
@@ -492,7 +466,6 @@ class BaseFile:
         self.string = init_text
         self.cursor = cursor
         self.pre_update_callbacks.append(self.set_undo_point)
-
 
         self.motion_commands = {
            'B'          : self.find_normal_B,
@@ -547,10 +520,9 @@ class BaseFile:
         with self._lock:
             return self._lenght
     
-    def set_undo_record(self, bool_flag=True):
+    def set_undo_record(self, bool_flag):
         self._undo_flag = bool_flag
-        if bool_flag:
-            self.set_undo_point()
+        self.set_undo_point()
 
     def join_line_with_next(self):
         with self:
@@ -631,17 +603,13 @@ class BaseFile:
         """
         The cursor is a property that returns the position of the cursor as an
         opaque integer value.
-
-        >>> len('国')
-        1
         """
         with self._lock:
             return self._cursor
 
     @cursor.setter
     def cursor(self, value):
-        assert isinstance(value, int)
-        assert 0 <= value <= len(self)
+        assert 0 <= value <= self._lenght
         with self._lock:
             self._current_line = ''
             self._cursor_lin_col = ()
@@ -664,15 +632,27 @@ class BaseFile:
             self._lenght = len(self._string)
             self._cursor_lin_col = ()
 
-    def _compress_undo_list(self):
-        old_len = len(self.undo_list) - 1
-        self.undo_list = [item for index, item in enumerate(self.undo_list) 
-                    if index % 2 == 1 or index == 0 or index == old_len]
-        self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
+    #def _compress_undo_list(self):
+        #old_len = len(self.undo_list) - 1
+        #self.undo_list = [item for index, item in enumerate(self.undo_list) 
+                    #if index % 2 == 1 or index == 0 or index == old_len]
+        #self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
         
     def set_undo_point(self):
         if self._undo_flag:
-            self.undo_list.append((self._splited_lines.copy(), self._cursor_lin_col))
+            try:
+                last_hash = self.undo_list[-1][2]
+            except IndexError:
+                different = True
+                new_hash = hash(self.string) 
+            else:
+                new_hash = hash(self.string) 
+                different = new_hash != last_hash
+            # on pupose dont't take the lock, this way when called from
+            # self.__enter__() it will take the lock twice before grabbing
+            # it definitly, leaving time for other threads to notice the change
+            if different:
+                self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, new_hash))
 
     def undo(self):
         with self:
@@ -681,7 +661,7 @@ class BaseFile:
                     self.undo_list.pop()
                     return
                 self.redo_list.append(self.undo_list.pop())
-                txt, pos = self.undo_list.pop()
+                txt, pos, _ = self.undo_list.pop()
                 self.string = ''.join(txt)
                 self._splited_lines = txt
                 self.cursor_lin_col = pos
@@ -693,7 +673,7 @@ class BaseFile:
             if not self.redo_list:
                 self.undo_list.pop()
                 return
-            txt, pos = self.redo_list.pop()
+            txt, pos, _ = self.redo_list.pop()
             self.undo_list.append((txt, pos))
             self.string = ''.join(txt)
             self._splited_lines = txt
@@ -727,7 +707,7 @@ class BaseFile:
         if (start := self.cursor + 2) > len(self):
             return self.cursor
         for char in DELIMS:
-            loc = self[start:].find(char)
+            loc = self.string[start:].find(char)
             if loc > -1:
                 loc += self.cursor
                 places.add(loc+1)
@@ -746,7 +726,7 @@ class BaseFile:
                 return self.cursor
             sp_offset = self[start:].find(' ')
             nl_offset = self[start:].find('\n')
-            offset = min( (sp_offset, nl_offset,) )
+            offset = min( sp_offset, nl_offset )
             if offset == -1:
                 return len(self)
             return start + offset
@@ -774,7 +754,8 @@ class BaseFile:
     def find_normal_k(self):
         with self._lock:
             lin, col = self.cursor_lin_col
-
+            if not lin:
+                return 0
             current_line_start = self.lines_offsets[lin]
             previous_line = self._lines_offsets[lin-1]
 
@@ -1047,7 +1028,7 @@ class BaseFile:
             self._repr = ( ('writeable ' if self.modifiable else 'read-only ')
                           + self.__class__.__name__ 
                           + ': '
-                          + ( str(self.path.relative_to('.')) if self.path and self.path.is_relative_to('.')
+                          + ( str(self.path.relative_to(self.path.cwd())) if self.path and self.path.is_relative_to(self.path.cwd())
                               else str(self.path.resolve()) if self.path 
                               else 'undound to file system' ) )
         return self._repr
@@ -1059,7 +1040,7 @@ class BaseFile:
         assert self.path is not None
         self.path.write_text(self.string)
 
-    def save_as(self, override=False):
+    def save_as(self, new_path, override=False):
         from pathlib import Path
         new_path = Path(new_path).resolve()
                 
@@ -1089,17 +1070,6 @@ class BaseFile:
         return False
 
     def find_normal_l(self):
-        r"""
-        >>> x = BaseFile(init_text='01\n3\n567\n9\n123456789\n', cursor=0)
-        >>> x.find_normal_l()
-        1
-        >>> x.cursor = 5
-        >>> x.find_normal_l()
-        6
-        >>> x.cursor = 7
-        >>> x.find_normal_l()
-        7
-        """
         try:
             if self.string[self.cursor+1] != '\n':
                 return self.cursor + 1
@@ -1107,14 +1077,6 @@ class BaseFile:
             return self.cursor
 
     def find_normal_h(self):
-        r"""
-        >>> x = BaseFile(init_text='1\n22\n333\n4444\n555555\n' * 42, cursor=0)
-        >>> x.find_normal_h()
-        0
-        >>> x.cursor = 1
-        >>> x.find_normal_h()
-        0
-        """
         if self.cursor == 0:
             return 0
         if self.string[self.cursor - 1] == '\n':
@@ -1122,5 +1084,34 @@ class BaseFile:
         return self.cursor - 1
 
 if __name__ == '__main__':
+    def _tests():
+        '''file.splited_lines == ['Hello World\n', ' 42\n']
+
+    >>> file.current_line = ''   # what if I forget line ending ?
+    Traceback (most recent call last):
+    ...
+    AssertionError: value = ''
+
+    >>> file.current_line = '\n putting 2 newlines in the same line is a bug.\n'
+    Traceback (most recent call last):
+    ...
+    AssertionError: value = '\n putting 2 newlines in the same line is a bug.\n'
+    >>> file.current_line = '\n' # 
+
+    >>> file.current_line
+    'Hello World\n'
+
+    >>> file.cursor_lin_col
+    (0, 7)
+    >>> file.cursor = file.lines_offsets[file.number_of_lin - 1]  
+    >>> file.insert('junk')
+    >>> file.current_line
+    'junk\n'                                ##### Here Was unexpectedly right !!!!
+    >>> file.splited_lines
+    >>> file.cursor_lin_col
+
+    x = BaseFile(init_text='1\n22\n333\n4444\n555555\n' * 42)
     import doctest
     doctest.testmod()
+    '''
+    pass

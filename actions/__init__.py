@@ -1,110 +1,203 @@
 """ 
-This module contains basic «actions» upon the Vy editor.
-An action is a function that accepts an editor as first
-argument, and a possibly null, arg string, or slice as
-second argument.
+    ******************************
+    ****    Welcome To Vy.    ****
+    ******************************
 
-As defined in the Vym grammar, some commands require motion
-argument, some possibly require a register to work on.
+This document lists all of the Vy commands that are natively included.
 
+Most of these commands are accessible by different key mappings
+depending on the currently running mode, and this documentation tries to
+minimize duplication by giving you all the different aliases of a
+command.
+
+NOTE:
+-----
+  If you are reading from the sources, the vy.actions module contains
+  all the basic «actions» upon the Vy editor and get to produce the
+  final Vy documentation which is accessible through the  ':help'
+  command.  A complete view of the documentation can be produced with
+  the  ':help! actions'  command.
+  
+  Vy's code is intended to be readable, and because of the use of
+  docstring for the high level documentation, most of the implementation
+  details will remain inside comments.  Remember that you can use
+  ':python' anytime or use 'Q' in normal mode and use the regular python
+  help() function to access documentation of the objects that are not
+  directly available by the classical vim-like help system.
+  
+  If you are a completely new to using Vi-like text editor, you are
+  recommended to execute 'vy --tutor' at least once.
+  If you don't know yet what 'python mode' is just 'vy --tutor' ;-)
+
+The fundamental concept of the «Vy grammar» is the action.  There are
+different types of actions and each may require specific arguments to
+operate on.  Actions are a generalisation of the classical Vi concept of
+a command.  But when Vi has regularities in the way each command work,
+each has its own subtleties and quircks.  In Vy, each kind of action
+have a strict grammar and behaviour may be predicted.
+
+ - Atomic Commands:
+        Those are the command that don't need you to supply any register,
+        count, or motion to be executed.  Good example is the ':'
+        command in normal mode.  This will take you to command mode no
+        matter what you typed before and no count or selected register
+        can apply to that command.  If any is given this will be ignored.
+
+ - Motion Commands:
+        Those actions can take a count to indicate a number of
+        repetition.  If given a register this will be ignored.  Those
+        actions can also be used as an operators after a «full» command.
+
+ - Full Commands:
+        These actions are the ones that require you to specify an
+        operator.  You can think about the 'd' command in normal
+        mode that does nothing until you choose a range to operate on.
+
+ - Stand-alone Commands:
+        These are the actions that can be repeated.  They then accept an
+        optional count and an optionnal register even if some actions
+        may just ignore the given register.
+        Line-wise commands (like normal mode 'J') and character-wise
+        commands (like normal mode '~') fall into that category.
+
+ - Operators:
+        Operators are all the valid actions that can be used after a
+        full command, that are not motions, like 'iw'.  Those are like
+        motions but they cannot be used with a count nor directly like a
+        motion.
+
+ - With Args Commands:
+        These are the command mode commands that accept a string
+        argument, like ':w' that may accept a valid filename, or have a
+        default behaviour when used without.  These actions have an
+        additionnal '.completer' attribute that determinates the kind of
+        auto-completion that needs to be triggered.
+
+NOTE:
+-----
+  This strict categorisation of action type may seem to be a constraint
+  but this allows to write an action and get it to perform differently
+  in different circomstances.
+  
+  In Vy implementing an action like normal 'd' command (that belong to
+  full commands) will make you get normal 'dd', '{visual}d', 'd{count}d'
+  an others, automaticaly.  This is only possible because no action is ever
+  responsible for parsing user input.
+ 
+Most of the actions are accesible by different key mappings depending on
+which mode the editor is currently running.  And the ways to pass
+arguments to the actions depend on the current mode.  See a perticular
+mode documentation for more about argument parsing.  The next sections of 
+this document will briefly introduce the different modes.
+
+During Vy initialisation phase, actions '.__doc__' atribute  will be
+updated to reflect each way any action may be used depending on the
+mode, as well as the different aliases that reference the same action.
+This will be presented like:
+
+    This command is part of normal mode «full» commands.
+    
+    [SYNTAX]      ["{register}] [{count}] P
+    aliases: P
+    -------------------------------------------------------------------
+    Pastes the content of {register} at cursor position.
+
+The first line indicates the kind of actions and the mode for which the
+aliases will be valid.  The «SYNTAX» line gives you a quick overview of
+the syntax for that kind of actions in this specific mode.  Around
+squared brackets are optionnal arguments.  Any character must be typed
+"as is" except the action arguments that are surrounded with curly
+brackets.
+
+Allthough implemented in different ways, all actions share the fact that
+they are regular python functions that accept an editor instance as
+first argument.  Only the remaining part of their signature may change.
+
+This document firsts sections are about Vy specific commands.  Next
+follow the most widely used commands of the text editor.  When Vy
+behaviour differs from what you may be used to in Vim, this will be
+stated as clearly as possible.  Lasts sections will be about the help
+system and the internals of the different commands implementations.
 """
-from vy.actions import action_dicts
-# should stay first, hope one day its even the only line here
+#
+#  When the documentation get generated, Vy will aggregate:
+#    - The module's docstring
+#    - all non underscore-prefixed callables'  docstrings
+#    - all instance of str with name starting with 'doc_'
+#
+#  The order in which the next imports happen will then determinate
+#  the content of the help text.
+#  
+#  *All* docstrings and all doc_* variables must start and end by newline
+#  
 
-from vy.actions.helpers import (sa_commands,
-                                atomic_commands)
+from vy.actions.helpers import sa_commands, atomic_commands
+# Need to be deleted at the end (previous comment)
+# 
 
-from vy.actions.mode_change import *
-from vy.actions.with_arg import *
-from vy.actions.motions import *
-from vy.actions.commands import *
-from vy.actions.edition import *
 from vy import keys as k
 
+from vy.actions.evaluation import __doc__ as doc_evaluation
+from vy.actions.evaluation import *
 
-@sa_commands('# v_# :comment')
-def comment_current_line(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Comment the current line. If the current buffer has no .set_comment_string
-    attribute set, does nothing.
-    """
-    if any((token := editor.current_buffer.set_comment_string)):
-        with editor.current_buffer as curbuf:
-            before, after = token
-            for index in range(count):
-                curlin = curbuf.current_line
-                if not curlin.lstrip().startswith(before):
-                    curbuf.current_line = before + curlin[:-1] + after + '\n'
-                if index != count - 1:
-                    curbuf.move_cursor('j')
+from vy.actions.mode_change import __doc__ as doc_mode_change
+from vy.actions.mode_change import *
 
-@sa_commands('>> v_> :indent')
-def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Indent the current line.
-    """
-    with editor.current_buffer as curbuf:
-        last_line = curbuf.number_of_lin
-        last_target = curbuf.current_line_idx + count
-        max_line = min(last_line, last_target)
-        indent = curbuf.set_tabsize * ' '
-        curbuf.move_cursor('_')
-        for idx in range(curbuf.current_line_idx, max_line):
-            cur_lin = curbuf.current_line
-            curbuf.current_line = indent + cur_lin
-            if idx != max_line - 1:
-                curbuf.move_cursor('j')
+from vy.actions.with_arg import __doc__ as doc_with_args
+from vy.actions.with_arg import *
 
-@sa_commands('<< v_< :dedent')
-def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Dedent the current line.
-    """
-    with editor.current_buffer as cur_buf:
-        indent = cur_buf.set_tabsize * ' '
-        last_line = cur_buf.number_of_lin
-        last_target = cur_buf.current_line_idx + count
-        max_line = min(last_line, last_target)
-        indent = cur_buf.set_tabsize * ' '
-        cur_buf.move_cursor('_')
-        for idx in range(cur_buf.current_line_idx, max_line):
-            cur_lin = cur_buf.current_line
-            if cur_lin.startswith(indent):
-                cur_buf.current_line = cur_lin.removeprefix(indent)
-            elif cur_lin.startswith('\t'):
-                cur_buf.current_line = cur_lin.removeprefix('\t')
-            elif cur_lin.startswith(' '):
-                cur_buf.current_line = cur_lin.lstrip()
-            if idx != max_line - 1:
-                cur_buf.move_cursor('j')
-        cur_buf.move_cursor('_')
+from vy.actions.motions import __doc__ as doc_motions
+from vy.actions.motions import *
 
-@atomic_commands(':source%')
-def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
-    from __main__ import __dict__ as main_dict
-    exec(editor.current_buffer.string, main_dict)
+from vy.actions.commands import __doc__ as doc_commands
+from vy.actions.commands import *
 
+from vy.actions.edition import __doc__ as doc_edition
+from vy.actions.edition import *
 
-@sa_commands('J v_J')
-def join_lines(editor, reg=None, part=None, arg=None, count=1):
+from vy.actions.linewise import __doc__ as doc_linewise
+from vy.actions.linewise import *
+
+@atomic_commands(f'{k.C_L} :redraw :redraw!')
+def restart_screen(editor, *args):
+    editor.stop_async_io()
+    editor.start_async_io()
+
+@sa_commands(f'{k.C_O}')
+def go_back_in_jump_list(editor, count=1, *args, **kwargs):
     """
-    Joins the {count} next lines together.
+    Goes back in jump list. This motion will not record itself in
+    the jump list.
     """
-    with editor.current_buffer as curbuf:
-        for _ in range(count):
-            lin, col = curbuf.cursor_lin_col
-            if lin + 1 == curbuf.number_of_lin:
-                return
-            curbuf.current_line = curbuf.current_line.rstrip() + ' \n'
-            curbuf.cursor_lin_col = lin+1, 0
-            curbuf.current_line = curbuf.current_line.lstrip(' ')
-            curbuf.cursor_lin_col = lin, col
-            curbuf.join_line_with_next()
+    try:
+        buf, lin, col = editor.jump_list[editor.jump_list_pointer]
+    except IndexError:
+        return
+    editor.edit(buf.path)
+    editor.current_buffer.cursor_lin_col = lin, col
+    editor.jump_list_pointer -= 1
+    
+@sa_commands(f'{k.C_I}')
+def go_forward_in_jump_list(editor, count=1, *args, **kwargs):
+    """
+    Goes forward in jump list. This motion will not record itself in
+    the jump list.
+    """
+    editor.jump_list_pointer += 1
+    if editor.jump_list_pointer == 0:
+        editor.jump_list_pointer = -1
+    try:
+        buf, lin, col = editor.jump_list[editor.jump_list_pointer]
+    except IndexError:
+        return
+    else:
+        editor.edit(buf.path)
+        editor.current_buffer.cursor_lin_col = lin, col
 
 @sa_commands(f'{k.C_W}>')
 def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):
     """
-    Increases window width to the right by {count} columns.
+    Increases/Decreases  window width to the right by {count} columns.
     """
     curwin = editor.current_window
     if curwin.parent is curwin: #if it's screen itself
@@ -114,7 +207,7 @@ def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):
 @sa_commands(f'{k.C_W}<')
 def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
     """
-    Increases window width to the left by {count} columns.
+    Increases/Decreases window width to the left by {count} columns.
     """
     curwin = editor.current_window
     if curwin.parent is curwin: #if it's screen itself
@@ -124,12 +217,10 @@ def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
 @sa_commands('U u :u :un :undo')
 def undo(editor, reg=None, part=None, arg=None, count=1):
     """
-    Undo last action in the current buffer.
-    Register argument is ignored.
+    Undo last action in the current buffer. {register} argument
+    is ignored.
     ---
-    NOTE:
-    In Vy there is no difference between 'U' and 'u'
-    ---
+    NOTE: In Vy there is no difference between 'U' and 'u'
     """
     if arg:
         try:
@@ -155,22 +246,6 @@ def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
     editor.screen.minibar(str(Path.cwd()))
 
-#@with_args_commands(':reg :registers :di :display')
-@atomic_commands(':reg :registers :di :display')
-def show_registers(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Shows the content of registers.
-    If an argument is given, only shows the content of this register.
-    """
-    if arg:
-        if arg in editor.registr:
-            editor.warning(arg + ': ' + str(editor.registr[arg]))
-        else:
-            editor.warning(f'{arg} is not a valid register')
-    else:
-        editor.warning(str(editor.registr))
-    return 'normal'
-
 @atomic_commands(':files :ls :buffers')
 def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -179,13 +254,6 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     editor.warning(str(editor.cache))
     return 'normal'
 
-@atomic_commands("r")
-def do_r(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Replace the character under the cursor by next keystrike.
-    """
-    editor.current_buffer['cursor'] = editor.read_stdin()
-
 @atomic_commands(f"{k.C_W}n {k.C_W}{k.C_N} :new :enew :ene")
 def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -193,28 +261,6 @@ def do_enew(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.edit(None)
 
-#@with_args_commands(':w :write')
-@atomic_commands(':w :write')
-def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Saves the current buffer. If optionnal {filename} is given, save as
-    this new name modifying the current buffer to point to this location.
-    """
-    if not arg:
-        if not editor.current_buffer.unsaved:
-            return
-        elif editor.current_buffer.path:
-            try:
-                return editor.current_buffer.save()
-            except (IsADirectoryError, FileExistsError, PermissionError) as exc:
-                editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
-        else:
-            editor.warning('give your file a path (:w some_name) or forget it (:q!).')
-    elif arg:
-        try:
-            return editor.current_buffer.save_as(arg)
-        except (IsADirectoryError, FileExistsError, PermissionError) as exc:
-            editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
 
 @atomic_commands(":wa :wall")
 def do_save_all(editor, reg=None, part=None, arg=None, count=1):
@@ -223,7 +269,12 @@ def do_save_all(editor, reg=None, part=None, arg=None, count=1):
     """
     for buf in editor.cache:
         if buf.unsaved:
-            buf.save()
+            if buf.path:
+                buf.save()
+            else:
+                editor.warning(f'Cannot save {repr(buf)}')
+                editor.edit(buf)
+                break
 
 @atomic_commands(':n :ne :next')
 def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
@@ -236,8 +287,8 @@ def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
             next_one = buf
             break
     if next_one:
-        editor.edit(next_one.path)
-        editor.warning('buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)')
+        editor.edit(next_one)
+        editor.warning(f'buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)')
     else:
         if editor.current_window is editor.screen:
             do_exit_nice(editor, arg)
@@ -337,20 +388,6 @@ def do_vsplit(editor, reg=None, part=None, arg=None, count=1):
     if arg:
         editor.current_window.change_buffer(editor.cache[arg])
 
-
-@atomic_commands(":eval")
-def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Evaluates a python buffer.
-    Use 'from __main__ import Editor' to make use of it.
-    """
-    from vy.interface import python
-    local_dict = {}
-    editor.stop_async_io()
-    exec(editor.current_buffer.string, {}, local_dict)
-    return python.loop(editor, source=local_dict)
-
-
 @atomic_commands(":quitall :quita :qall :qa")
 def do_exit_nice(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -429,7 +466,6 @@ def do_z__DOT__(editor, reg=None, part=None, arg=None, count=1):
     curbuf.move_cursor('0')
     curbuf.move_cursor('_')
 
-
 @atomic_commands(f'{k.C_D}')
 def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -447,7 +483,7 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
 @atomic_commands(f'{k.C_E}')
 def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
     """
-    Scrolls one line down. Ajust cursor position so that it is keeps on
+    Scrolls the screen one line down. Ajust cursor position so that it is keeps on
     the top line, if it were to escape the current window.
     """
     curwin = editor.current_window
@@ -458,7 +494,21 @@ def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):
     if curwin.shift_to_lin > current_line_idx:
         curbuf.move_cursor('j')
 
-
+@atomic_commands(f'{k.C_Y}')
+def scroll_one_line_up(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Scrolls the screen one line up. Ajust cursor position so that it is keeps on
+    the bottom line, if it were to escape the current window.
+    """
+    curwin = editor.current_window
+    curbuf = editor.current_buffer
+    if curwin.shift_to_lin > 0:
+        curwin.shift_to_lin -= 1
+    current_line_idx, col = curbuf.cursor_lin_col
+    # TODO Here is a race condition screen get recenterd to soon...
+    if curwin.shift_to_lin + curwin.number_of_lin < current_line_idx:
+        curbuf.cursor_lin_col = current_line_idx - 1 , col
+        
 @atomic_commands(f"z{k.C_M}")
 def do_z__CR__(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -467,9 +517,7 @@ def do_z__CR__(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     do_zt(editor)
-    curbuf.move_cursor('0')
-    curbuf.move_cursor('_')
-
+    curbuf.cursor = curbuf.find_first_non_blank_char_in_line()
 
 @atomic_commands("zt")
 def do_zt(editor, reg=None, part=None, arg=None, count=1):
@@ -512,8 +560,6 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
         editor.registr[reg] = curbuf.current_line[col:]
         curbuf.current_line = curbuf.current_line[:col-1] + '\n' 
         return 'normal'
-
-
 
 @sa_commands("~")
 def do_normal_tilde(editor, reg=None, part=None, arg=None, count=1):
@@ -564,35 +610,42 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
     ---
     NOTE: To enter a "special key" prepend [CTRL+V].
     """
+    from sys import modules
+    from vy import help
+    from vy.help import resolver
+    from pathlib import Path
     try:
         if arg.startswith(':'):
-            arg = editor.actions.command[arg[1:]]
+            arg_dest = editor.actions.command[arg[1:]]
         elif arg.startswith('i_'):
-            arg = editor.actions.insert[arg[2:]]
+            arg_dest = editor.actions.insert[arg[2:]]
         elif arg.startswith('v_'):
-            arg = editor.actions.visual[arg[2:]]
+            arg_dest = editor.actions.visual[arg[2:]]
+        elif arg in modules:
+            arg_dest = modules[arg]
+        elif ('vy.help.' + arg) in modules:
+            arg_dest = modules['vy.help.' + arg]
+        elif ('vy.' + arg) in modules:
+            arg_dest = modules['vy.' + arg]
         else:
-            arg = editor.actions.normal[arg]
+            arg_dest = editor.actions.normal[arg]
     except KeyError:
         editor.warning(f'{arg} not found in help.')
         return 'normal'
 
-    editor.stop_async_io()
-    help(arg)
-    editor.start_async_io()
+    editor.edit(Path(help.__file__).parent / (arg + '.vy.doc'))
+    editor.current_buffer.insert(resolver(arg_dest))
+    editor.current_buffer.cursor = 0
+#    editor.stop_async_io()
+#    help(arg)
+#    editor.start_async_io()
     return 'normal'
 
-@sa_commands("p")
+@sa_commands("p :pu :put")
 def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     """
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
-    ---
-    NOTE:
-    The of 'p' in vy is to paste *after* the cursor. When 'P'
-    (capital) pastes *before* the cursor. This is the opposite of vim's
-    defaults.
-    ---
     """
     to_insert = editor.registr[reg]
     if to_insert:
@@ -608,12 +661,6 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
     """
     Paste the text from specified register before the cursor.
     By default, if no register is specified the default "" register is used.
-    ---
-    NOTE:
-    The behaviour of 'p' in vy is to paste *after* the cursor. When 'P'
-    (capital) pastes *before* the cursor. This is the opposite of vim's
-    defaults.
-    ---
     """
     to_insert = editor.registr[reg]
     if to_insert:
@@ -652,18 +699,15 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
 
 ########    DEBUGGING ################################################
 
-@atomic_commands(':HELP')
-def dump_help(editor, reg=None, arg=None, part=None, count=1):
+@atomic_commands(':help!')
+def dump_help(editor, reg=None, arg='actions', part=None, count=1):
     """
-    Dumps help text of all recognized commands of the standard modes to a 
-    new unnamed buffer.
+    Dumps the Vy documentation in a new unnamed buffer.
     """
     editor.edit(None)
+    from vy.help import section_builder
     with editor.current_buffer as curbuf:
-        for k, v in globals().items():
-            if not k.startswith('_') and callable(v):
-                if v.__doc__:
-                    curbuf.insert(v.__doc__ + '\n')
+        curbuf.insert(section_builder(arg))
         curbuf.cursor = 0
         curbuf.string
 
@@ -683,7 +727,10 @@ def print_some(editor, reg=None, part=None, arg=None, count=1):
     to_print = ''
     for line in debug_file.read_text().splitlines():
         parent = eval(line)
-        value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        if not isinstance(parent, str):
+            value = ('\n' + pformat(parent)).replace('\n', '\n\t')
+        else:
+            value = '\n' + parent
         to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
     editor.warning(to_print)
 

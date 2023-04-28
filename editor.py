@@ -1,18 +1,20 @@
 """
 This module contains the implementation of the «editor» class.
 
-When importing Vy as a whole package, an instance of Editor is the only
-thing you get. And when executing (python -m), an Editor *instance* shall
-be the unique thing in the global dict.
+There should be no reason for instanciating the _Editor class.  When
+importing Vy as a package, use the vy() facility function to lauch the
+editor.  And when executing (python -m), an Editor *instance* is
+allready present in the global dict.
 
 The Editor singleton instance you want to interract with belong to the
-__main__ module of the package.
+__main__ module of the package.  There should be no reason to use these
+classes directly.
 """
 
 from pathlib import Path
 from traceback import print_tb
 from bdb import BdbQuit
-from pdb import post_mortem, pm
+from pdb import post_mortem
 from itertools import repeat, chain
 from time import sleep, time
 from threading import Thread
@@ -25,7 +27,8 @@ from vy.console import getch_noblock
 from vy.global_config import DEBUG
 
 class _Cache():
-    """Simple wrapper around a dict that lets you index a buffer by its
+    """
+    Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
 
     >> x = Cache()
@@ -46,7 +49,7 @@ class _Cache():
         """This is the main api of this class.
 
         It takes an only argument that can be a string, a path object,
-        an int, or None. 
+        an int, None or any allready visited buffer. 
 
         If the argument is a string or a path object, it will be resolved 
         to an absolute path, and if this path has allready been cached,
@@ -63,21 +66,19 @@ class _Cache():
             buff.cache_id = self._counter
             self._counter +=1
             return buff
-
-        key = self._make_key(key)
-        if key in self._dic:
-            return self._dic[key]
-        else:
+        try:
+            return self._dic[(key := self._make_key(key))]
+        except KeyError:
             new_buffer = Open_path(key)
-            assert new_buffer is not None
             self._dic[key] = new_buffer
-            rv = self._dic[key]
-            rv.cache_id = key
-            return rv
+            new_buffer.cache_id = key
+            return new_buffer
 
-#    @staticmethod
-    def _make_key(self, key):
-        if isinstance(key, int):
+    @staticmethod
+    def _make_key(key):
+        if hasattr(key, 'cache_id'):
+            return key.cache_id
+        elif isinstance(key, int):
             return key
         elif isinstance(key, str):
            return str(Path(key).resolve()) 
@@ -90,7 +91,8 @@ class _Cache():
         self._dic.pop(self._make_key(key))
 
     def __repr__(self):
-        return repr(self._dic)
+        from pprint import pformat
+        return pformat(self._dic)
 
     def __str__(self):
         rv = ''
@@ -110,6 +112,9 @@ class _Cache():
 
 class _Register:
     __slots__ = "dico"
+    valid_registers  = ( 'abcdefghijklmnopqrstuvwxyz'
+                         'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                         '>+-*/.:%#"=!0123456789')
     def __init__(self):
         self.dico = dict()
 
@@ -123,6 +128,7 @@ class _Register:
         if isinstance(key, int):
             key = str(key)
         assert isinstance(key, str)
+        assert key in self.valid_registers
         try:
             return self.dico[key]
         except KeyError:
@@ -132,11 +138,12 @@ class _Register:
         if isinstance(key, int):
             key = str(key)
         assert isinstance(key, str)
+        assert key in self.valid_registers
 
         if key == '_':
             return
         
-        elif key in ':.':
+        elif key in ':.>':
             self.dico[key] = value
 
         elif key == '"':
@@ -187,35 +194,37 @@ class _Editor:
 
     def _init_actions(self):
         from vy.actions import __dict__ as action_dict
-
         actions = NameSpace()
-
         try:
             for name, action in action_dict.items():
                 if callable(action) and not name.startswith('_'):
                     if action.v_alias:
                         for k in action.v_alias:
                             actions.visual[k]= action
-                    if action.n_alias and not action.motion:
-                        for k in action.n_alias:
-                            actions.normal[k]= action
+                    if action.n_alias:
+                        if action.motion:
+                            for k in action.n_alias:
+                                actions.normal[k]= action
+                                actions.motion[k]= action
+                                actions.visual[k]= action
+                        else:
+                            for k in action.n_alias:
+                                actions.normal[k]= action
                     if action.i_alias:
                         for k in action.i_alias: 
                             actions.insert[k]= action
                     if action.c_alias:
                         for k in action.c_alias: 
                             actions.command[k]= action
-                    if action.n_alias and action.motion:
-                        for k in action.n_alias:
-                            actions.normal[k]= action
-                            actions.motion[k]= action
             self.actions = actions
         except:
-            print(f'{action = }, {name = }')
+            print('error during Editor initialisation')
+            print(f'{action = }, {name = }, {action.__module__ = }')
             raise
 
-
     def __init__(self, *buffers, command_line=''):
+        self.jump_list = []
+        self.jump_list_pointer = -1
         self._init_actions()
         #self.actions = _Actions(self)
         self.cache = _Cache()
@@ -223,26 +232,42 @@ class _Editor:
         self.screen = None # Wait to have a buffer before creating it.
         self.interface = Interface(self)
         self.command_line = command_line
-        self._macro_keys = str()
+        self._macro_keys = []
         self._running = False
         self._async_io_flag = False
-        self._work_stack = [self.cache[buff].path for buff in buffers]
+        self.arg_list = [self.cache[buff].path for buff in buffers]
+        self.arg_list_pointer = 0
         #self.command_list = list()
         self.current_mode = ''
         self._input_queue = Queue()
+        
+    def save_in_jump_list(self):
+        curbuf = self.current_buffer
+        lin, col = curbuf.cursor_lin_col
+        try:
+            last_buf, last_lin, last_col = self.jump_list[-1]
+        except IndexError:
+            self.jump_list.append((curbuf, lin, col))
+        else:
+            if last_buf is curbuf and (last_lin == lin or last_col == col):
+                return
+            self.jump_list.append((curbuf, lin, col))
     
     def read_stdin(self):
         if self._macro_keys:
-            rv = self._macro_keys[0]
-            self._macro_keys = self._macro_keys[1:]
-            return rv
+            return self._macro_keys.pop(0)
         key_press = self._input_queue.get(block=True)
         self._input_queue.task_done()
         return key_press
+    
+    def visit_stdin(self):
+        rv = self.read_stdin()
+        self.push_macro(rv)
+        return rv
 
     def push_macro(self, string):
         assert isinstance(string, str)
-        self._macro_keys = f'{string}{self._macro_keys}'
+        self._macro_keys.insert(0, string)
 
     def warning(self, msg):
         """
@@ -273,7 +298,8 @@ class _Editor:
         except UnicodeDecodeError:
             self.warning(f"Vy cannot deal with encoding of file {location}")
         except PermissionError:
-            self.warning(f"You do not seem to have enough rights to read {location}")
+            self.warning(f"You do not seem to have enough rights to read {location}\n"
+                          "or the targeted directory does not exist")
         else:
             if self.screen:
                 self.current_window.change_buffer(buffer)
@@ -299,45 +325,63 @@ class _Editor:
         ok_flag = True
         get_line_list = self.screen.get_line_list
         left_keys = self._input_queue.qsize
-        start = time()
+        start = 0
+        filtered = ''
+        new_screen = list()
+        old_screen = list()
 
         while self._async_io_flag:
-            sleep(0.04)             # do not try more than  25fps
-            if time() - start > 10: # and force redraw every 10 seconds
-                old_screen = []
-                start = time()
+            try:
+                sleep(0.04)             # do not try more than  25fps
+                if ((now := time()) - start) > 10: # and force redraw every 10 seconds
+                    self.screen._last = None
+                    old_screen = []
+                    start = now
 
-            if ok_flag and not left_keys() > 1:
-                infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
-            else:
-                infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
-                f'Failed: {missed} time(s), '
-                f'waiting keystrokes: {self._input_queue.qsize()}')
+                if ok_flag and not left_keys() > 1:
+                    self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                    pass
+                else:
+                    sleep(0.1)
+                    self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
+                    f'Failed: {missed} time(s), '
+                    f'waiting keystrokes: {self._input_queue.qsize()}')
 
-            new_screen, ok_flag = get_line_list()
+                new_screen, ok_flag = get_line_list()
 
-            filtered = ''
-            for index, (line, old_line) in enumerate(
-                            zip(new_screen, chain(old_screen, repeat(''))),start=1):
-                if line != old_line and line:
-                    filtered += f'\x1b[{index};1H{line}'
+                filtered = ''
+                for index, (line, old_line) in enumerate(
+                                zip(new_screen, chain(old_screen, repeat(''))),
+                                start=1):
+                    if line != old_line:
+                        filtered += f'\x1b[{index};1H{line}'
 
-            print(filtered, end='\r', flush=True)
+                if filtered:
+                    print(filtered, end='\r', flush=True)
 
-            if ok_flag:
-                old_screen = new_screen
-                missed = 0
-            else:
-                missed += 1
+                if ok_flag:
+                    missed = 0
+                    old_screen = new_screen
+                else:
+                    missed + 1
+            except BaseException as exc:
+                self.screen.original_screen()
+                self.screen.show_cursor()
+                print( 'Editor.print_thread crashed ! ')
+                print(  'The following *unhandled* exception was encountered:\r\n'
+                       f'  >  {repr(exc)} indicating:\r\n'
+                       f'  >  {str(exc)}\r\n'
+                        '(you have to quit blindly or repair live.)')
 
     def input_loop(self):
-        #assert not self._async_io_flag
-        for key_press in getch_noblock():
+        reader = getch_noblock()
+        for key_press in reader:
             if self._async_io_flag:
                 if key_press:
                     self._input_queue.put(key_press)
-                continue
-            break
+            else:
+                del reader
+                break
 
     def start_async_io(self):
         assert not self._async_io_flag
@@ -370,30 +414,28 @@ class _Editor:
         if self._running:
             return self.edit(buff)
 
-        try:
-            self.edit(buff if buff 
-                        else self._work_stack.pop(0) if self._work_stack 
-                        else None)
+        if buff:
+            self.edit(buff)
+        elif self.arg_list:
+            self.edit(self.arg_list[self.arg_list_pointer])
+        else:
+            self.edit(None)
 
+        try:
             self.start_async_io()
             self._running = True
+            self.current_mode = mode
 
             while True:
                 try:
-                    self.current_mode = mode if mode else self.current_mode
-                    mode = self.interface(mode) # or mode
-                    if mode and ':' in mode:
-                        mode, command = mode.split(':', maxsplit = 1)
-                        self.push_macro(command)
-                except BdbQuit:
-                    self.start_async_io()
-                    mode = 'normal'
+                    self.current_mode = self.interface(self.current_mode) \
+                                        or self.current_mode
                     continue
                 except SystemExit:
                     raise
                 except BaseException as exc:
-                    import sys
-                    type_, value_, trace_ = sys.exc_info()
+                    #import sys
+                    #type_, value_, trace_ = sys.exc_info()
                     
                     self.stop_async_io()
                     print(self.screen.infobar_txt)
@@ -408,10 +450,13 @@ class _Editor:
                                'or    [CTRL+D] to start debugger\n\r\t'))
                     except EOFError:
                         self.screen.original_screen()
-                        post_mortem(trace_)
+                        try:
+                            post_mortem()
+                        except BdbQuit:
+                            pass
                     except KeyboardInterrupt:
                         return 1
-                    mode = 'normal'
+                    self.current_mode = 'normal'
                     self.start_async_io()
                     continue
         finally:
