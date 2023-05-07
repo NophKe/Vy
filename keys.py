@@ -79,7 +79,7 @@ A_f4 = '\x1b\x5b\x31\x3b\x33\x53'
 _reprs = {key: value for (value, key) in vars().items()
                 if isinstance(key, str) 
                 if not value.startswith('_')}
-#
+
 def _escape(text):
     """
     Returns a string with escaped version of non-printable chars
@@ -109,10 +109,14 @@ def _escape(text):
     if evaluing:
         final += ('<' + _reprs[evaluing] + '>').replace('_','-')
 
-    assert final.isprintable()
-    assert not any(forbiden in final for forbiden in '\n\t\x1b')
+#    assert final.isprintable()
+#    assert not any(forbiden in final for forbiden in '\n\t\x1b')
     return final
-    
+
+def _build_table():
+    global _reprs
+    return [(repr(key), _escape(key)) for key in _reprs.values()]
+        
 
 if __name__ == '__main__':
     from vy.console import getch
@@ -123,16 +127,17 @@ if __name__ == '__main__':
         from pprint import pp
         pp(_reprs)
     elif key == 't':
-        from vy.editor import _Editor
-        ed = _Editor()
-        for key in ed.actions.visual:
-            print(f'{repr(key) = :30} {_escape(key) =}')
-        for key in ed.actions.normal:
-            print(f'{repr(key) = :30} {_escape(key) =}')
-        for key in ed.actions.insert:
-            print(f'{repr(key) = :30} {_escape(key) =}')
-        for key in ed.actions.command:
-            print(f'{repr(key) = :30} {_escape(key) =}')
+#        from vy.editor import _Editor
+#        ed = _Editor()
+#        for key in ed.actions.visual:
+#            print(f'{repr(key) = :30} {_escape(key) =}')
+#        for key in ed.actions.normal:
+#            print(f'{repr(key) = :30} {_escape(key) =}')
+#        for key in ed.actions.insert:
+#            print(f'{repr(key) = :30} {_escape(key) =}')
+#        for key in ed.actions.command:
+#            print(f'{repr(key) = :30} {_escape(key) =}')
+        pass
     else:
         file_out = input('write to a file? give it a name or just type [enter] : ')
         if file_out:

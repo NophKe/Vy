@@ -1,30 +1,8 @@
-all: top_level filetypes_module interface_module
+all: top_level filetypes_module
 
-filetypes_module: filetypes/basefile.so \
-		  filetypes/textfile.so \
-		  filetypes/__init__.so
+filetypes_module: filetypes/basefile.so
 
-top_level: actions.so \
-           keys.so \
-	   global_config.so \
-	   editor.so \
-	   screen.so \
-	   console.so 
-
-interface_module: interface/__init__.so \
-                  interface/insert.so  \
-		  interface/command.so \
-		  interface/python.so \
-		  interface/helpers.so
-
-filetypes/textfile.so: filetypes/basefile.so
-action.so: editor.so
-editor.so: screen.so console.so
-screen.so: filetypes/textfile.so
-interface/command.so: filetypes/basefile.so screen.so editor.so interface/helpers.so
-interface/normal.so: editor.so 
-interface/insert.so: interface/helpers.so editor.so
-
+top_level: keys.so
 
 clean:
 	rm -f ./*.c
@@ -46,7 +24,7 @@ clean:
 	rm -Rf interface/__pycache__/
 	rm -Rf ./__pycache__/
 
-CC  = gcc --shared -s -I/usr/include/python3.10 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
+CC  = gcc --shared -s -I/usr/include/python3.11 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
 gcc-config:
 	echo ${CC}
 

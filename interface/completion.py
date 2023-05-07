@@ -32,6 +32,9 @@ def move_down(editor):
 @add_to_dict('\r', '\n')
 def select_item(editor):
     to_insert, to_delete = editor.screen.minibar_completer.select_item()
+    if to_insert and not to_delete:
+        return False
+        
     curbuf = editor.current_buffer
     old = curbuf.string
     cursor = curbuf.cursor

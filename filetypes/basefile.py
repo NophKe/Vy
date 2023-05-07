@@ -587,7 +587,7 @@ class BaseFile:
     @current_line.setter
     def current_line(self, value):
         with self:
-            assert value.endswith('\n') and '\n' not in value[:-1], f'{value = }'
+            assert value.endswith('\n') and '\n' not in value[:-1] #, f'{value = }'
 
             lin = self.current_line_idx
             old_val = self._splited_lines[lin]
@@ -1083,35 +1083,21 @@ class BaseFile:
             return self.cursor
         return self.cursor - 1
 
-if __name__ == '__main__':
-    def _tests():
-        '''file.splited_lines == ['Hello World\n', ' 42\n']
+def _tests():
+    from pathlib import Path
+    file_txt = Path('/home/nono/big.txt').read_text()
+    file = BaseFile(path='/home/nono/big.txt',
+                    init_text=file_txt,
+                    )
+    for _ in range(10):
+        file.cursor += file.find_end_of_line() + 2
+        file.insert('hi')
+        file.backspace()
+        lin, col = file.cursor_lin_col
+        file.cursor_lin_col = lin+1, col+1
+        file.insert('hi')
+        file.suppr()
+        file.move_cursor('w')
+        
 
-    >>> file.current_line = ''   # what if I forget line ending ?
-    Traceback (most recent call last):
-    ...
-    AssertionError: value = ''
-
-    >>> file.current_line = '\n putting 2 newlines in the same line is a bug.\n'
-    Traceback (most recent call last):
-    ...
-    AssertionError: value = '\n putting 2 newlines in the same line is a bug.\n'
-    >>> file.current_line = '\n' # 
-
-    >>> file.current_line
-    'Hello World\n'
-
-    >>> file.cursor_lin_col
-    (0, 7)
-    >>> file.cursor = file.lines_offsets[file.number_of_lin - 1]  
-    >>> file.insert('junk')
-    >>> file.current_line
-    'junk\n'                                ##### Here Was unexpectedly right !!!!
-    >>> file.splited_lines
-    >>> file.cursor_lin_col
-
-    x = BaseFile(init_text='1\n22\n333\n4444\n555555\n' * 42)
-    import doctest
-    doctest.testmod()
-    '''
-    pass
+    

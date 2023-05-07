@@ -20,12 +20,14 @@ from .textfile import TextFile
 
 
 known_file_names_tabs = {
+    '.css'      : 2,
     '.vy.doc'   : 4,
     'Makefile'  : 8,
     '.py'       : 4,
     }
 
 known_file_names_autoindent = {
+    '.css'      : True,
     '.vy.doc'   : True,
     '.py'       : True,
     'Makefile'  : True,
@@ -36,15 +38,19 @@ known_file_names_comment_string = {
     '.vy.doc'   : ('~', ''),
     '.py'       : ('#', ''),
     '.c'        : ('/*', '*/'),
+    '.cpp'      : ('/*', '*/'),
+    '.css'      : ('/*', '*/'),
     }
 
 known_file_names_wrap = {
     '.vy.doc'   : False,
+    '.css'      : False,
     'Makefile'  : True,
     '.txt'      : True,
     }
 
 known_file_names_expandtabs = {
+    '.css'      : True,
     '.vy.doc'   : False,
     'Makefile'  : False,
     '.py'       : True,

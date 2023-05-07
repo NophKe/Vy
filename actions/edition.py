@@ -1,6 +1,14 @@
 from vy.actions.helpers import atomic_commands
 import vy.keys as k
 
+@atomic_commands(f'i_{k.C_W}')
+def erase_word_backward(editor, *args, **kwargs):
+    """
+    Erase one word backward.
+    """
+    with editor.current_buffer as curbuf:
+        del curbuf[curbuf.find_previous_delim():curbuf.cursor]       
+
 @atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -84,6 +92,7 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     Replace the character under the cursor by next keystrike.
     """
     editor.current_buffer[editor.current_buffer.cursor] = editor.read_stdin()
+    
 
 @atomic_commands(f'i_{k.C_Z}')
 def increment(editor, reg=None, part=None, arg=None, count=1):

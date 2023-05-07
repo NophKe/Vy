@@ -9,15 +9,14 @@ cdef class DummyLine:
     cpdef void backspace(self)
     cpdef void insert(self, str text)
 
-cdef class TextLine(DummyLine):
-    pass
-
 cdef class BaseFile:
-    cpdef void suppr(self)
-    cpdef void backspace(self)
     cpdef void insert(self, str text)
+    cpdef void backspace(self)
+    cpdef void suppr(self)
 
     cdef:
+        public list update_callbacks
+        public list pre_update_callbacks
         str _string
         int _cursor
 
@@ -29,8 +28,6 @@ cdef class BaseFile:
         public int set_tabsize
 
         str _repr
-        list update_callbacks
-        list pre_update_callbacks
         list _lines_offsets
         object _lenght
         int _recursion
@@ -70,7 +67,6 @@ cdef class BaseFile:
     cdef int find_normal_h(self)
     cdef int find_next_WORD(self)
     cdef int find_first_char_of_word(self)
-    cdef int find_normal_b(self)
     cdef int find_next_non_delim(self)
     cdef int find_next_delim(self)
     cdef int find_previous_delim(self)
@@ -88,4 +84,4 @@ cdef class BaseFile:
     #cpdef void undo(self)
     #cpdef void redo(self)
     #cpdef void save(self)
-    cpdef void save_as(self, new_path=*, override=*)
+    cpdef void save_as(self, object new_path, override=*)

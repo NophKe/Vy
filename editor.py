@@ -7,8 +7,8 @@ editor.  And when executing (python -m), an Editor *instance* is
 allready present in the global dict.
 
 The Editor singleton instance you want to interract with belong to the
-__main__ module of the package.  There should be no reason to use these
-classes directly.
+__main__ module of the package.  There should be no reason to use any of
+the classes defined in this module directly.
 """
 
 from pathlib import Path
