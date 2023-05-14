@@ -9,7 +9,7 @@ from threading import Thread
 cdef dict colorscheme
 cdef dict codes
 
-@final
+#@final
 cdef class TextFile(BaseFile):
     cdef:
         object _lex_away_may_run 

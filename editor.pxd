@@ -1,5 +1,4 @@
 from vy.interface import Interface
-from vy.filetypes import Open_path
 from vy.console import getch_noblock
 from vy.global_config import DEBUG
 
@@ -8,6 +7,7 @@ from vy.global_config import DEBUG
 
 
 from vy.screen cimport Screen 
+import vy.filetypes
 #from vy.interface cimport Interface
 #from vy.filetypes cimport Open_path
 

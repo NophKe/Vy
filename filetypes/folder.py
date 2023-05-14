@@ -1,6 +1,7 @@
 from .. import keys as k
 from pathlib import Path
-from .basefile import BaseFile
+#from .basefile import BaseFile
+from vy.filetypes.textfile import TextFile
 
 def DO_open_file(editor):
     curbuf = editor.current_buffer
@@ -8,7 +9,7 @@ def DO_open_file(editor):
     editor.edit(file)
     return 'normal'
 
-class Folder(BaseFile):
+class Folder(TextFile):
     motion_commands = { }
     actions = { k.CR: DO_open_file, }
     unsaved = False

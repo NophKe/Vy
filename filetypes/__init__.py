@@ -26,6 +26,8 @@ known_file_names_tabs = {
     '.vy.doc'   : 4,
     'Makefile'  : 8,
     '.py'       : 4,
+    '.pyx'      : 4,
+    '.pxd'      : 4,
     }
 
 known_file_names_autoindent = {
@@ -33,6 +35,8 @@ known_file_names_autoindent = {
     '.html'     : True,
     '.vy.doc'   : True,
     '.py'       : True,
+    '.pyx'      : True,
+    '.pxd'      : True,
     'Makefile'  : True,
     '.c'        : True,
     }
@@ -40,6 +44,8 @@ known_file_names_autoindent = {
 known_file_names_comment_string = {
     '.vy.doc'   : ('~', ''),
     '.py'       : ('#', ''),
+    '.pyx'      : ('#', ''),
+    '.pxd'      : ('#', ''),
     '.c'        : ('/*', '*/'),
     '.cpp'      : ('/*', '*/'),
     '.css'      : ('/*', '*/'),
@@ -59,6 +65,8 @@ known_file_names_expandtabs = {
     '.vy.doc'   : False,
     'Makefile'  : False,
     '.py'       : True,
+    '.pyx'      : True,
+    '.pxd'      : True,
     }
 
 def Open_path(location):
