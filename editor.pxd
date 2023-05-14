@@ -1,11 +1,15 @@
+from vy.interface import Interface
+from vy.filetypes import Open_path
+from vy.console import getch_noblock
+from vy.global_config import DEBUG
 
 #from vy.console cimport getch_noblock
 # generator !!!  how to import ????
 
 
 from vy.screen cimport Screen 
-from vy.interface cimport Interface
-from vy.filetypes cimport Open_path
+#from vy.interface cimport Interface
+#from vy.filetypes cimport Open_path
 
 from cython import final, locals
 
@@ -21,6 +25,7 @@ cdef class NameSpace:
     cdef public dict normal
     cdef public dict command
     cdef public dict visual
+    cdef public dict motion
 #
 @final
 cdef class _Register:
@@ -29,10 +34,16 @@ cdef class _Register:
 @final
 cdef class _Editor:
     cdef:
+        public list arg_list
+        public int arg_list_pointer
+        save_in_jump_list(self)
+        int jump_list_pointer 
         bint _async_io_flag
         bint _running
         #dict __dict__
-        Interface interface
+        #Interface interface
+        object interface
+        list jump_list
         list command_list
         list _work_stack
         object command_line
@@ -44,7 +55,7 @@ cdef class _Editor:
         public _Register registr
         public Screen screen
         public str current_mode
-        str _macro_keys
+        list _macro_keys
     @locals(rv=str,
             key_press=str) 
     cpdef str read_stdin(self)

@@ -113,6 +113,27 @@ from vy.editor import _Editor as Editor
 
 Editor = Editor(*cmdline.files, command_line=cmdline)
 
+
+def _tests():
+    global Editor
+    Editor.edit('/home/nono/test.c')
+    file = Editor.current_buffer
+    import time
+    start = time.time()
+    for _ in range(100):
+        file.cursor = file.find_end_of_line()
+        file.insert('hi')
+        file.backspace()
+        lin, col = file.cursor_lin_col
+        file.cursor_lin_col = lin+1, col+1
+        file.insert('hi')
+        file.suppr()
+        file.move_cursor('w')
+        file[file.find_first_non_blank_char_in_line()] = 'toto'
+        file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
+    return f'took {time.time() - start} seconds'
+
+
 #global_config._source_rcfile(Editor)
 
 if cmdline.profile:

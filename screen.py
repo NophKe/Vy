@@ -363,16 +363,12 @@ class Window():
     def move_v_split_center(self):
         self.v_split_shift = 0
 
-    def move_v_split_left(self, count=None):
-        if count is None:
-            count = 1
+    def move_v_split_left(self, count=1):
         new_shift = self.v_split_shift - count
         if new_shift > -self.vertical_split + (self.vertical_split/5):
             self.v_split_shift -= count
 
-    def move_v_split_right(self, count=None):
-        if count is None:
-            count = 1
+    def move_v_split_right(self, count=1):
         new_shift = self.v_split_shift + count
         if new_shift < ((self.number_of_col * 1.2) - self.vertical_split):
             self.v_split_shift = new_shift
@@ -419,7 +415,7 @@ class Window():
             if not self.right_panel.needs_redraw() and not self.left_panel.needs_redraw():
                 return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel._last_computed,
-                                            self.right_pane_last_computed)]
+                                            self.right_panel._last_computed)]
                 
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
@@ -539,7 +535,7 @@ class Screen(Window):
         else:
             if lin < curwin.shift_to_lin:
                 curwin.shift_to_lin = lin
-            elif lin > curwin.shift_to_lin + curwin._number_of_lin - 1:
+            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
                 curwin.shift_to_lin = lin - self._number_of_lin + 1
             ok_flag = True
 
@@ -548,7 +544,9 @@ class Screen(Window):
         except RuntimeError:
             rv = [''] * self._number_of_lin
             ok_flag = False
-
+        except BaseException as exc:
+            rv = [str(exc), '', '']
+            ok_flag = False
         rv.extend(self.minibar_banner)
         return rv, ok_flag
 

@@ -74,8 +74,8 @@ class _Cache():
             new_buffer.cache_id = key
             return new_buffer
 
-    @staticmethod
-    def _make_key(key):
+    #@staticmethod
+    def _make_key(self, key):
         if hasattr(key, 'cache_id'):
             return key.cache_id
         elif isinstance(key, int):
@@ -279,7 +279,8 @@ class _Editor:
         exception.
         """
         if not self._running:
-            return print(msg)
+            print(msg)
+            return
         if self._macro_keys:
             self.screen.minibar_completer(
               'this happened during the execution of a macro that is still running',
@@ -365,12 +366,15 @@ class _Editor:
                 else:
                     missed + 1
             except BaseException as exc:
+                import traceback
+                infos = traceback.format_exc().replace('\n', '\r\n')
                 self.screen.original_screen()
                 self.screen.show_cursor()
                 print( 'Editor.print_thread crashed ! ')
                 print(  'The following *unhandled* exception was encountered:\r\n'
                        f'  >  {repr(exc)} indicating:\r\n'
                        f'  >  {str(exc)}\r\n'
+                       f'{infos}\r\n'
                         '(you have to quit blindly or repair live.)')
 
     def input_loop(self):

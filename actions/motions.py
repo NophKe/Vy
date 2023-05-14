@@ -275,11 +275,24 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to next occurrence of last searched text.
     """
-    from vy.interface.search_forward import loop
-    from vy.keys import C_M
-    editor.push_macro(C_M)
-    loop(editor)
+    needle = editor.registr['/']
+    if needle:
+        curbuf = editor.current_buffer
+        current_offset = curbuf.cursor
+        offset = curbuf.string.find(needle, current_offset) 
+        
+        if offset == current_offset:
+            offset = curbuf.string.find(needle, current_offset + 1)
 
+        if offset == -1:
+            editor.screen.minibar('String not found, retrying from first line.')
+            offset = curbuf.string.find(needle)
+    
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+        else:
+            curbuf.cursor = offset
+    
 @_motion_commands("N")
 def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     """

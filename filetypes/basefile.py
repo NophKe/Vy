@@ -1,7 +1,7 @@
 from threading import RLock
 from vy import keys as k
 
-DELIMS = ' ,;:/!%.{}()[]():\n\t'
+DELIMS = ' ,;:/!%.{}()[]():\n\t\"\''
 
 class DummyLine:
     r"""
@@ -872,7 +872,7 @@ class BaseFile:
         return cursor
 
     def inner_word(self):
-        return slice(self.find_previous_delim(), self.find_next_delim())
+        return slice(self.find_previous_delim() + 1, self.find_next_delim())
 
     def inner_WORD(self):
         start = self.string.rfind(' ', 0, self.cursor + 1)
@@ -1098,6 +1098,5 @@ def _tests():
         file.insert('hi')
         file.suppr()
         file.move_cursor('w')
-        
-
-    
+        file[file.find_first_non_blank_char_in_line()] = 'toto'
+        file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]

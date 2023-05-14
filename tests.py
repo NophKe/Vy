@@ -1,5 +1,5 @@
 bad_string = "H̹̙̦̮͉̩̗̗ͧ̇̏̊̾Eͨ͆͒̆ͮ̃͏̷̮̣̫̤̣Cͯ̂͐͏̨̛͔̦̟͈̻O̜͎͍͙͚̬̝̣̽ͮ͐͗̀ͤ̍̀͢M̴̡̲̭͍͇̼̟̯̦̉̒͠Ḛ̛̙̞̪̗ͥͤͩ̾͑̔͐ͅṮ̴̷̷̗̼͍̿̿̓̽͐H̙̙̔̄͜"
-print(f'{len(bad_string) =}')
+#print(f'{len(bad_string) =}')
 
 
 # This class should one day replace the command class
@@ -21,3 +21,4 @@ class CMD:
             func.__doc__ = self.header + '\n' + func.__doc__ + '\n'
     def __call__(self, alias):
         return lambda func : self.update_func(alias, func)
+ 

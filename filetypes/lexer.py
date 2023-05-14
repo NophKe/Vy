@@ -81,7 +81,7 @@ except ImportError:
 
 def guess_lexer(path, string):
     path_str = '' if path is None else str(path)
-    if guess_pygments_lexer:
+    if guess_pygments_lexer is not None:
         return guess_pygments_lexer(path_str, string)
     else:
         return guess_lexer_base(path_str, string)

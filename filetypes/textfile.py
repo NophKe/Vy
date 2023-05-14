@@ -4,6 +4,7 @@ from vy.filetypes.basefile import BaseFile
 from vy.filetypes.completer import ScriptCompleter, WordCompleter
 from vy.filetypes.lexer import guess_lexer, get_prefix
 
+
 class TextFile(BaseFile):
     """
     This is the class that most of files buffers should use, 
@@ -152,3 +153,22 @@ class TextFile(BaseFile):
                 raise RuntimeError 
 
         return cursor_lin, cursor_col, raw_line_list
+
+
+def _tests():
+    from pathlib import Path
+    file_txt = Path('/home/nono/big.txt').read_text()
+    file = BaseFile(path='/home/nono/big.txt',
+                    init_text=file_txt,
+                    )
+    for _ in range(10):
+        file.cursor += file.find_end_of_line() + 2
+        file.insert('hi')
+        file.backspace()
+        lin, col = file.cursor_lin_col
+        file.cursor_lin_col = lin+1, col+1
+        file.insert('hi')
+        file.suppr()
+        file.move_cursor('w')
+        file[file.find_first_non_blank_char_in_line()] = 'toto'
+        file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]

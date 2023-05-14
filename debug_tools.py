@@ -73,7 +73,8 @@ def reload_actions(ed):
 	_reload(commands)
 	_reload(actions)
 	ed._init_actions()
-
+	ed.actions.normal['zz'](ed)
+	
 def reload_interface(ed):
 	from vy import interface
 	interface = _reload(interface)

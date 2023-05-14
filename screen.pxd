@@ -20,7 +20,8 @@ cdef list expandtabs_numbered(int tab_size,
                               int on_lin, 
                               int cursor_lin, 
                               int cursor_col,
-                              int num_len)
+                              int num_len,
+                              object visual)
 
 @locals(retval=list, 
         cursor_col=int, 
@@ -35,18 +36,56 @@ cdef list expandtabs(int tab_size,
                      str text, 
                      int on_lin, 
                      int cursor_lin, 
-                     int cursor_col)
+                     int cursor_col,
+                     int num_len,
+                     object visual)
+
+@locals(retval=list, 
+        cursor_col=int, 
+        on_col=int, 
+        esc_flag=bint, 
+        char=str,
+        line=str)
+cdef list expand_quick(int max_col,
+                           str text)
+
+
+cdef class CompletionBanner:
+    cdef:
+        int view_start
+        int max_selected 
+        int selected
+        public list completion
+        list pretty_completion
+        int prefix_len
+        object check_func 
+        object make_func
+        bint _active
+
+        generate(self)
+        _update(self)
+
+    cpdef set_callbacks(self, object make_func, object check_func)
+    cpdef give_up(self)
+
+    cpdef move_cursor_up(self)
+    cpdef move_cursor_down(self)
+    cpdef select_item(self)
 
 cdef class Window:
+    cdef public tuple _last
     cdef public Window left_panel
     cdef public Window right_panel
+    cdef public CompletionBanner minibar_completer
     cdef public TextFile buff
+    #cdef public object buff
     cdef Window _focused 
     cdef Window parent
     cdef int shift_to_col
     cdef public int shift_to_lin
     cdef bint _v_split_flag
     cdef int v_split_shift
+    cdef list _last_computed
 
     @locals(rv=list,
             max_lin=int,
@@ -69,11 +108,5 @@ cdef class Screen(Window):
 
     @locals(rv=list)
     cpdef tuple get_line_list(self)
-    cdef void alternative_screen(self)
-    cdef void original_screen(self)
-    #, Py_ssize_t discard_lines=*, bint flash_screen=*)
-    #cdef void minibar_completer(self, str *lines)
-    #cdef void minibar(self, str *lines)
-    #cpdef void infobar(self, str right=*, str left=*)
-    # TODO look for correct syntax to declare *args (variable lenght)...
-
+    cpdef void alternative_screen(self)
+    cpdef void original_screen(self)

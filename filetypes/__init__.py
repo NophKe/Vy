@@ -18,9 +18,11 @@ from os import access, W_OK
 from .folder import Folder
 from .textfile import TextFile
 
+known_file_names = {}
 
 known_file_names_tabs = {
     '.css'      : 2,
+    '.html'     : 2,
     '.vy.doc'   : 4,
     'Makefile'  : 8,
     '.py'       : 4,
@@ -28,6 +30,7 @@ known_file_names_tabs = {
 
 known_file_names_autoindent = {
     '.css'      : True,
+    '.html'     : True,
     '.vy.doc'   : True,
     '.py'       : True,
     'Makefile'  : True,
@@ -45,12 +48,14 @@ known_file_names_comment_string = {
 known_file_names_wrap = {
     '.vy.doc'   : False,
     '.css'      : False,
+    '.html'     : False,
     'Makefile'  : True,
     '.txt'      : True,
     }
 
 known_file_names_expandtabs = {
     '.css'      : True,
+    '.html'     : True,
     '.vy.doc'   : False,
     'Makefile'  : False,
     '.py'       : True,
@@ -82,15 +87,17 @@ def Open_path(location):
     try:
         init_text = location.read_text() 
     except FileNotFoundError:
-        if not access(location.parent, W_OK):
+        if not any(access(ancestor, W_OK) for ancestor in location.resolve().parents):
             raise PermissionError
         return TextFile(path=location, init_text='\n')
     except IsADirectoryError:
         return Folder(path=location)
 
-    file_name = location.name
-    file_other_name = file_name.lower()
+    file_name = location.name.lower()
+    file_other_name = location.name
 
+    if file_name in known_file_names:
+        return known_file_names[file_name](path=location, init_text=init_text)
     if '\t' in init_text:
         expand_tabs = False
     else:

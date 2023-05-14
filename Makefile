@@ -1,8 +1,9 @@
-all: top_level filetypes_module
+all: top_level
 
-filetypes_module: filetypes/basefile.so
-
-top_level: keys.so
+filetypes_module: filetypes/basefile.so filetype/textfile.so
+filetypes/textfile.so: filetypes/basefile.so filetypes/lexer.so
+screen.so: keys.so filetypes/textfile.so
+top_level: keys.so editor.so screen.so
 
 clean:
 	rm -f ./*.c

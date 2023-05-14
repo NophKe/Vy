@@ -17,12 +17,19 @@ def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
 
     """
     with editor.current_buffer as cur_buf:
-        if cur_buf.set_autoindent and cur_buf.current_line.strip():
-            cur_lin = cur_buf.current_line
-            blanks = len(cur_lin) - len(cur_lin.lstrip())
-            indent = cur_lin[:blanks]
+        if cur_buf.current_line.strip():
+            if cur_buf.set_autoindent:
+                cur_lin = cur_buf.current_line
+                blanks = len(cur_lin) - len(cur_lin.lstrip())
+                indent = cur_lin[:blanks]
+                cur_buf.insert_newline()
+                cur_buf.insert(indent)
+            else:
+                cur_buf.insert_newline()
+        elif cur_buf.set_autoindent:
+            cur_buf.cursor = cur_buf.find_begining_of_line()
+            cur_buf.current_line = '\n'
             cur_buf.insert_newline()
-            cur_buf.insert(indent)
         else:
             cur_buf.insert_newline()
 
@@ -65,8 +72,12 @@ def insert_from_register(editor, **kwargs):
     """
     txt = str(editor.registr) + '\n\tSelect register to paste from'
     cancel = editor.screen.minibar(*(txt.splitlines()))
-    editor.current_buffer.insert(editor.registr[editor.read_stdin()])
-    cancel()
+    try:
+        editor.current_buffer.insert(editor.registr[editor.read_stdin()])
+    except AssertionError: # Key is not a valid register
+        editor.screen.minibar('( Nothing inserted. )')
+    else:
+        cancel()
     
 @atomic_commands(f'i_{k.suppr} x')
 def do_suppr(editor, reg=None, part=None, arg=None, count=1):
