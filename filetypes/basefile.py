@@ -1,7 +1,7 @@
 from threading import RLock
 from vy import keys as k
 
-DELIMS = ' ,;:/!%.{}()[]():\n\t\"\''
+DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
 class DummyLine:
     r"""

@@ -28,8 +28,8 @@ Vy has different private sub-modes that the current mode can set.  Modes
 are documented in ':help! interface'.
 """
 
-from vy import keys as k
-from vy.actions.helpers import atomic_commands
+from vy import keys as _k
+from vy.actions.helpers import atomic_commands as _atomic_commands
 
 
 doc_no_edition = """
@@ -38,7 +38,7 @@ of any buffer.
 """
 
 
-@atomic_commands(f'{k.escape} i_{k.escape} v_{k.escape} {k.C_C} i_{k.C_C} v_{k.C_C}'
+@_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} {_k.C_C} i_{_k.C_C} v_{_k.C_C}'
                   '² i_² v_² v_v :vi :visual :stopi :stopinsert')
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -46,14 +46,14 @@ def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     return 'normal'
 
-@atomic_commands(f'{k.C_V}')
+@_atomic_commands(f'{_k.C_V}')
 def visual_block(editor, *args, **kwargs):
     """
     Starts «visual block» mode.
     """
     return 'visual_block'
 
-@atomic_commands('v')
+@_atomic_commands('v')
 def visual_mode(editor, **kwargs):
     """
     Starts «visual» mode.
@@ -61,7 +61,7 @@ def visual_mode(editor, **kwargs):
     return 'visual'
 
 
-@atomic_commands('I')
+@_atomic_commands('I')
 def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «insert» mode at beginning of line.
@@ -69,21 +69,21 @@ def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
     editor.actions.normal['0'](editor)
     return 'insert'
 
-@atomic_commands(f': {k.C_W}:')
+@_atomic_commands(f': {_k.C_W}:')
 def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Command» mode.
     """
     return 'command'
 
-@atomic_commands(':python :py')
+@_atomic_commands(':python :py')
 def python_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Python» mode.
     """
     return 'python'
 
-@atomic_commands('A')
+@_atomic_commands('A')
 def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor on the last character on the current line.
@@ -92,21 +92,21 @@ def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
     editor.actions.normal['$'](editor)
     return 'insert'
 
-@atomic_commands('?')
+@_atomic_commands('?')
 def do_search_backward(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «search backward» mode.
     """
     return 'search_backward'
 
-@atomic_commands(f'i {k.insert}')
+@_atomic_commands(f'i {_k.insert}')
 def insert_mode_i(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Insert» mode at cursor position.
     """
     return 'insert'
 
-@atomic_commands('a')
+@_atomic_commands('a')
 def insert_mode_a(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Insert» mode one character after cursor position.
@@ -114,7 +114,7 @@ def insert_mode_a(editor, reg=None, part=None, arg=None, count=1):
     editor.actions.normal['l'](editor)
     return 'insert'
 
-@atomic_commands('/')
+@_atomic_commands('/')
 def do_search_forward(editor, reg=None, part=None, arg=None, count=1):
     return 'search_forward'
 
@@ -125,7 +125,7 @@ switching mode.
 """
 
 
-@atomic_commands('o')
+@_atomic_commands('o')
 def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor on a new empty line below the current line.
@@ -141,17 +141,17 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
         editor.actions.insert['\n'](editor)
     return 'insert'
 
-@atomic_commands(f'{k.backspace} {k.linux_backpace}')
+@_atomic_commands(f'{_k.backspace} {_k.linux_backpace}')
 def insert_mode_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character before the cursor and starts «Insert» mode.
     ---
     NOTE: Not Vim's behaviour.
     """
-    editor.current_buffer.backspace()
+    editor.actions.insert[_k.backspace](editor)
     return 'insert'
 
-@atomic_commands('O')
+@_atomic_commands('O')
 def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor on a new empty line under the current line.
@@ -163,7 +163,7 @@ def do_normal_O(editor, reg=None, part=None, arg=None, count=1):
         editor.actions.normal['k'](editor)
     return 'insert'
 
-@atomic_commands(f'i_{k.C_O}')
+@_atomic_commands(f'i_{_k.C_O}')
 def do_insert_C_O(editor, **kwargs):
     """
     Performs only one action in normal mode then returns to «insert»
@@ -172,4 +172,4 @@ def do_insert_C_O(editor, **kwargs):
     from vy.interface.normal import loop
     loop(editor, False)
     
-del atomic_commands, k
+

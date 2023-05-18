@@ -24,7 +24,7 @@ def _no_undo_left(editor):
 minidict = { k.suppr: _no_undo_suppr,
              k.left : _no_undo_left,
              k.right: _no_undo_right,
-             k.backspace: _no_undo_backspace,
+#             k.backspace: _no_undo_backspace,
              }
 
 

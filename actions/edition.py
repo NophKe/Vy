@@ -17,15 +17,15 @@ def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
 
     """
     with editor.current_buffer as cur_buf:
-        if cur_buf.current_line.strip():
-            if cur_buf.set_autoindent:
-                cur_lin = cur_buf.current_line
-                blanks = len(cur_lin) - len(cur_lin.lstrip())
-                indent = cur_lin[:blanks]
-                cur_buf.insert_newline()
-                cur_buf.insert(indent)
-            else:
-                cur_buf.insert_newline()
+        line_content = cur_buf.current_line.lstrip()
+        if line_content and cur_buf.set_autoindent:
+            cur_lin = cur_buf.current_line
+            blanks = len(cur_lin) - len(line_content)
+            indent = cur_lin[:blanks]
+            cur_buf.insert_newline()
+            cur_buf.insert(indent)
+        elif line_content:
+            cur_buf.insert_newline()
         elif cur_buf.set_autoindent:
             cur_buf.cursor = cur_buf.find_begining_of_line()
             cur_buf.current_line = '\n'
@@ -49,14 +49,14 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
         before = curline[:col-1]
         if before.strip():
             return 'completion'
- 
-    with editor.current_buffer as curbuf:
-        curbuf.insert('\t')
-        if curbuf.set_expandtabs:
-            orig = curbuf['0:$']  # TODO should use current_line.setter property
-            after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-            curbuf['0:$'] = after
-            curbuf.cursor += len(after) - len(orig)
+     
+        with editor.current_buffer as curbuf:
+            curbuf.insert('\t')
+            if curbuf.set_expandtabs:
+                orig = curbuf['0:$']  # TODO should use current_line.setter property
+                after = orig.expandtabs(tabsize=curbuf.set_tabsize)
+                curbuf['0:$'] = after
+                curbuf.cursor += len(after) - len(orig)
 
 @atomic_commands(f'i_{k.C_A}')
 def insert_last_inserted_text(editor, **kwargs):
@@ -78,7 +78,7 @@ def insert_from_register(editor, **kwargs):
         editor.screen.minibar('( Nothing inserted. )')
     else:
         cancel()
-    
+
 @atomic_commands(f'i_{k.suppr} x')
 def do_suppr(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -95,7 +95,17 @@ def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     line with the previous one if on the first position of the line.
     Does nothing if on the first position of the buffer.
     """
-    editor.current_buffer.backspace()
+    with editor.current_buffer as curbuf:
+        if curbuf.set_autoindent:
+            _, start_of_line = curbuf.current_line_off
+            start_of_line = curbuf.string[start_of_line:curbuf.cursor]
+            editor.screen.minibar(start_of_line)
+            content = start_of_line.strip()
+            if start_of_line and not content:
+                from vy.actions.linewise import dedent_current_line
+                return dedent_current_line(editor)
+        editor.current_buffer.backspace()
+        
 
 @atomic_commands("r")
 def do_r(editor, reg=None, part=None, arg=None, count=1):
@@ -116,3 +126,4 @@ def increment(editor, reg=None, part=None, arg=None, count=1):
     editor.warning(repr(cur_word))
     if cur_word.isnumeric():
         editor.current_buffer['iw'] = str(int(cur_word)+1)
+        

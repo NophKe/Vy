@@ -554,6 +554,7 @@ class Screen(Window):
         self._minibar_txt.clear()
         self._minibar_txt.extend(lines)
         copy = self._minibar_txt.copy()
+        self._last = None
         return lambda: (self._minibar_txt.clear(),
                         self._minibar_txt.append('')) if self._minibar_txt == copy else None
     

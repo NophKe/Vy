@@ -81,6 +81,6 @@ If you don't trust your code, if you want to garanty all modules are
 freshly imported, and you don't need to access the Vy runtime.  You may
 as well use the ':!' command.  See ':help :!' for more.
 
-Also, you are un-aware of ':python' and ':python!'  commands read next
+Also, you are un-aware of ':python' and ':python!' commands read next
 section.
 """

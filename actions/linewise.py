@@ -49,13 +49,12 @@ def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
     """
     Dedent the current line.
     """
+    
     with editor.current_buffer as cur_buf:
-        indent = cur_buf.set_tabsize * ' '
         last_line = cur_buf.number_of_lin
         last_target = cur_buf.current_line_idx + count
         max_line = min(last_line, last_target)
         indent = cur_buf.set_tabsize * ' '
-        cur_buf.move_cursor('_')
         for idx in range(cur_buf.current_line_idx, max_line):
             cur_lin = cur_buf.current_line
             if cur_lin.startswith(indent):
@@ -66,7 +65,6 @@ def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
                 cur_buf.current_line = cur_lin.lstrip()
             if idx != max_line - 1:
                 cur_buf.move_cursor('j')
-        cur_buf.move_cursor('_')
         
         
 @_sa_commands('gq v_gq')
