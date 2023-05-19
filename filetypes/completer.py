@@ -3,29 +3,37 @@ from vy.global_config import DONT_USE_JEDI_LIB
 from re import split
 
 make_word_set = lambda string: set(split(r'[{}\. :,()\[\]]|$', string))
-make_word_list = lambda string: split(r'[{}\. :,()\[\]]|$', string)
+make_word_list = lambda string: split(r'[{}\. :,()\[\]!%\*\?=]', string)
+
+ANY_BUFFER_WORD_SET = set()
+ANY_BUFFER_LINE_SET = set()
 
 class WordCompleter:
     def __init__(self, code='', **kwargs):
-        self.code = code
-        self.split = code.splitlines()
         self.words = set()
+        self.split = code.splitlines()
         for line in self.split:
             for w in make_word_set(line):
+                ANY_BUFFER_WORD_SET.add(w)
                 self.words.add(w)
 
     def complete(self,line, column):
         word_list = make_word_list(self.split[line-1 if line else 0][:column+1])
         if len(word_list) >= 2:
             word = word_list[-2]
-            return [item for item in self.words if item.startswith(word) and item != word], len(word)
+            prefix_len = len(word)
+            if prefix_len:
+                rv = [item for item in self.words if item.startswith(word)]
+                if not rv:
+                    rv = [item for item in ANY_BUFFER_WORD_SET if item.startswith(word)]
+                return rv, prefix_len
         return None
 
 try:
     if DONT_USE_JEDI_LIB:
         raise ImportError
     from jedi import Script, settings
-    settings.add_bracket_after_function = True
+    #settings.add_bracket_after_function = True
     
     class ScriptCompleter(Script):
         def complete(self, line, column):

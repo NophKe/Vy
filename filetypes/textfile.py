@@ -29,7 +29,7 @@ class TextFile(BaseFile):
 
         self.lexer = guess_lexer(self.path, self._string)
         
-        self._lexer_proc = Thread(target=self._lex_away, daemon=True)
+        self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
         self._lexer_proc.start()
         self._lex_away_may_run.set()
         self._completer = None, None

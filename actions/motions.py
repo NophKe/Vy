@@ -305,6 +305,6 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
 
 @_motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
-    editor.registr['/'] = editor.current_buffer['iw']
+    editor.registr['/'] = editor.current_buffer[editor.current_buffer.inner_word()]
     do_normal_n(editor)
 

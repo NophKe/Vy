@@ -31,13 +31,12 @@ def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
 
 def loop(editor, capture=True):
     """ Normal mode event-loop function """
-#    start = time()
     get_char = lambda: _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key)
 
     dictionary = {}
     minibar = editor.screen.minibar
     curbuf = editor.current_buffer
-    motion_cmd = curbuf.motion_commands
+    motion_cmd = editor.actions.motion
     local_actions = curbuf.actions 
     #dictionary.update(motion_cmd)
     dictionary.update(editor.actions.normal)
@@ -118,9 +117,9 @@ def loop(editor, capture=True):
         
         COUNT = COUNT * MOTION_COUNT
         curbuf.start_selection()
-        func = motion_cmd[key] #new
-        for _ in range(COUNT):
-            curbuf.cursor = func()
+        
+        motion_cmd[key](editor, count=COUNT)   #new
+        
         RRANGE = curbuf.selected_offsets
         curbuf.stop_selection()
 

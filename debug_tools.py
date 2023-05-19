@@ -5,6 +5,10 @@ reading this module source file will be provided.
 If used with no argument :debug will try to reload as much of the editor
 as it is capable of.
 """
+
+# This file mixes spaces and tabs jus for confusing Vy set_autoindent
+# option and spot any regression while reloading.
+
 from importlib import reload as _reload
 
 def last_ex(ed):
@@ -18,7 +22,7 @@ def test_screen(ed):
         print(x)
         import time
         time.sleep(0.5)
-    	
+
 def no_screen(ed):
 	ed.screen.clear_screen()
 

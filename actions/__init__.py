@@ -476,9 +476,9 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     curwin.shift_to_lin = max(curwin.number_of_lin, ( curwin.shift_to_lin
                                                     + curwin.number_of_lin))
-    current_line_idx = curbuf.current_line_idx
+    current_line_idx, cursor_col = curbuf.cursor_lin_col
     if curwin.shift_to_lin > current_line_idx:
-        curbuf.move_cursor(f'#{curwin.shift_to_lin}')
+        curbuf.cursor_lin_col = curwin.shift_to_lin, cursor_col
 
 @atomic_commands(f'{k.C_E}')
 def scroll_one_line_down(editor, reg=None, part=None, arg=None, count=1):

@@ -438,9 +438,8 @@ class _Editor:
                 except SystemExit:
                     raise
                 except BaseException as exc:
-                    #import sys
-                    #type_, value_, trace_ = sys.exc_info()
-                    
+                    import sys
+                    type_, value_, trace_ = sys.exc_info()
                     self.stop_async_io()
                     print(self.screen.infobar_txt)
                     print(  'The following *unhandled* exception was encountered:\n'
@@ -455,7 +454,7 @@ class _Editor:
                     except EOFError:
                         self.screen.original_screen()
                         try:
-                            post_mortem()
+                            post_mortem(trace_)
                         except BdbQuit:
                             pass
                     except KeyboardInterrupt:

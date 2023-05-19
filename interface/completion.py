@@ -19,7 +19,10 @@ def move_up(editor):
 @add_to_dict('\t')
 def switch_or_select(editor):
     if len(editor.screen.minibar_completer.completion) == 1:
-        return select_item(editor)
+        success = select_item(editor)
+        if not success:
+            do
+            
     else:
         editor.screen.minibar_completer.move_cursor_down()
         return True
@@ -32,9 +35,6 @@ def move_down(editor):
 @add_to_dict('\r', '\n')
 def select_item(editor):
     to_insert, to_delete = editor.screen.minibar_completer.select_item()
-    if to_insert and not to_delete:
-        return False
-        
     curbuf = editor.current_buffer
     old = curbuf.string
     cursor = curbuf.cursor

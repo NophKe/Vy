@@ -43,20 +43,16 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
     """
     completer = editor.screen.minibar_completer
     curbuf = editor.current_buffer
-    if not completer:
-        lin, col = curbuf.cursor_lin_col
-        curline = curbuf.current_line
-        before = curline[:col-1]
-        if before.strip():
-            return 'completion'
-     
-        with editor.current_buffer as curbuf:
-            curbuf.insert('\t')
-            if curbuf.set_expandtabs:
-                orig = curbuf['0:$']  # TODO should use current_line.setter property
-                after = orig.expandtabs(tabsize=curbuf.set_tabsize)
-                curbuf['0:$'] = after
-                curbuf.cursor += len(after) - len(orig)
+    if curbuf.cursor > curbuf.find_first_non_blank_char_in_line():
+        return 'completion'
+    with editor.current_buffer as curbuf:
+        curbuf.insert('\t')
+        if curbuf.set_expandtabs:
+            curlin = curbuf.current_line
+            origin_len = len(curlin)
+            curbuf.current_line = curlin.expandtabs(tabsize=curbuf.set_tabsize)
+            new_len = len(curbuf.current_line)
+            curbuf.cursor += (new_len - origin_len)
 
 @atomic_commands(f'i_{k.C_A}')
 def insert_last_inserted_text(editor, **kwargs):

@@ -1,5 +1,5 @@
 from threading import RLock
-from vy import keys as k
+#from vy import keys as k
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
@@ -192,7 +192,7 @@ class BaseFile:
         with self._lock:
             if not self._string:
                 self._string = ''.join(self._splited_lines)
-        return self._string
+            return self._string
 
     @property
     def cursor_lin_col(self):
@@ -467,37 +467,7 @@ class BaseFile:
         self.cursor = cursor
         self.pre_update_callbacks.append(self.set_undo_point)
 
-        self.motion_commands = {
-           'B'          : self.find_normal_B,
-           'b'          : self.find_previous_delim,
-           k.S_left     : self.find_previous_delim,
-           k.C_left     : self.find_previous_delim,
-           'h'          : self.find_normal_h,
-           k.left       : self.find_normal_h,
-           'j'          : self.find_normal_j,
-           '\r'         : self.find_normal_j,
-           k.down       : self.find_normal_j,
-           'k'          : self.find_normal_k,
-           k.up         : self.find_normal_k,
-           'l'          : self.find_normal_l,
-           k.right      : self.find_normal_l,
-           ' '          : self.find_normal_l,
-           'w'          : self.find_next_delim,
-           k.S_right    : self.find_next_delim,
-           'W'          : self.find_next_WORD,
-           k.C_right    : self.find_next_WORD,
-           'G'          : lambda: len(self) - 1,
-           'gg'         : lambda: 0,
-           'cursor'     : lambda: self.cursor,
-           'e'          : self.find_end_of_word,
-           'E'          : self.find_end_of_WORD,
-           '$'          : self.find_end_of_line,
-           '0'          : self.find_begining_of_line,
-           '_'          : self.find_first_non_blank_char_in_line,
-           'iw'         : self.inner_word,
-           'IW'         : self.inner_WORD,
-           }
-
+    
     def __enter__(self):
         if self._recursion == 0:
             for func in self.pre_update_callbacks:
@@ -587,8 +557,7 @@ class BaseFile:
     @current_line.setter
     def current_line(self, value):
         with self:
-            assert value.endswith('\n') and '\n' not in value[:-1] #, f'{value = }'
-
+            assert value.endswith('\n') and '\n' not in value[:-1], f'{repr(value) = }'
             lin = self.current_line_idx
             old_val = self._splited_lines[lin]
             self._lenght -= len(old_val) - len(value)
@@ -657,9 +626,6 @@ class BaseFile:
     def undo(self):
         with self:
             try:
-                if len(self.undo_list) == 1:
-                    self.undo_list.pop()
-                    return
                 self.redo_list.append(self.undo_list.pop())
                 txt, pos, _ = self.undo_list.pop()
                 self.string = ''.join(txt)
@@ -667,7 +633,6 @@ class BaseFile:
                 self.cursor_lin_col = pos
             except IndexError:
                 pass
-
     def redo(self):
         with self:
             if not self.redo_list:
@@ -726,7 +691,7 @@ class BaseFile:
                 return self.cursor
             sp_offset = self[start:].find(' ')
             nl_offset = self[start:].find('\n')
-            offset = min( sp_offset, nl_offset )
+            offset = min(sp_offset, nl_offset)
             if offset == -1:
                 return len(self)
             return start + offset
@@ -738,11 +703,12 @@ class BaseFile:
             return self.lines_offsets[self.current_line_idx]
 
     def find_first_non_blank_char_in_line(self):
-        pos = self.tell()
-        self.seek(self.find_begining_of_line())
-        rv = self.find_next_non_blank_char()
-        self.seek(pos)
-        return rv
+        pos = self.lines_offsets[self.current_line_idx]
+        stop = pos + len(self.current_line) - 1
+        string = self.string
+        while string[pos].isspace() and pos < stop:
+            pos += 1
+        return pos
 
     def find_next_non_blank_char(self):
         pos = self.cursor
@@ -920,10 +886,10 @@ class BaseFile:
         elif 0 <= offset <= max_offset:
             self.cursor = offset
 
-    def move_cursor(self, offset_str):
-        with self._lock:
-            new_val = self._get_offset(offset_str)
-            self.cursor = new_val
+#    def move_cursor(self, offset_str):
+#        with self._lock:
+#            new_val = self._get_offset(offset_str)
+#            self.cursor = new_val
     
     def __getitem__(self, key):
         with self._lock:
@@ -1082,6 +1048,28 @@ class BaseFile:
         if self.string[self.cursor - 1] == '\n':
             return self.cursor
         return self.cursor - 1
+
+    motion_commands = {
+           'B'          : find_normal_B,
+           'b'          : find_previous_delim,
+           'h'          : find_normal_h,
+           'j'          : find_normal_j,
+           'k'          : find_normal_k,
+           'l'          : find_normal_l,
+           'w'          : find_next_delim,
+           'W'          : find_next_WORD,
+           'G'          : lambda any_self: len(any_self),
+           'gg'         : lambda any_self: 0,
+           'e'          : find_end_of_word,
+           'E'          : find_end_of_WORD,
+           '$'          : find_end_of_line,
+           '0'          : find_begining_of_line,
+           '_'          : find_first_non_blank_char_in_line,
+      }
+    
+    def move_cursor(self, target):
+        assert target in self.motion_commands
+        self.cursor = self.motion_commands[target](self)
 
 def _tests():
     from pathlib import Path
