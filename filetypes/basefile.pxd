@@ -53,8 +53,8 @@ cdef class BaseFile:
     cdef void _string_suppr(self)
     cpdef void insert_newline(self)
 
-    cpdef _get_range(self,key)          # TODO why is it cpdef ?????
-    cpdef object _get_offset(self, key, default_start=*) # TODO why is it cpdef ?????
+#    cpdef _get_range(self,key)          # TODO why is it cpdef ?????
+#    cpdef object _get_offset(self, key, default_start=*) # TODO why is it cpdef ?????
 
     cpdef int find_end_of_line(self)
     cpdef int find_end_of_word(self)

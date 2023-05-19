@@ -57,12 +57,18 @@ def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
         indent = cur_buf.set_tabsize * ' '
         for idx in range(cur_buf.current_line_idx, max_line):
             cur_lin = cur_buf.current_line
+            
             if cur_lin.startswith(indent):
-                cur_buf.current_line = cur_lin.removeprefix(indent)
+               new_line = cur_lin.removeprefix(indent)
             elif cur_lin.startswith('\t'):
-                cur_buf.current_line = cur_lin.removeprefix('\t')
+                new_line = cur_lin.removeprefix('\t')
             elif cur_lin.startswith(' '):
-                cur_buf.current_line = cur_lin.lstrip()
+                new_line = cur_lin.lstrip()
+                
+            delta = len(cur_lin) - len(new_line)    
+            curbuf.current_line = new_line
+            curbuf.cursor -= delta
+            
             if idx != max_line - 1:
                 cur_buf.move_cursor('j')
         

@@ -20,7 +20,6 @@ cdef class TextFile(BaseFile):
         public object lexer
         public dict _lexed_cache
     cpdef void _lex_away(self)
-    cdef object _make_completer(self)
     cdef check_completions(self)
     cdef get_completions(self)
     cpdef tuple get_raw_screen(self, int min_lin, int max_lin)

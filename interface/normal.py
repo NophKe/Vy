@@ -100,11 +100,15 @@ def loop(editor, capture=True):
                 key = get_char()
         MOTION_COUNT = int(MOTION_COUNT) if MOTION_COUNT else 1
 
-        if key == CMD or (len(CMD) > 1 and CMD.startswith('g') and key == 'g'):
+        if key == CMD:
             COUNT = COUNT * MOTION_COUNT
             cancel = minibar(f'( Processing Command: {COUNT} {_escape(CMD)} )')
-            RANGE = curbuf._get_range(f'#.:#+{COUNT}')
-            rv = action(editor, reg=REG if REG else '"', part=RANGE)
+            line_idx, start_off = curbuf.cursor_lin_off
+            
+            try: stop = curbuf.lines_offsets[line_idx + count]
+            except IndexError: stop = len(curbuf)
+            
+            rv = action(editor, reg=REG if REG else '"', part=slice(start,stop))
             cancel()
             return rv
 

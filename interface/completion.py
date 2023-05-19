@@ -1,5 +1,6 @@
 from vy import keys as k
 
+
 completion_dict = {}
 insert_dict = {}
 
@@ -19,10 +20,7 @@ def move_up(editor):
 @add_to_dict('\t')
 def switch_or_select(editor):
     if len(editor.screen.minibar_completer.completion) == 1:
-        success = select_item(editor)
-        if not success:
-            do
-            
+        return select_item(editor)
     else:
         editor.screen.minibar_completer.move_cursor_down()
         return True
@@ -35,6 +33,9 @@ def move_down(editor):
 @add_to_dict('\r', '\n')
 def select_item(editor):
     to_insert, to_delete = editor.screen.minibar_completer.select_item()
+#    if to_insert and not to_delete:
+#        return False
+        
     curbuf = editor.current_buffer
     old = curbuf.string
     cursor = curbuf.cursor
@@ -68,12 +69,14 @@ def loop(editor):
                         lambda: editor.current_buffer.check_completions())
                
         while True:
+            raise Toto
             if not editor.screen.minibar_completer:
                 editor.screen.minibar(' ( Auto-completion aborted ) No more matches.')
                 break
             else:
                 key_press = editor.visit_stdin()
-            
+
+            raise RuntimeError
             if key_press in completion_dict:
                 if completion_dict[key_press](editor):
                     editor.read_stdin()

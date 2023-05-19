@@ -33,6 +33,8 @@ gcc-config:
 %.so: %.c %.py %.pxd
 	${CC} $< -o $@
 
+.PRECIOUS: %.c
+
 %.c: %.py %.pxd
 	cython --fast-fail -Wextra -X infer_types=True -a -3 $<
 	#cython --fast-fail -Wextra -X warn.undeclared=True -X infer_types=True -a -3 $<

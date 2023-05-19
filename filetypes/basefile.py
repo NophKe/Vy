@@ -1,5 +1,4 @@
 from threading import RLock
-#from vy import keys as k
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
@@ -683,14 +682,14 @@ class BaseFile:
     def find_end_of_WORD(self):
         start = self.cursor
         try:
-            while self[start].isspace():
+            while self.string[start].isspace():
                 start += 1
 
             start = self.cursor + 2
             if start > len(self):
                 return self.cursor
-            sp_offset = self[start:].find(' ')
-            nl_offset = self[start:].find('\n')
+            sp_offset = self.string.find(' ', start)
+            nl_offset = self.string.find('\n', start)
             offset = min(sp_offset, nl_offset)
             if offset == -1:
                 return len(self)
@@ -751,10 +750,10 @@ class BaseFile:
 #TODO CHeck for end of file
         cursor = self.cursor +1
         try:
-            if not self[cursor].isspace(): 
-                while not self[cursor].isspace(): 
+            if not self.string[cursor].isspace(): 
+                while not self.string[cursor].isspace(): 
                     cursor += 1
-            while self[cursor].isspace(): 
+            while self.string[cursor].isspace(): 
                 cursor += 1
         except IndexError:
             pass
@@ -764,10 +763,10 @@ class BaseFile:
     def find_first_char_of_word(self):
         if self.cursor == 0:
             return 0
-        elif  self[self.cursor - 1].isspace():
+        elif  self.string[self.cursor - 1].isspace():
             return self.cursor
         else:
-            return self[:self.cursor].rfind(' ') + 1
+            return self.string[:self.cursor].rfind(' ') + 1
 
 #    def find_normal_B(self):
 #        pos = self.tell()
@@ -813,7 +812,7 @@ class BaseFile:
         global DELIMS
         cursor = self.cursor
         
-        if self[cursor] in DELIMS:
+        if self.string[cursor] in DELIMS:
             return self.find_next_non_delim()
 
         while self.string[cursor] not in DELIMS:
@@ -892,88 +891,77 @@ class BaseFile:
 #            self.cursor = new_val
     
     def __getitem__(self, key):
-        with self._lock:
-            if isinstance(key, str):
-                assert key #, f'{key = }'
-                key = self._get_range(key)
-            assert ( isinstance(key, int) and key >= 0
-                   or isinstance(key, slice)) #, f'{key = } {type(key) = }'
-            return self.string[key]
+        return self.string[key]
+        
+#        with self._lock:
+#            if isinstance(key, str):
+#                assert key #, f'{key = }'
+#                key = self._get_range(key)
+#            assert ( isinstance(key, int) and key >= 0
+#                   or isinstance(key, slice)) #, f'{key = } {type(key) = }'
+#            return self.string[key]
 
-    def _get_range(self,key):
-        with self._lock:
-            if ':' in key:
-                start, stop = key.split(':', maxsplit=1)
-                start = start.lstrip(':')
-                stop = stop.rstrip(':')
-                if not start:
-                    start = 0
-                if not stop:
-                    stop = len(self)
-                return slice(self._get_offset(start, default_start=True), self._get_offset(stop, default_start=False))
-            return self._get_offset(key)
-
-    def _get_offset(self, key, default_start=True):
-        with self._lock:
+#    def _get_range(self,key):
+#        with self._lock:
+#            if ':' in key:
+#                start, stop = key.split(':', maxsplit=1)
+#                start = start.lstrip(':')
+#                stop = stop.rstrip(':')
+#                if not start:
+#                    start = 0
+#                if not stop:
+#                    stop = len(self)
+#                return slice(self._get_offset(start, default_start=True), self._get_offset(stop, default_start=False))
+#            return self._get_offset(key)
+#
+#    def _get_offset(self, key, default_start=True):
+#        with self._lock:
 ### TODO this function should be protected against passsing string like '+-2'
-            if isinstance(key, int):
+#            if isinstance(key, int):
                 #assert len(self) >= key >= 0
-                return key
-            elif isinstance(key, str):
-                try:
-                    line, current_line_start = self.current_line_off
-                    if key == '#.':
-                        return current_line_start
-                    elif key.startswith('#+'):
-                        entry = line + int(key[2:])
-                        return self.lines_offsets[entry]
-                    elif key.startswith('#-'):
-                        entry = line - int(key[2:])
-                        return self.lines_offsets[entry]
-                    elif key.startswith('#'):
-                        index = int(key[1:])
-                        return self.lines_offsets[index]
-                    elif key.isdigit():
-                        return int(key)
-                    else:
-                        try:
-                            func = self.motion_commands[key]
-                            return func()
-                        except KeyError:
-                            raise ValueError('Vy: not a valid motion.')
-                except IndexError:
-                    if default_start:
-                        return 0
-                    else:
-                        return len(self) - 1
-            else:
-                raise TypeError('key sould be int or valid motion str') 
-
+#                return key
+#            elif isinstance(key, str):
+#                try:
+#                    line, current_line_start = self.current_line_off
+#                    if key == '#.':
+#                        return current_line_start
+#                    elif key.startswith('#+'):
+#                        entry = line + int(key[2:])
+#                        return self.lines_offsets[entry]
+#                    elif key.startswith('#-'):
+#                        entry = line - int(key[2:])
+#                        return self.lines_offsets[entry]
+#                    elif key.startswith('#'):
+#                        index = int(key[1:])
+#                        return self.lines_offsets[index]
+#                    elif key.isdigit():
+#                        return int(key)
+#                    else:
+#                        try:
+#                            func = self.motion_commands[key]
+#                            return func()
+#                        except KeyError:
+#                            raise ValueError('Vy: not a valid motion.')
+#                except IndexError:
+#                    if default_start:
+#                        return 0
+#                    else:
+#                        return len(self) - 1
+#            else:
+#                raise TypeError('key sould be int or valid motion str') 
+#
     def __delitem__(self, key):
         with self:
             if isinstance(key, int):
-                if key >=0 and key < len(self):
-                    self.string = self.string[0:key] + self.string[key+1:]
-                else:
-                    raise IndexError('Vy Runtime: string index out of range')
-
+                self.string = self.string[0:key] + self.string[key+1:]
+                
             elif isinstance(key, slice):
-                if not key.start:
-                    start = 0
-                else:
-                    start = key.start
-                if not key.stop:
-                    stop = len(self.string) - 1
-                else:
-                    stop = key.stop
-                self.string = f'{self.string[:start]}{self.string[stop:]}'
-
+                start  = key.start or 0
+                stop = key.stop or len(self)
+                self.string = self.string[:start] + self.string[stop:]
+                
                 if start < self.cursor <= stop:
                     self.cursor = start
-
-            elif isinstance(key, str):
-                key = self._get_range(key)
-                del self[key]
             else:
                 raise TypeError(f'{key = } {type(key) = } expected int, slice, or str.')
 
@@ -983,11 +971,11 @@ class BaseFile:
                 key = self._get_range(key)
             if isinstance(key, slice):
                 start = key.start
-                stop = key.stop
-            elif isinstance(key, int):
-                start = key
-                stop = start + 1
-            self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
+#                stop = key.stop
+#            elif isinstance(key, int):
+#                start = key
+#                stop = start + 1
+#            self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
 
     def __repr__(self):
         if not self._repr:
@@ -1049,27 +1037,23 @@ class BaseFile:
             return self.cursor
         return self.cursor - 1
 
-    motion_commands = {
-           'B'          : find_normal_B,
-           'b'          : find_previous_delim,
-           'h'          : find_normal_h,
-           'j'          : find_normal_j,
-           'k'          : find_normal_k,
-           'l'          : find_normal_l,
-           'w'          : find_next_delim,
-           'W'          : find_next_WORD,
-           'G'          : lambda any_self: len(any_self),
-           'gg'         : lambda any_self: 0,
-           'e'          : find_end_of_word,
-           'E'          : find_end_of_WORD,
-           '$'          : find_end_of_line,
-           '0'          : find_begining_of_line,
-           '_'          : find_first_non_blank_char_in_line,
-      }
-    
     def move_cursor(self, target):
-        assert target in self.motion_commands
-        self.cursor = self.motion_commands[target](self)
+        if   target == 'B' : self.cursor = self.find_normal_B()
+        elif target == 'b' : self.cursor = self.find_previous_delim()
+        elif target == 'h' : self.cursor = self.find_normal_h()
+        elif target == 'j' : self.cursor = self.find_normal_j()
+        elif target == 'k' : self.cursor = self.find_normal_k()
+        elif target == 'l' : self.cursor = self.find_normal_l()
+        elif target == 'w' : self.cursor = self.find_next_delim()
+        elif target == 'W' : self.cursor = self.find_next_WORD()
+        elif target == 'G' : self.cursor = len(self)
+        elif target == 'gg': self.cursor = 0
+        elif target == 'e' : self.cursor = self.find_end_of_word()
+        elif target == 'E' : self.cursor = self.find_end_of_WORD()
+        elif target == '$' : self.cursor = self.find_end_of_line()
+        elif target == '0' : self.cursor = self.find_begining_of_line()
+        elif target == '_' : self.cursor = self.find_first_non_blank_char_in_line()
+        else: raise RuntimeError('vy internal error: not a valid motion')
 
 def _tests():
     from pathlib import Path

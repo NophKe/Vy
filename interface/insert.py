@@ -30,7 +30,6 @@ minidict = { k.suppr: _no_undo_suppr,
 
 def monoline_loop(editor):
     last_insert = ''
-    cancel_minibar = editor.screen.minibar(' ( New undo point. )')
     try:
         editor.current_buffer.set_undo_record(False)
         last_insert = ''
@@ -50,9 +49,9 @@ def monoline_loop(editor):
             last_insert += editor.read_stdin()
 
     finally:
-        cancel_minibar()
         if last_insert:
             editor.registr['.'] = last_insert
+        editor.screen.minibar(' ( New undo point. )')
         editor.current_buffer.set_undo_record(True)
 
 def init(editor):

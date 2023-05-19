@@ -1,7 +1,7 @@
 from threading import Thread, Event
 
 from vy.filetypes.basefile import BaseFile
-from vy.filetypes.completer import ScriptCompleter, WordCompleter
+from vy.filetypes.completer import Completer
 from vy.filetypes.lexer import guess_lexer, get_prefix
 
 
@@ -34,19 +34,14 @@ class TextFile(BaseFile):
         self._lex_away_may_run.set()
         self._completer = None, None
 
-    def _make_completer(self):
-        if self.path:
-            if self.path.name.lower().endswith('.py'):
-                return ScriptCompleter(code=self.string, path=self.path)
-        return WordCompleter(code=self.string, path=self.path)
-
     @property
     def completer_engine(self):
         with self._lock:
-            _, version = self._completer
+            engine, version = self._completer
             if version != self._string:
-                self._completer = self._make_completer(), self.string
-            return self._completer[0]
+                engine = Completer(self)
+                self._completer = engine, self.string
+            return engine
 
     def check_completions(self):
         _, version = self._completer

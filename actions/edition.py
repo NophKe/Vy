@@ -95,7 +95,6 @@ def do_backspace(editor, reg=None, part=None, arg=None, count=1):
         if curbuf.set_autoindent:
             _, start_of_line = curbuf.current_line_off
             start_of_line = curbuf.string[start_of_line:curbuf.cursor]
-            editor.screen.minibar(start_of_line)
             content = start_of_line.strip()
             if start_of_line and not content:
                 from vy.actions.linewise import dedent_current_line
