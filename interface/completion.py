@@ -1,6 +1,5 @@
 from vy import keys as k
 
-
 completion_dict = {}
 insert_dict = {}
 
@@ -35,7 +34,6 @@ def select_item(editor):
     to_insert, to_delete = editor.screen.minibar_completer.select_item()
 #    if to_insert and not to_delete:
 #        return False
-        
     curbuf = editor.current_buffer
     old = curbuf.string
     cursor = curbuf.cursor
@@ -69,14 +67,13 @@ def loop(editor):
                         lambda: editor.current_buffer.check_completions())
                
         while True:
-            raise Toto
             if not editor.screen.minibar_completer:
                 editor.screen.minibar(' ( Auto-completion aborted ) No more matches.')
                 break
             else:
                 key_press = editor.visit_stdin()
 
-            raise RuntimeError
+#            breakpoint()
             if key_press in completion_dict:
                 if completion_dict[key_press](editor):
                     editor.read_stdin()
@@ -91,4 +88,5 @@ def loop(editor):
     finally:
         editor.current_buffer.set_undo_record(True)
         editor.screen.minibar_completer.give_up()
-        return 'insert'
+    return 'insert'
+

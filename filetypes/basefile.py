@@ -970,12 +970,12 @@ class BaseFile:
             if isinstance(key, str):
                 key = self._get_range(key)
             if isinstance(key, slice):
-                start = key.start
-#                stop = key.stop
-#            elif isinstance(key, int):
-#                start = key
-#                stop = start + 1
-#            self.string = f'{self.string[:start]}{value}{self.string[stop:]}'
+                start = key.start or 0
+                stop = key.stop or len(self)
+            elif isinstance(key, int):
+                start = key
+                stop = start + 1
+            self.string = self.string[:start] + value + self.string[stop:]
 
     def __repr__(self):
         if not self._repr:

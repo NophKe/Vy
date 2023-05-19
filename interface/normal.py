@@ -103,9 +103,9 @@ def loop(editor, capture=True):
         if key == CMD:
             COUNT = COUNT * MOTION_COUNT
             cancel = minibar(f'( Processing Command: {COUNT} {_escape(CMD)} )')
-            line_idx, start_off = curbuf.cursor_lin_off
+            line_idx, start = curbuf.current_line_off
             
-            try: stop = curbuf.lines_offsets[line_idx + count]
+            try: stop = curbuf.lines_offsets[line_idx + COUNT]
             except IndexError: stop = len(curbuf)
             
             rv = action(editor, reg=REG if REG else '"', part=slice(start,stop))
