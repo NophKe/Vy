@@ -101,6 +101,7 @@ def Open_path(location):
     except IsADirectoryError:
         return Folder(path=location)
 
+    init_text = init_text or '\n'
     file_name = location.name.lower()
     file_other_name = location.name
 

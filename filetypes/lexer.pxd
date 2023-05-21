@@ -5,10 +5,10 @@ from pygments.token import (Keyword, Name, Comment,
                             Generic, Token, Whitespace, Text)
 from vy import global_config
 
-from keyword import iskeyword
+#from keyword import iskeyword
 from re import split, sub
-import tokenize
-import token as py_tokens
+#import tokenize
+#import token as py_tokens
 
 cdef object guess_lexer_base(str path_str, str code_str)
 cpdef object guess_pygments_lexer(str path_str, str code_str)

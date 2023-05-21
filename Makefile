@@ -1,9 +1,11 @@
-all: top_level filetypes_module
+all: top_level subdirs
+
+subdirs: filetypes_module
 
 filetypes_module:
-	make -C filetypes
+	$(MAKE) -C filetypes
 
-top_level: keys.so editor.so screen.so filetypes_module
+top_level: keys.so editor.so screen.so
 editor.so: filetypes_module screen.so
 
 clean:

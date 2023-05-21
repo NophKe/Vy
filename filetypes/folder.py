@@ -1,6 +1,6 @@
 from .. import keys as k
 from pathlib import Path
-#from .basefile import BaseFile
+from .basefile import BaseFile
 from vy.filetypes.textfile import TextFile
 
 def DO_open_file(editor):
@@ -9,7 +9,7 @@ def DO_open_file(editor):
     editor.edit(file)
     return 'normal'
 
-class Folder(TextFile):
+class Folder(BaseFile):
     motion_commands = { }
     actions = { k.CR: DO_open_file, }
     unsaved = False
@@ -18,6 +18,9 @@ class Folder(TextFile):
     @property
     def _lexed_lines(self):
         return self._splited_lines
+    @_lexed_lines.setter
+    def _lexed_lines(self, value):
+        pass
 
     @property
     def _string(self):

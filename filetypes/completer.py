@@ -1,7 +1,9 @@
 from vy.global_config import DONT_USE_JEDI_LIB
 from re import split
 
-make_word_set = lambda string: set(split(r'[{}\. :,()\[\]]|$', string))
+def make_word_set(string):
+    return set(split(r'[{}\. :,()\[\]]|$', string))
+
 ANY_BUFFER_WORD_SET = set()
 
 class WordCompleter:

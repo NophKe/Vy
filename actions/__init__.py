@@ -169,13 +169,15 @@ def go_back_in_jump_list(editor, count=1, *args, **kwargs):
     Goes back in jump list. This motion will not record itself in
     the jump list.
     """
+#    breakpoint()
     try:
-        buf, lin, col = editor.jump_list[editor.jump_list_pointer]
+        buf, lin, col = editor.jump_list.pop()
     except IndexError:
-        return
-    editor.edit(buf.path)
-    editor.current_buffer.cursor_lin_col = lin, col
-    editor.jump_list_pointer -= 1
+        editor.screen.minibar(' ( no more jump back ) ')
+    else:
+        editor.edit(buf.path)
+        editor.current_buffer.cursor_lin_col = lin, col
+        editor.jump_list.skip_next()
     
 @sa_commands(f'{k.C_I}')
 def go_forward_in_jump_list(editor, count=1, *args, **kwargs):
@@ -183,16 +185,14 @@ def go_forward_in_jump_list(editor, count=1, *args, **kwargs):
     Goes forward in jump list. This motion will not record itself in
     the jump list.
     """
-    editor.jump_list_pointer += 1
-    if editor.jump_list_pointer == 0:
-        editor.jump_list_pointer = -1
     try:
-        buf, lin, col = editor.jump_list[editor.jump_list_pointer]
+        buf, lin, col = editor.jump_list.push()
     except IndexError:
-        return
+        editor.screen.minibar(' ( no more jump forward ) ')
     else:
         editor.edit(buf.path)
         editor.current_buffer.cursor_lin_col = lin, col
+        editor.jump_list.skip_next()
 
 @sa_commands(f'{k.C_W}>')
 def increase_window_width_right(editor, reg=None, part=None, arg=None, count=2):

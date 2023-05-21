@@ -7,9 +7,7 @@ from vy.global_config import DEBUG
 
 
 from vy.screen cimport Screen 
-import vy.filetypes
-#from vy.interface cimport Interface
-#from vy.filetypes cimport Open_path
+from vy.filetypes cimport Open_path
 
 from cython import final, locals
 
@@ -37,7 +35,7 @@ cdef class _Editor:
         public list arg_list
         public int arg_list_pointer
         save_in_jump_list(self)
-        int jump_list_pointer 
+        public int jump_list_pointer 
         bint _async_io_flag
         bint _running
         #dict __dict__

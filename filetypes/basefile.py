@@ -1,4 +1,4 @@
-from threading import RLock
+from .utils import RLock
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
@@ -330,7 +330,7 @@ class BaseFile:
     def _string_suppr(self):
         string = self.string
         cur = self.cursor
-        self.string  = f'{string[:cur]}{string[cur + 1:]}'
+        self.string  = string[:cur] + string[cur + 1:]
 
     def backspace(self):
         """
@@ -852,38 +852,35 @@ class BaseFile:
 
 ########    start of file-object capacities###########################
 
-    def write(self, text):
-        assert isinstance(text, str)
-        if text:
-            self.string = self.string[:self.cursor] + text + self.string[self.cursor + len(text):]
-            self.cursor = self.cursor + len(text)
-        return len(text)
-
-    def getvalue(self):
-        return self.string
-
-    def read(self, nchar= -1):
-        if nchar == -1:
-            rv = self.string[self.cursor:]
-            self.cursor = len(self)
-        else:
-            rv = self.string[self.cursor:(self.cursor + nchar)]
-            self.cursor = self.cursor + nchar
-        return rv
-
-    def tell(self):
-        return self.cursor
-
-    def seek(self,offset=0, flag=0):
-        assert isinstance(offset, int)
-        assert isinstance(flag, int)
-        if len(self) == 0:
-            return 0
-        max_offset = len(self)
-        if (offset == 0 and flag == 2) or (offset > max_offset):
-            self.cursor = max_offset
-        elif 0 <= offset <= max_offset:
-            self.cursor = offset
+#    def write(self, text):
+#        assert isinstance(text, str)
+#        if text:
+#            self.string = self.string[:self.cursor] + text + self.string[self.cursor + len(text):]
+#            self.cursor = self.cursor + len(text)
+#        return len(text)
+#
+#    def read(self, nchar= -1):
+#        if nchar == -1:
+#            rv = self.string[self.cursor:]
+#            self.cursor = len(self)
+#        else:
+#            rv = self.string[self.cursor:(self.cursor + nchar)]
+#            self.cursor = self.cursor + nchar
+#        return rv
+#
+#    def tell(self):
+#        return self.cursor
+#
+#    def seek(self,offset=0, flag=0):
+#        assert isinstance(offset, int)
+#        assert isinstance(flag, int)
+#        if len(self) == 0:
+#            return 0
+#        max_offset = len(self)
+#        if (offset == 0 and flag == 2) or (offset > max_offset):
+#            self.cursor = max_offset
+#        elif 0 <= offset <= max_offset:
+#            self.cursor = offset
 
 #    def move_cursor(self, offset_str):
 #        with self._lock:
@@ -953,28 +950,25 @@ class BaseFile:
     def __delitem__(self, key):
         with self:
             if isinstance(key, int):
-                self.string = self.string[0:key] + self.string[key+1:]
-                
+                start = key
+                stop = key + 1
             elif isinstance(key, slice):
                 start  = key.start or 0
                 stop = key.stop or len(self)
-                self.string = self.string[:start] + self.string[stop:]
-                
-                if start < self.cursor <= stop:
-                    self.cursor = start
             else:
-                raise TypeError(f'{key = } {type(key) = } expected int, slice, or str.')
+                raise TypeError(f'{key = } {type(key) = } expected int or slice.')
+            self.string = self.string[:start] + self.string[stop:]
 
     def __setitem__(self, key, value):
         with self:
-            if isinstance(key, str):
-                key = self._get_range(key)
             if isinstance(key, slice):
                 start = key.start or 0
                 stop = key.stop or len(self)
             elif isinstance(key, int):
                 start = key
-                stop = start + 1
+                stop = start + 1            
+            else:
+                raise TypeError(f'{key = } {type(key) = } expected int or slice.')
             self.string = self.string[:start] + value + self.string[stop:]
 
     def __repr__(self):
@@ -1055,20 +1049,4 @@ class BaseFile:
         elif target == '_' : self.cursor = self.find_first_non_blank_char_in_line()
         else: raise RuntimeError('vy internal error: not a valid motion')
 
-def _tests():
-    from pathlib import Path
-    file_txt = Path('/home/nono/big.txt').read_text()
-    file = BaseFile(path='/home/nono/big.txt',
-                    init_text=file_txt,
-                    )
-    for _ in range(10):
-        file.cursor += file.find_end_of_line() + 2
-        file.insert('hi')
-        file.backspace()
-        lin, col = file.cursor_lin_col
-        file.cursor_lin_col = lin+1, col+1
-        file.insert('hi')
-        file.suppr()
-        file.move_cursor('w')
-        file[file.find_first_non_blank_char_in_line()] = 'toto'
-        file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
+

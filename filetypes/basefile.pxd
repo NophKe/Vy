@@ -1,5 +1,5 @@
+from .utils cimport RLock
 from cython import locals
-from vy cimport keys as k
 
 cdef class DummyLine:
     cdef:
@@ -22,7 +22,7 @@ cdef class BaseFile:
         public str _string
         int _cursor
 
-        public object _lock
+        public RLock _lock
         public tuple _cursor_lin_col # 
         public int _number_of_lin    # but screen uses those vars
         public list _splited_lines   # to only "visit" ephemeral values
@@ -79,10 +79,10 @@ cdef class BaseFile:
 #    cdef current_line(self)
 #    cdef INNER_WORD(self)
 #    cdef inner_word(self)
-    cpdef str getvalue(self)
-    cpdef str read(self, int nchar=*)
-    cpdef int tell(self)
-    cpdef seek(self, int offset=*, flag=*)
+#    cpdef str getvalue(self)
+#    cpdef str read(self, int nchar=*)
+#    cpdef int tell(self)
+#    cpdef seek(self, int offset=*, flag=*)
     cpdef void move_cursor(self, str offset_str)
     #cpdef void start_undo_record(self)
     #cpdef void stop_undo_record(self)

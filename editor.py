@@ -26,7 +26,44 @@ from vy.filetypes import Open_path
 from vy.console import getch_noblock
 from vy.global_config import DEBUG
 
-class _Cache():
+class _HistoryList:
+    def __init__(self):
+        self.data = list()
+        self.pointer = 0
+        self.skip = False
+    
+    def append(self, value):
+        if self.skip:
+            self.skip = False
+        else:
+            self.data.insert(self.pointer, value)
+            self.pointer += 1
+    
+    def pop(self):
+        if self.pointer > 0:
+            self.pointer -= 1
+            return self.data[self.pointer]
+        raise IndexError
+    
+    def push(self):
+        if self.pointer == len(self.data):
+            raise IndexError
+        self.pointer += 1
+        return self.data[self.pointer-1]
+    
+    def skip_next(self):
+        self.skip = True        
+        
+    def last_record(self):
+        if self.pointer > 0:
+            return self.data[self.pointer-1]
+        raise IndexError
+
+    def __str__(self):
+        return '\n'.join( repr(value) + ' <-- pointer' if idx == self.pointer 
+                          else repr(value) for idx, value in enumerate(self.data) )
+
+class _Cache:
     """
     Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
@@ -223,8 +260,7 @@ class _Editor:
             raise
 
     def __init__(self, *buffers, command_line=''):
-        self.jump_list = []
-        self.jump_list_pointer = -1
+        self.jump_list = _HistoryList()
         self._init_actions()
         #self.actions = _Actions(self)
         self.cache = _Cache()
@@ -245,7 +281,7 @@ class _Editor:
         curbuf = self.current_buffer
         lin, col = curbuf.cursor_lin_col
         try:
-            last_buf, last_lin, last_col = self.jump_list[-1]
+            last_buf, last_lin, last_col = self.jump_list.last_record()
         except IndexError:
             self.jump_list.append((curbuf, lin, col))
         else:
@@ -434,9 +470,12 @@ class _Editor:
                 try:
                     self.current_mode = self.interface(self.current_mode) \
                                         or self.current_mode
+                    self.save_in_jump_list()
                     continue
                 except SystemExit:
                     raise
+                except BdbQuit:
+                    pass
                 except BaseException as exc:
                     import sys
                     type_, value_, trace_ = sys.exc_info()
@@ -453,15 +492,12 @@ class _Editor:
                                'or    [CTRL+D] to start debugger\n\r\t'))
                     except EOFError:
                         self.screen.original_screen()
-                        try:
-                            post_mortem(trace_)
-                        except BdbQuit:
-                            pass
+                        post_mortem(trace_)
                     except KeyboardInterrupt:
                         return 1
-                    self.current_mode = 'normal'
-                    self.start_async_io()
-                    continue
+                self.current_mode = 'normal'
+                self.start_async_io()
+                continue
         finally:
             self._running = False
             self.stop_async_io()

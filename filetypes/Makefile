@@ -2,9 +2,12 @@ all: __init__.so
 
 __init__.so: textfile.so basefile.so
 
-textfile.so: basefile.so lexer.so
+basefile.so: utils.so
+
+textfile.so: basefile.so lexer.so completer.so
 
 CC  = gcc --shared -s -I/usr/include/python3.11 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
+
 %.so: %.c %.py %.pxd
 	${CC} $< -o $@
 
