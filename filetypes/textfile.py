@@ -1,9 +1,9 @@
-from threading import Thread, Event
+from threading import Thread
+from time import sleep
 
 from vy.filetypes.basefile import BaseFile
 from vy.filetypes.completer import Completer
 from vy.filetypes.lexer import guess_lexer, get_prefix
-
 
 class TextFile(BaseFile):
     """
@@ -15,23 +15,13 @@ class TextFile(BaseFile):
 
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
-        self._lex_away_may_run = Event()
-        self._lex_away_should_stop = Event()
-
         self._lexed_cache = {}
         self._lexed_lines = list()
-
-        self.pre_update_callbacks.append(self._lex_away_may_run.clear)
-        self.pre_update_callbacks.append(self._lex_away_should_stop.set)
-        
-        self.update_callbacks.append(self._lex_away_should_stop.clear)
-        self.update_callbacks.append(self._lex_away_may_run.set)
-
         self.lexer = guess_lexer(self.path, self._string)
-        
+        self._undo_proc = Thread(target=self._undo_away, args=(), daemon=True)
         self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
         self._lexer_proc.start()
-        self._lex_away_may_run.set()
+        self._undo_proc.start()
         self._completer = None, None
 
     @property
@@ -59,50 +49,48 @@ class TextFile(BaseFile):
             else:
                 return [], 0
 
+    def _undo_away(self):
+        while True:
+            sleep(5)
+            self.cancel.notify_working()
+            self.set_undo_point()
+            self.cancel.notify_stopped()
+
     def _lex_away(self):
-        should_restart = self._lex_away_should_stop
         local_dict = self._lexed_cache
         local_lexed = self._lexed_lines
 
         while True:
-            self._lex_away_may_run.wait()
-            if should_restart.wait(0.04):
+            self.cancel.notify_working()
+            local_split = iter(self.splited_lines).__next__
+            self.cursor_lin_col
+            self.number_of_lin
+            if self.cancel:
+                self.cancel.notify_stopped()
                 continue
-            with self._lock:
-                local_split = self.splited_lines
-                local_lexer = self.lexer(self.string)
-                self.cursor_lin_col
-                self.number_of_lin
-                if should_restart.wait(0.04):
-                    continue
-                line = ''
-                count = 0
-                for _, tok, val in local_lexer:
-                    if should_restart.is_set():
-                        break
-                    tok = get_prefix(tok)
-                    if '\n' in val:
-                        for token_line in val.splitlines(True):
-                            if token_line.endswith('\n'):
-                                line += tok + token_line[:-1] + ' \x1b[39;49;21;22;24m'
-                                local_lexed.append(line)
-                                local_dict[local_split[count]] = line
-                                count += 1
-                                line = tok
-                            else:
-                                line += tok + token_line + '\x1b[39;49;21;22;24m'
-                    else:
-                        line += tok + val + '\x1b[39;49;21;22;24m'
-                else:
-                    if line and line != tok: #No eof
-                        local_dict[self._splited_lines[count]] = line
-                        local_lexed.append(line)
-            should_restart.wait()
-            #while not self._lex_away_should_restart.wait(1):
-                #if not self._lock._is_owned():
-                    #break
-                #raise CrappiestRaceCondition # just delete this line!  O:-)
 
+            line = ''
+            for _, tok, val in self.lexer(self.string):
+                if self.cancel: 
+                    break
+                tok = get_prefix(tok)
+                if '\n' in val:
+                    for token_line in val.splitlines(True):
+                        if token_line.endswith('\n'):
+                            line += tok + token_line[:-1] + ' \x1b[39;22m'
+                            local_lexed.append(line)
+                            local_dict[local_split()] = line
+                            line = tok
+                        else:
+                            line += tok + token_line + '\x1b[39;22m'
+                else:
+                    line += tok + val + '\x1b[39;22m'
+            else:
+                if line and line != tok: #No eof
+                    local_dict[local_split()] = line
+                    local_lexed.append(line)
+
+            self.cancel.notify_stopped()
             self._lexed_lines.clear()
 
     def get_raw_screen(self, min_lin, max_lin):

@@ -6,8 +6,11 @@ from sys import stdout
 
 from vy.global_config import DEBUG
 
+reset_style = '\x1b[27;39;22m'
+
 def expand_quick(max_col, text):
     line = ''
+    line = '\x1b[39;22m'
     on_col = 1
     retval = []
     esc_flag: bool = False
@@ -24,9 +27,9 @@ def expand_quick(max_col, text):
             continue
 
         if on_col ==  max_col:
-            line += '\x1b[39;49m'
+            line += '\x1b[39;22m'
             retval.append(line)
-            line = '\x1b[39;49m'
+            line = '\x1b[39;22m'
             on_col = 1
             esc_flag = False
 
@@ -42,9 +45,10 @@ def expand_quick(max_col, text):
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
     #assert '/n' not in text
     number = f'{on_lin:{num_len}}: '
-    line =  f'\x1b[00;90;40m{number}\x1b[39;49m'
-    start_cursor = '\x1b[5;7m'
-    stop_cursor = '\x1b[25;27m'
+    line =  f'\x1b[2;37;27m{number}\x1b[39;22m'
+    start_cursor = '\x1b[7;5m' #;7m'
+    stop_cursor = '\x1b[27;25m' #5;27m'
+    #stop_cursor = '\x1b[39;49;00m'
     retval: list = list()
     on_col: int = len(number)
     cursor_col += on_col - 1
@@ -52,13 +56,16 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
     cursor_flag: bool = cursor_lin == on_lin
     cursor_char_flag = False
 
-    if visual:
-        start_v, stop_v = visual
-        visual = bool(visual)
-        start_v += on_col - 1
-        stop_v += on_col - 1
-#        if stop_v == start_v:
-#            visual = False
+    visual_flag = any(visual)
+    start_v, stop_v = visual
+    if start_v:
+        if start_v == -1:
+            line += '\x1b[7m'
+        else:
+            start_v += on_col - 1
+    if stop_v:
+        stop_v += on_col 
+
 
     char: str
     for char in text:
@@ -73,15 +80,15 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
             line += char
             continue
 
-        if visual and on_col == start_v: # and on_col == cursor_col:
+        if visual_flag and (on_col == start_v): # and on_col == cursor_col:
             line += '\x1b[7m'
-            start_cursor = '\x1b[27;5;4m'
-            stop_cursor = '\x1b[7;25;24m'
+            start_cursor = '\x1b[4;5m'
+            stop_cursor = '\x1b[24;25m'
 
         if on_col ==  max_col:
-            line += '\x1b[39;49m'
+            line += '\x1b[39;22m'
             retval.append(line)
-            line = '\x1b[90;40m' + ' ' * len(number)+ '\x1b[39;49m'
+            line = ' ' * len(number)+ '\x1b[39;22m'
             cursor_col  = cursor_col - (max_col - len(number))
             on_col = len(number)
             esc_flag = False
@@ -103,17 +110,29 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
             cursor_char_flag = False
             line += stop_cursor
 
-        if visual and on_col == stop_v + 1:
-            line += '\x1b[22;25;27m'
+        if visual and on_col == stop_v:
+            line += '\x1b[27m'
+            start_cursor = '\x1b[7;5m' #;7m'
+            stop_cursor = '\x1b[27;25m' #5;27m'
+            #start_cursor = '\x1b[7m'
+            #stop_cursor = '\x1b[27m'
+
+    line += '\x1b[39;22m'
+    if stop_v == -1:
+        line += '\x1b[27m'
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
 
+#def expand_quick(max_col, text):
+    #return expandtabs_numbered(0, max_col, text, '', 0, 0, 0, (0,0))
+#
 #@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
+    raise Errror
     #assert '/n' not in text
     retval: list = list()
-    line: str = '\x1b[00;39;49m'
+    line: str = '\x1b[49m'
     start_cursor = '\x1b[5;7m'
     stop_cursor = '\x1b[25;27m'
     on_col: int = 1
@@ -148,9 +167,9 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
                 stop_cursor = '\x1b[7;25;24m'
 
         if on_col ==  max_col:
-            line += '\x1b[39;49m'
+            line += '\x1b[49m'
             retval.append(line)
-            line = '\x1b[39;49m'
+            line = '\x1b[49m'
             cursor_col  = cursor_col - max_col + 1
             on_col = 1
             esc_flag = False
@@ -171,7 +190,7 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
             line += stop_cursor
 
         if visual and on_col == stop_v + 1:
-            line += '\x1b[22;25;27m'
+            line += '\x1b[22;25m'
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
@@ -411,16 +430,16 @@ class Window():
 
     def gen_window(self):
         if self.vertical_split:
-            if not self.right_panel.needs_redraw() and not self.left_panel.needs_redraw():
-                return [f'{left}|{right}' for left, right in zip(
-                                            self.left_panel._last_computed,
-                                            self.right_panel._last_computed)]
+            #if not self.right_panel.needs_redraw() and not self.left_panel.needs_redraw():
+                #return [f'{left}|{right}' for left, right in zip(
+                                            #self.left_panel._last_computed,
+                                            #self.right_panel._last_computed)]
                 
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
                                             self.right_panel.gen_window())]
-#        if not self.needs_redraw():
-#            return self._last_computed
+        if not self.needs_redraw():
+            return self._last_computed
            
         max_col = self.number_of_col
         min_lin = self.shift_to_lin
@@ -435,7 +454,12 @@ class Window():
         tab_size = self.buff.set_tabsize
         default = f"~{' ':{max_col- 1}}"
         true_cursor = 0
-        visual = self.buff.selected_lin_col
+
+        if self.buff.selected_lin_col:
+            (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
+            visual_flag = True
+        else:
+            visual_flag = False
         
         cursor_lin, cursor_col, raw_line_list \
                 = self.buff.get_raw_screen(min_lin, max_lin)
@@ -448,15 +472,17 @@ class Window():
             if on_lin == cursor_lin and true_cursor == 0:
                 true_cursor = len(line_list)
        
-            if visual and (visual := on_lin in self.buff.selected_lines):
+            try:
                 (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
-                if on_lin != start_lin:
-                    start_col = 1
-                if on_lin != stop_lin:
-                    stop_col = -1
-                visual = (start_col, stop_col)
+                if start_lin > on_lin or on_lin > stop_lin:
+                    raise TypeError
+                start_col = start_col if start_lin == on_lin else -1 
+                line_len = len(self.buff.splited_lines[on_lin])
+                stop_col = stop_col if stop_lin == on_lin else line_len
+            except TypeError:
+                start_col = stop_col = 0
 
-            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, visual)
+            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_col, stop_col))
             if wrap:
                 line_list.extend(to_print)
             else:
@@ -543,10 +569,8 @@ class Screen(Window):
         except RuntimeError:
             rv = [''] * self._number_of_lin
             ok_flag = False
-        except BaseException as exc:
-            rv = [str(exc), '', '']
-            ok_flag = False
-        rv.extend(self.minibar_banner)
+
+        rv.extend(minibar)
         return rv, ok_flag
 
     def minibar(self, *lines):
@@ -614,7 +638,7 @@ class Screen(Window):
             left = left[:middle - 5] + '....'
         else:
             left = left.ljust(middle, ' ')
-        left = '\x1b[7m\x1b[1m' + left + '\x1b[0m'
+        left =  '\x1b[7m' + left + '\x1b[27m'
         return f"{left}{right}"
 
     def hide_cursor(self):
@@ -667,6 +691,36 @@ class Screen(Window):
     def clear_screen(self):
         stdout.write('\x1b[2J')
         
-def _tests():
-    test_str = '01234567890\x1b[1m234567890'
+if __name__ == '__main__':
+
+    tab_size = 4
+    max_col = 16
+    text = '0123\x1b[31;45m4567\x1b[31;42;2m89ABCDEF'
+    on_lin = 1
+    num_len = 1
     
+
+    cursor_lin = 1
+    cursor_col = 2
+    visual = (0,0)
+    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
+    print('cursor on 2, no visual')
+
+    cursor_lin = 1
+    cursor_col = 8
+    visual = (0,0)
+    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
+    print('cursor on 8, no visual')
+
+
+    cursor_lin = 1
+    cursor_col = 8
+    visual = (6,8)
+    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
+    print('cursor on 8, visual on (6, 8)')
+
+    cursor_lin = 1
+    cursor_col = 8
+    visual = (6,11)
+    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
+    print('cursor on 8, visual on (6, 11)')

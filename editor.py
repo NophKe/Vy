@@ -379,7 +379,7 @@ class _Editor:
                     self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
                     pass
                 else:
-                    sleep(0.1)
+                    sleep(0.04)
                     self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
                     f'Failed: {missed} time(s), '
                     f'waiting keystrokes: {self._input_queue.qsize()}')
@@ -420,8 +420,8 @@ class _Editor:
                 if key_press:
                     self._input_queue.put(key_press)
             else:
-                del reader
                 break
+        del reader
 
     def start_async_io(self):
         assert not self._async_io_flag

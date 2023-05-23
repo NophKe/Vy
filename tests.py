@@ -48,10 +48,8 @@ def bench_textfile():
         while True:
             try:
                 file.get_raw_screen(10_000, 11_000)
-                #file.get_raw_screen(30_000, 31_000)
-                #file.get_raw_screen(33_500, 34_000)
             except RuntimeError:
-                sleep(0.01)
+                sleep(0.04)
                 continue
             break
     print(f'bench_textfile:\t\t took {round(time() - start, 3)} seconds.')

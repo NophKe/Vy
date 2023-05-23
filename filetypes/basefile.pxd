@@ -1,6 +1,22 @@
 from .utils cimport RLock
 from cython import locals
 
+from threading import Event, Lock
+from queue import Queue
+
+cdef class Cancel:
+    cdef:
+        object lock
+        object must_start
+        object must_stop
+        object all_in_line
+        int parties
+    
+    cdef void notify_stopped(self)
+    cdef void notify_working(self)
+    cdef void allow_work(self)
+    cdef void cancel_work(self)
+
 cdef class DummyLine:
     cdef:
         int _cursor
@@ -17,8 +33,9 @@ cdef class BaseFile:
     cdef:
         bint _undo_flag
         public tuple set_comment_string
-        public list update_callbacks
-        public list pre_update_callbacks
+        #public list update_callbacks
+        #public list pre_update_callbacks
+        Cancel cancel
         public str _string
         int _cursor
 

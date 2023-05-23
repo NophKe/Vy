@@ -103,6 +103,44 @@ class TextLine(DummyLine):
 ########    End of TextLine         ##################################
 
 
+from threading import Thread, Event, Barrier, Lock
+from queue import Queue
+
+class Cancel:
+    def __init__(self):
+        self.lock = Lock()
+        self.must_start = Event()
+        self.must_stop = Event()
+        self.all_in_line = Queue()
+        self.must_start.set()
+        self.parties = 0 
+    
+    def notify_stopped(self):
+        self.must_stop.wait()
+        self.all_in_line.put(None)
+        self.must_start.wait()
+
+    def notify_working(self):
+        with self.lock:
+            self.parties += 1
+    
+    def cancel_work(self):
+        self.lock.acquire()
+        self.must_start.clear()
+        self.must_stop.set()
+        for _ in range(self.parties):
+            self.all_in_line.get()
+            self.all_in_line.task_done()
+        self.parties = 0
+
+    def allow_work(self):
+        self.must_stop.clear()
+        self.lock.release()
+        self.must_start.set()
+            
+    def __bool__(self):
+        return self.must_stop._flag
+            
 class BaseFile:
     r"""
     BaseFile is... ( well... ) the basis for what is usually called a
@@ -177,6 +215,60 @@ class BaseFile:
     actions = {}
     ending = '\n'   
     
+    def __init__(self,
+                set_number=True, 
+                set_wrap=False, 
+                set_tabsize=4, 
+                set_expandtabs=False, 
+                set_autoindent=False, 
+                cursor=0, 
+                set_comment_string=('',''),
+                init_text='', 
+                path=None):
+        self._selected = None
+        self._repr = '' #TODO delete me ?
+        self._undo_flag = True
+        self.path = path
+        self.set_comment_string = set_comment_string
+        self.set_wrap = set_wrap
+        self.set_number = set_number
+        self.set_tabsize = set_tabsize
+        self.set_expandtabs = set_expandtabs
+        self.set_autoindent = set_autoindent
+        self._init_text = init_text
+        self._number_of_lin = 0
+        self._cursor = 0
+        self._cursor_lin_col = ()
+        self._string = ''
+        self._lenght = 0
+        self._current_line = ''
+        self._lines_offsets = list()
+        self._splited_lines = list()
+        self.cancel = Cancel()
+        self._lock = RLock()
+        self._recursion = 0
+        self.redo_list = list()
+        self.undo_list = list()
+        self._undo_len = 0
+
+        self.string = init_text
+        self.cursor = cursor
+    
+    def __enter__(self):
+        if self._recursion == 0:
+            self.cancel.cancel_work()
+            self._lock.acquire()
+        self._recursion +=  1
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        assert self._recursion > 0
+        self._recursion -=  1
+        if self._recursion == 0:
+            self._lock.release()
+            self.cancel.allow_work()
+        return False
+
     @property
     def string(self):
         """
@@ -425,66 +517,6 @@ class BaseFile:
             return range(min(actual_lin, other_lin), max(actual_lin, other_lin)+1)
         return range(0)
 
-    def __init__(self,
-                set_number=True, 
-                set_wrap=False, 
-                set_tabsize=4, 
-                set_expandtabs=False, 
-                set_autoindent=False, 
-                cursor=0, 
-                set_comment_string=('',''),
-                init_text='', 
-                path=None):
-        self._selected = None
-        self._repr = '' #TODO delete me ?
-        self._undo_flag = True
-        self.path = path
-        self.set_comment_string = set_comment_string
-        self.set_wrap = set_wrap
-        self.set_number = set_number
-        self.set_tabsize = set_tabsize
-        self.set_expandtabs = set_expandtabs
-        self.set_autoindent = set_autoindent
-        self._init_text = init_text
-        self._number_of_lin = 0
-        self._cursor = 0
-        self._cursor_lin_col = ()
-        self._string = ''
-        self._lenght = 0
-        self._current_line = ''
-        self._lines_offsets = list()
-        self._splited_lines = list()
-        self._lock = RLock()
-        self._recursion = 0
-        self.update_callbacks = list()
-        self.pre_update_callbacks = list()
-        self.redo_list = list()
-        self.undo_list = list()
-        self._undo_len = 0
-
-        self.string = init_text
-        self.cursor = cursor
-        self.pre_update_callbacks.append(self.set_undo_point)
-
-    
-    def __enter__(self):
-        if self._recursion == 0:
-            for func in self.pre_update_callbacks:
-                func()
-            self._lock.acquire()
-        self._recursion +=  1
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        assert self._recursion > 0
-        self._recursion -=  1
-        if self._recursion == 0:
-            for func in self.update_callbacks:
-                func()
-            self._lock.release()
-            #self.compress_undo_list()
-        return False
-
     def __len__(self):
         with self._lock:
             return self._lenght
@@ -608,19 +640,17 @@ class BaseFile:
         
     def set_undo_point(self):
         if self._undo_flag:
-            try:
-                last_hash = self.undo_list[-1][2]
-            except IndexError:
-                different = True
-                new_hash = hash(self.string) 
-            else:
-                new_hash = hash(self.string) 
-                different = new_hash != last_hash
-            # on pupose dont't take the lock, this way when called from
-            # self.__enter__() it will take the lock twice before grabbing
-            # it definitly, leaving time for other threads to notice the change
-            if different:
-                self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, new_hash))
+            with self._lock:
+                try:
+                    last_hash = self.undo_list[-1][2]
+                except IndexError:
+                    different = True
+                    new_hash = hash(self.string) 
+                else:
+                    new_hash = hash(self.string) 
+                    different = new_hash != last_hash
+                if different:
+                    self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, new_hash))
 
     def undo(self):
         with self:

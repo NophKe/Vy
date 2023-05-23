@@ -20,6 +20,7 @@ def init(editor):
         
         lines.append(f'Selected offsets : {editor.current_buffer.selected_offsets}')
         lines.append(f'Selected lines   : {editor.current_buffer.selected_lines}')
+        lines.append(f'Selected lin_col : {editor.current_buffer.selected_lin_col}')
         
         editor.screen.minibar(*lines)
         return editor.read_stdin()

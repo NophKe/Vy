@@ -158,7 +158,7 @@ def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):
             elif cur_lin.startswith('\t'):
                 cur_buf.current_line = cur_lin.removeprefix('\t')
             elif cur_lin.startswith(' '):
-                cur_buf.current_line = cur_lin.lstrip()
+                cur_buf.current_line = cur_lin.lstrip() or '\n'
             if idx != max_line - 1:
                 cur_buf.move_cursor('j')
         cur_buf.move_cursor('_')

@@ -13,12 +13,13 @@ cdef dict codes
 #@final
 cdef class TextFile(BaseFile):
     cdef:
-        object _lex_away_may_run 
+        #object _lex_away_may_run 
         object _last_comp
-        object _lex_away_should_stop 
+        #object _lex_away_should_stop 
         tuple _completer
         public list _lexed_lines
         object _lexer_proc 
+        object _undo_proc 
         public object lexer
         public dict _lexed_cache
     cpdef void _lex_away(self)
