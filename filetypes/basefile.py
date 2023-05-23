@@ -1,4 +1,4 @@
-from .utils import RLock
+from threading import RLock
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
