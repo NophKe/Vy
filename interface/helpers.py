@@ -1,7 +1,7 @@
 from pathlib import Path
 from vy.keys import _escape
 from vy.global_config import USER_DIR
-from vy.filetypes.basefile import DummyLine
+from vy.utils import DummyLine
 from vy import keys as k
 
 class Completer:
@@ -12,7 +12,7 @@ class Completer:
         self.histfile = histfile
         self.history = [ item for item in histfile.read_text().splitlines() ]
         self.state = ''
-        self.prompt = f'\x1b[39;1m{prompt}\x1b[39m'
+        self.prompt = f'\x1b[39;1m{prompt}\x1b[39;22m'
         self.editor = editor
         self.reader = editor.read_stdin
         self.screen = editor.screen

@@ -54,7 +54,35 @@ def bench_textfile():
             break
     print(f'bench_textfile:\t\t took {round(time() - start, 3)} seconds.')
 
-# This class should one day replace the command class
+def bench_expandtabs():
+    from vy.screen import expandtabs_numbered
+    tab_size = 4
+    max_col = 16
+    text = '0123\x1b[31;45m4567\x1b[31;42;2m89ABCDEF' * 50
+    on_lin = 1
+    num_len = 1
+    
+    start = time()
+    for _ in range(100):
+        cursor_lin = 1
+        cursor_col = 2
+        visual = (0,0)
+        expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)
+        cursor_lin = 1
+        cursor_col = 8
+        visual = (0,0)
+        expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)
+        cursor_lin = 1
+        cursor_col = 8
+        visual = (6,8)
+        expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)
+        cursor_lin = 1
+        cursor_col = 8
+        visual = (6,11)
+        expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)    
+    print(f'bench_expandtabs:\t\t took {round(time() - start, 3)} seconds.')
+
+    # This class should one day replace the command class
 class CMD:
     def __new__(cls, *args, **kwargs):
         cls.seen = set()

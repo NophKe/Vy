@@ -6,8 +6,6 @@ from sys import stdout
 
 from vy.global_config import DEBUG
 
-reset_style = '\x1b[27;39;22m'
-
 def expand_quick(max_col, text):
     line = ''
     line = '\x1b[39;22m'
@@ -129,7 +127,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 #
 #@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
-    raise Errror
+#    raise Errror
     #assert '/n' not in text
     retval: list = list()
     line: str = '\x1b[49m'
@@ -652,7 +650,7 @@ class Screen(Window):
         stdout.flush()
 
     def clear(self):
-        stdout.write('\x1b\[2J\x1b[09b3J')
+        stdout.write('\x1b[2J\x1b[09b3J')
 
     def save_cursor(self):
         stdout.write('\x1b\u009bs')
@@ -691,36 +689,3 @@ class Screen(Window):
     def clear_screen(self):
         stdout.write('\x1b[2J')
         
-if __name__ == '__main__':
-
-    tab_size = 4
-    max_col = 16
-    text = '0123\x1b[31;45m4567\x1b[31;42;2m89ABCDEF'
-    on_lin = 1
-    num_len = 1
-    
-
-    cursor_lin = 1
-    cursor_col = 2
-    visual = (0,0)
-    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
-    print('cursor on 2, no visual')
-
-    cursor_lin = 1
-    cursor_col = 8
-    visual = (0,0)
-    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
-    print('cursor on 8, no visual')
-
-
-    cursor_lin = 1
-    cursor_col = 8
-    visual = (6,8)
-    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
-    print('cursor on 8, visual on (6, 8)')
-
-    cursor_lin = 1
-    cursor_col = 8
-    visual = (6,11)
-    print( ''.join(expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)))
-    print('cursor on 8, visual on (6, 11)')

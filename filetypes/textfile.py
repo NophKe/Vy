@@ -3,7 +3,6 @@ from time import sleep
 
 from vy.filetypes.basefile import BaseFile
 from vy.filetypes.completer import Completer
-from vy.filetypes.lexer import guess_lexer, get_prefix
 
 class TextFile(BaseFile):
     """
@@ -17,11 +16,10 @@ class TextFile(BaseFile):
         BaseFile.__init__(self, *args, **kwargs)
         self._lexed_cache = {}
         self._lexed_lines = list()
-        self.lexer = guess_lexer(self.path, self._string)
-        self._undo_proc = Thread(target=self._undo_away, args=(), daemon=True)
+#        self._undo_proc = Thread(target=self._undo_away, args=(), daemon=True)
         self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
         self._lexer_proc.start()
-        self._undo_proc.start()
+#        self._undo_proc.start()
         self._completer = None, None
 
     @property
@@ -49,29 +47,32 @@ class TextFile(BaseFile):
             else:
                 return [], 0
 
-    def _undo_away(self):
-        while True:
-            sleep(5)
-            self.cancel.notify_working()
-            self.set_undo_point()
-            self.cancel.notify_stopped()
-
+#    def _undo_away(self):
+#        while True:
+#            self.cancel.notify_working()
+#            self.set_undo_point()
+#            self.cancel.notify_stopped()
+#            sleep(5)
+#
     def _lex_away(self):
+        from vy.filetypes.lexer import guess_lexer, get_prefix
+        lexer = guess_lexer(self.path, self._string)
         local_dict = self._lexed_cache
         local_lexed = self._lexed_lines
+        cancel_handler = self._async_tasks
 
         while True:
-            self.cancel.notify_working()
+            cancel_handler.notify_working()
             local_split = iter(self.splited_lines).__next__
             self.cursor_lin_col
             self.number_of_lin
-            if self.cancel:
-                self.cancel.notify_stopped()
+            if cancel_handler:
+                cancel_handler.notify_stopped()
                 continue
 
             line = ''
-            for _, tok, val in self.lexer(self.string):
-                if self.cancel: 
+            for _, tok, val in lexer(self.string):
+                if cancel_handler: 
                     break
                 tok = get_prefix(tok)
                 if '\n' in val:
@@ -90,7 +91,7 @@ class TextFile(BaseFile):
                     local_dict[local_split()] = line
                     local_lexed.append(line)
 
-            self.cancel.notify_stopped()
+            cancel_handler.notify_stopped()
             self._lexed_lines.clear()
 
     def get_raw_screen(self, min_lin, max_lin):
@@ -104,35 +105,33 @@ class TextFile(BaseFile):
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
-            raise RuntimeError # buffer in inconsistant state
+            raise RuntimeError # (is None) buffer in inconsistant state
 
         if self._splited_lines:
             local_split = self._splited_lines
         else:
-            raise RuntimeError # buffer in inconsistant state
+            raise RuntimeError # (is empty) buffer in inconsistant state
 
         try:
             for on_lin in range(min_lin, max_lin):
                 try:
                     cur_lex = self._lexed_lines[on_lin] # Best case scenario
                 except IndexError: 
-                    # If on_lin is a valid line number, use the un-lexed line
-                    # but if the line got lexed by a previous lexer pass, use the cached
-                    # lexed version. Otherwise, just remove the newline character
                     cur_lin = local_split[on_lin]
+                    # If on_lin is a valid line number, use the un-lexed line
                     cur_lex = self._lexed_cache.get(cur_lin, cur_lin.replace('\n',' '))
+                    # if the line got lexed by a previous lexer pass, use the cached
+                    # lexed version. Otherwise, just remove the newline character
                 raw_line_list.append(cur_lex)
-        except IndexError:
-            # check if number_of_lin is valid first otherwise give up.
-            # if we are sure on_lin  matches a valid index, this means we passed 
+        
+        except IndexError: #local_split[on_lin] raised IndexError
+            if not self._number_of_lin:
+                raise RuntimeError # buffer in inconsistent state
+            
+            if self._number_of_lin <= on_lin:
+            # on_lin  matches a valid index, this means we passed 
             # the final line of the buffer and should yield the empty line (~) 
-            # If on_lin is a valid index, but raises anyway, then this means the
-            # lexer has not yet reached that line or self._lexed_lines or 
-            # self._splited_lines got .clear()ed by an other thread
-            if self._number_of_lin and self._number_of_lin <= on_lin:
                 for _ in range(on_lin, max_lin):
                     raw_line_list.append(None)
-            else:
-                raise RuntimeError 
 
         return cursor_lin, cursor_col, raw_line_list

@@ -10,11 +10,11 @@ from re import split, sub
 #import tokenize
 #import token as py_tokens
 
-cdef object guess_lexer_base(str path_str, str code_str)
-cpdef object guess_pygments_lexer(str path_str, str code_str)
+cdef object guess_lexer_base(str path_str, str code_str) noexcept
+#cpdef object guess_pygments_lexer(str path_str, str code_str)
 cdef dict colorscheme
 
-cpdef guess_lexer(object path, str string)
+cpdef guess_lexer(object path, str string) noexcept
 cdef dict codes
-cpdef str get_prefix(object token)
-cdef str _resolve_prefix(str color_string)
+cpdef str get_prefix(object token) noexcept
+cdef str _resolve_prefix(str color_string) noexcept

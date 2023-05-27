@@ -285,13 +285,15 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
             offset = curbuf.string.find(needle, current_offset + 1)
 
         if offset == -1:
-            editor.screen.minibar('String not found, retrying from first line.')
+            editor.screen.minibar(f'String: «{needle}» not found, retrying from first line.')
             offset = curbuf.string.find(needle)
     
         if offset == -1:
-            editor.screen.minibar('String not found!')
+            editor.screen.minibar(f'String: «{needle}» not found!')
         else:
             curbuf.cursor = offset
+    editor.actions.normal['zz'](editor)
+        
     
 @_motion_commands("N")
 def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
@@ -302,6 +304,7 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     from vy.keys import C_M
     editor.push_macro(C_M)
     loop(editor)
+    editor.actions.normal['zz'](editor)
 
 @_motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):

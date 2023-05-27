@@ -159,7 +159,7 @@ from vy.actions.linewise import __doc__ as doc_linewise
 from vy.actions.linewise import *
 
 @atomic_commands(f'{k.C_L} :redraw :redraw!')
-def restart_screen(editor, *args):
+def restart_screen(editor, *args, **kwargs):
     editor.stop_async_io()
     editor.start_async_io()
 
@@ -228,19 +228,31 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
         except ValueError:
             editor.screen.minibar(f'Wrong count argument: {arg}')
             return
-    with editor.current_buffer as curbuf:
-        for _ in range(count):
-            curbuf.undo()
-
+    try:
+        with editor.current_buffer as curbuf:
+            for _ in range(count):
+                curbuf.undo()
+    except IndexError:
+        editor.screen.minibar(' ( older record ) ')
+        
 @sa_commands(f'{k.C_R} :red :redo')
 def redo(editor, reg=None, part=None, arg=None, count=1):
     """
     Redo last undone action in the current buffer.
     """
-    with editor.current_buffer as curbuf:
-        for _ in range(count):
-            curbuf.redo()
-
+    if arg:
+        try:
+            count = int(arg)
+        except ValueError:
+            editor.screen.minibar(f'Wrong count argument: {arg}')
+            return
+    try:
+        with editor.current_buffer as curbuf:
+            for _ in range(count):
+                curbuf.redo()
+    except IndexError:
+        editor.screen.minibar(' ( most recent record ) ')
+    
 @atomic_commands(':pwd :pw :pwd-verbose')
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
@@ -734,4 +746,27 @@ def print_some(editor, reg=None, part=None, arg=None, count=1):
         to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
     editor.warning(to_print)
 
+@sa_commands('q')
+def record_macro(editor, reg=None, part=None, arg=None, count=1):
+    if not editor.record_macro:
+        editor.screen.minibar('choose a letter for this new macro')
+        editor.record_macro = editor.read_stdin()
+        editor.screen.minibar(f'recording macro: «{editor.record_macro}»')
+    else:
+        editor.screen.minibar(f'end recording: «{editor.record_macro}»')
+        editor.macros[editor.record_macro].pop() # delete final 'q'
+        editor.record_macro = ''
+
+@sa_commands('@')
+def execute_macro(editor, reg=None, part=None, arg=None, count=1):
+    macro_name = editor.read_stdin()
+    try:
+        macro = editor.macros[macro_name]
+    except KeyError:
+        editor.screen.minibar(f' ( not a valid macro ) ')
+    else:
+        editor.screen.minibar(f'executing: «{editor.record_macro}»')
+        editor._macro_keys = macro.copy()
+
 del sa_commands, atomic_commands, k
+

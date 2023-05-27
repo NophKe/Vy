@@ -1,216 +1,78 @@
+r"""
+BaseFile is... ( well... ) the basis for what is usually called a
+«buffer» in the in the Vi-like editors jargon.
+
+It mixes the classical expected features of a mutable string with some 
+traditionnal concepts of vim buffers, like motions.
+
+>>> file = BaseFile(init_text='Hello World\n 42\n', cursor=0)
+
+>>> file.move_cursor('w')           # moves to next word ( regex \b )
+>>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
+
+All of its public methods are atomic (using an internal threading.RLock 
+object). If you need to modify the buffer, you can acquire its internal 
+lock by using it as a context manager.
+
+>>> with file:
+...     assert file.number_of_lin == len(file.splited_lines) \
+...     == len(file.lines_offsets)
+
+To modify the content of the buffer: use one of its three setters 
+properties. (string,  current_line and cursor). Any modifications of one
+of those properties will immediatly invalidate any other property that 
+depend on it. 
+Properties being lazily evaluated, a few «fast paths» are provided
+to speed up common operations upon the internal data structure.
+Do not rely on them!  Being lazily computed, a lot of the
+properties assert themselves  towards each other.  Some
+assertions are clearly redundant but will be maintained for
+correctness.  Moreover speed on that matter may strongly depend
+on you python implementation.
+
+>>> file.insert_newline()
+>>> file.insert('\n')
+
+By definition, one line should allways end by a newline.  Also one
+empty line is represented by EMPTY STRING + NEWLINE.  The newline
+character has no special treatment anywhere in the file, you can
+delete them and insert new ones any time, but the last newline
+character that ends the buffer cannot be deleted.
+
+>>> file.backspace()
+>>> file.suppr()
+>>> file.suppr()
+
+A Buffer may also be used as a replacement for a file object.
+
+>>> file.write('中国')
+2
+>>> file.seek(0)
+>>> file.write('over_write')
+10
+>>> file.seek(0)
+>>> file.read()
+
+One may also consider a buffer as a mutable sequence suitable as a
+remplacement of the immutable string.
+
+>>> file[0:10]
+'over_write'
+>>> file[0:8] = '@ too big to fit in there' # note that @ disapeared
+>>> file[0] = 'never';  file[:29]
+'never too big to fit in there'
+
+NOTE: the word «offset» will be used to speak about characters and their
+     positions, whereas «index» will be used for line numbers.
+"""
+
+from vy.utils import _HistoryList, DummyLine, Cancel
 from threading import RLock
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
-
-class DummyLine:
-    r"""
-    This class provides a simple interface around a line oriented
-    buffer. It is meant to be used for simple use-case like implementing
-    custom input/scanf function. No optimization, nor locking is made around
-    the data.
-     
-    >>> x = DummyLine()
-    >>> x.insert('FOO')
-    >>> x.cursor = 0
-    >>> x.insert('\n12345')
-    >>> x.backspace()
-    >>> x.suppr()
-    >>> x.string
-    '1234FOO'
-    """
-
-    ending = ''
-
-    ### TODO: implement other common operations
-    ###
-    ### - erase word backward
-    ### - move cursor to beginning / end of line
-
-    def __init__(self, init_text='', cursor=0):
-        assert isinstance(init_text, str)
-        assert len(init_text) >= cursor >= 0
-        self.string = init_text
-        self.cursor = cursor
-
-    @property
-    def cursor(self):
-        """
-        The cursor is a property that returns the position of 
-        the cursor as an opaque integer value.
-        """
-        return self._cursor
-
-    @property
-    def string(self):
-        """
-        string is a property returning the internal buffer value.
-        """
-        return self._string
-
-    def suppr(self):
-        """
-        Like the key strike, deletes the character under the cursor.
-        """
-        string = self.string
-        cur = self.cursor
-        self.string = string[:cur] + string[cur + 1:]
-
-    def backspace(self):
-        """
-        Like the key strike, deletes the left character at the cursor.
-        """
-        if self.cursor > 0:
-            self.cursor -= 1
-            self.suppr() 
-
-    def insert(self, text):
-        """
-        Inserts text at the cursor position.
-        Cursor will move to end of inserted text.
-        """
-        string = self.string
-        cur = self.cursor
-        self.string = f'{string[:cur]}{text}{string[cur:]}'
-        self.cursor += len(text)
-    
-    @string.setter
-    def string(self, value):
-        # to make assert statements happy, 
-        # allways update STRING _before_ CURSOR
-        assert value.endswith(self.ending)
-        self._string = value
-
-    @cursor.setter
-    def cursor(self, value):
-        assert len(self) >= value >= 0
-        self._cursor = value
-
-    def __len__(self):
-        return len(self._string) - len(self.ending)
-
-
-########    END OF DummyLine        ########################################
-
-
-class TextLine(DummyLine):
-    """
-    TODO -- This class should soon be the return value
-           of the different BaseFile properties.
-    """
-    ending = '\n'
-
-
 ########    End of TextLine         ##################################
 
-
-from threading import Thread, Event, Barrier, Lock
-from queue import Queue
-
-class Cancel:
-    def __init__(self):
-        self.lock = Lock()
-        self.must_start = Event()
-        self.must_stop = Event()
-        self.all_in_line = Queue()
-        self.must_start.set()
-        self.parties = 0 
-    
-    def notify_stopped(self):
-        self.must_stop.wait()
-        self.all_in_line.put(None)
-        self.must_start.wait()
-
-    def notify_working(self):
-        with self.lock:
-            self.parties += 1
-    
-    def cancel_work(self):
-        self.lock.acquire()
-        self.must_start.clear()
-        self.must_stop.set()
-        for _ in range(self.parties):
-            self.all_in_line.get()
-            self.all_in_line.task_done()
-        self.parties = 0
-
-    def allow_work(self):
-        self.must_stop.clear()
-        self.lock.release()
-        self.must_start.set()
-            
-    def __bool__(self):
-        return self.must_stop._flag
-            
 class BaseFile:
-    r"""
-    BaseFile is... ( well... ) the basis for what is usually called a
-    «buffer» in the in the Vi-like editors jargon.
-
-    It mixes the classical expected features of a mutable string with some 
-    traditionnal concepts of vim buffers, like motions.
-    
-    >>> file = BaseFile(init_text='Hello World\n 42\n', cursor=0)
-
-    >>> file.move_cursor('w')           # moves to next word ( regex \b )
-    >>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
-
-    All of its public methods are atomic (using an internal threading.RLock 
-    object). If you need to modify the buffer, you can acquire its internal 
-    lock by using it as a context manager.
-    
-    >>> with file:
-    ...     assert file.number_of_lin == len(file.splited_lines) \
-    ...     == len(file.lines_offsets)
-
-    To modify the content of the buffer: use one of its three setters 
-    properties. (string,  current_line and cursor). Any modifications of one
-    of those properties will immediatly invalidate any other property that 
-    depend on it. 
-    Properties being lazily evaluated, a few «fast paths» are provided
-    to speed up common operations upon the internal data structure.
-    Do not rely on them!  Being lazily computed, a lot of the
-    properties assert themselves  towards each other.  Some
-    assertions are clearly redundant but will be maintained for
-    correctness.  Moreover speed on that matter may strongly depend
-    on you python implementation.
-    
-    >>> file.insert_newline()
-    >>> file.insert('\n')
-
-    By definition, one line should allways end by a newline.  Also one
-    empty line is represented by EMPTY STRING + NEWLINE.  The newline
-    character has no special treatment anywhere in the file, you can
-    delete them and insert new ones any time, but the last newline
-    character that ends the buffer cannot be deleted.
-    
-    >>> file.backspace()
-    >>> file.suppr()
-    >>> file.suppr()
-
-    A Buffer may also be used as a replacement for a file object.
-
-    >>> file.write('中国')
-    2
-    >>> file.seek(0)
-    >>> file.write('over_write')
-    10
-    >>> file.seek(0)
-    >>> file.read()
-    'over_writeE中国f-file?\n' # bug is in tests. see source. around line 150
-
-    One may also consider a buffer as a mutable sequence suitable as a
-    remplacement of the immutable string.
-
-    >>> file[0:10]
-    'over_write'
-    >>> file[0:8] = '@ too big to fit in there' # note that @ disapeared
-    >>> file[0] = 'never';  file[:29]
-    'never too big to fit in there'
-
-    NOTE: the word «offset» will be used to speak about characters and their
-         positions, whereas «index» will be used for line numbers.
-    """
-
     modifiable = True
     actions = {}
     ending = '\n'   
@@ -244,29 +106,28 @@ class BaseFile:
         self._current_line = ''
         self._lines_offsets = list()
         self._splited_lines = list()
-        self.cancel = Cancel()
+        self._async_tasks = Cancel()
         self._lock = RLock()
         self._recursion = 0
-        self.redo_list = list()
-        self.undo_list = list()
-        self._undo_len = 0
+        self.undo_list = _HistoryList()
 
         self.string = init_text
         self.cursor = cursor
     
     def __enter__(self):
-        if self._recursion == 0:
-            self.cancel.cancel_work()
-            self._lock.acquire()
         self._recursion +=  1
+        if self._recursion == 1:
+            self._async_tasks.cancel_work()
+            self._lock.acquire()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        assert self._recursion > 0
         self._recursion -=  1
         if self._recursion == 0:
+            self.set_undo_point()
             self._lock.release()
-            self.cancel.allow_work()
+            self._async_tasks.allow_work()
+            #breakpoint()
         return False
 
     @property
@@ -385,9 +246,7 @@ class BaseFile:
         with self._lock:
             if not self._number_of_lin:
                 if self._splited_lines:
-                    self._number_of_lin = len(self._splited_lines)
-                else:
-                    self._number_of_lin = self._string.count('\n')
+                    self._number_of_lin = len(self.splited_lines)
             return self._number_of_lin
 
     def suppr(self):
@@ -522,8 +381,9 @@ class BaseFile:
             return self._lenght
     
     def set_undo_record(self, bool_flag):
-        self._undo_flag = bool_flag
-        self.set_undo_point()
+        pass
+#        self._undo_flag = bool_flag
+#        self.set_undo_point()
 
     def join_line_with_next(self):
         with self:
@@ -609,7 +469,7 @@ class BaseFile:
 
     @cursor.setter
     def cursor(self, value):
-        assert 0 <= value <= self._lenght
+        assert 0 <= value < self._lenght
         with self._lock:
             self._current_line = ''
             self._cursor_lin_col = ()
@@ -639,40 +499,34 @@ class BaseFile:
         #self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
         
     def set_undo_point(self):
-        if self._undo_flag:
-            with self._lock:
-                try:
-                    last_hash = self.undo_list[-1][2]
-                except IndexError:
-                    different = True
-                    new_hash = hash(self.string) 
-                else:
-                    new_hash = hash(self.string) 
-                    different = new_hash != last_hash
-                if different:
-                    self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, new_hash))
+        #breakpoint()
+        with self._lock:
+            #try:
+                #_, _, last_hash = self.undo_list.last_record()
+            #except IndexError:
+                #different = True
+                #new_hash = hash(self.string) 
+            #else:
+                #new_hash = hash(self.string) 
+                #different = new_hash != last_hash
+            #
+            #if different or self.undo_list.skip:
+                self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, hash(self.string)))
 
     def undo(self):
         with self:
-            try:
-                self.redo_list.append(self.undo_list.pop())
-                txt, pos, _ = self.undo_list.pop()
-                self.string = ''.join(txt)
-                self._splited_lines = txt
-                self.cursor_lin_col = pos
-            except IndexError:
-                pass
+            self.undo_list.skip_next()          # first
+            txt, pos, _ = self.undo_list.pop()  # second
+            self.string = ''.join(txt)
+            self.cursor_lin_col = pos
+            
     def redo(self):
         with self:
-            if not self.redo_list:
-                self.undo_list.pop()
-                return
-            txt, pos, _ = self.redo_list.pop()
-            self.undo_list.append((txt, pos))
+            self.undo_list.skip_next()          # must skip even if push or pop
+            txt, pos, _ = self.undo_list.push() # raises
             self.string = ''.join(txt)
-            self._splited_lines = txt
             self.cursor_lin_col = pos
-
+        
 ########    mots of what follow need to be rewritten using lock and new capacities
 ########    of BaseFile  and stop using string directly 
 
@@ -832,11 +686,12 @@ class BaseFile:
     def find_next_non_delim(self):
         global DELIMS
         cursor = self.cursor
-        while self.string[cursor] in DELIMS:
-            if cursor == len(self):
-                return cursor
-            cursor +=1
-        return cursor
+        try:
+            while self.string[cursor] in DELIMS:
+                cursor +=1
+            return cursor
+        except IndexError:
+            return len(self)
 
     def find_next_delim(self):
         global DELIMS
@@ -845,15 +700,14 @@ class BaseFile:
         if self.string[cursor] in DELIMS:
             return self.find_next_non_delim()
 
-        while self.string[cursor] not in DELIMS:
-            if cursor == len(self):
-                return cursor
-            cursor +=1
-        while self.string[cursor].isspace():
-            if cursor == len(self):
-                return cursor
-            cursor +=1
-        return cursor
+        try:
+            while self.string[cursor] not in DELIMS:
+                cursor +=1
+            while self.string[cursor].isspace():
+                cursor +=1
+            return cursor
+        except IndexError:
+            return len(self)
 
     def find_previous_delim(self):
         global DELIMS

@@ -25,43 +25,7 @@ from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import getch_noblock
 from vy.global_config import DEBUG
-
-class _HistoryList:
-    def __init__(self):
-        self.data = list()
-        self.pointer = 0
-        self.skip = False
-    
-    def append(self, value):
-        if self.skip:
-            self.skip = False
-        else:
-            self.data.insert(self.pointer, value)
-            self.pointer += 1
-    
-    def pop(self):
-        if self.pointer > 0:
-            self.pointer -= 1
-            return self.data[self.pointer]
-        raise IndexError
-    
-    def push(self):
-        if self.pointer == len(self.data):
-            raise IndexError
-        self.pointer += 1
-        return self.data[self.pointer-1]
-    
-    def skip_next(self):
-        self.skip = True        
-        
-    def last_record(self):
-        if self.pointer > 0:
-            return self.data[self.pointer-1]
-        raise IndexError
-
-    def __str__(self):
-        return '\n'.join( repr(value) + ' <-- pointer' if idx == self.pointer 
-                          else repr(value) for idx, value in enumerate(self.data) )
+from vy.utils import _HistoryList
 
 class _Cache:
     """
@@ -274,6 +238,8 @@ class _Editor:
         self.arg_list = [self.cache[buff].path for buff in buffers]
         self.arg_list_pointer = 0
         #self.command_list = list()
+        self.macros = {}
+        self.record_macro = ''
         self.current_mode = ''
         self._input_queue = Queue()
         
@@ -293,6 +259,11 @@ class _Editor:
         if self._macro_keys:
             return self._macro_keys.pop(0)
         key_press = self._input_queue.get(block=True)
+        if self.record_macro:
+            try:
+                self.macros[self.record_macro].append(key_press)
+            except KeyError:
+                self.macros[self.record_macro] = [key_press]
         self._input_queue.task_done()
         return key_press
     

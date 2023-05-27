@@ -1,7 +1,6 @@
 from vy import keys as k
 
 completion_dict = {}
-insert_dict = {}
 
 def add_to_dict(*keys):
     def inner(func):
@@ -56,7 +55,6 @@ def give_up(editor):
 
 def init(editor):
     global insert_dict
-    insert_dict = editor.actions.insert
 
 def loop(editor):
     try:

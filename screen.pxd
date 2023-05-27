@@ -47,7 +47,7 @@ cdef list expandtabs(int tab_size,
         char=str,
         line=str)
 cdef list expand_quick(int max_col,
-                           str text)
+                           str text) noexcept
 
 
 cdef class CompletionBanner:
@@ -62,14 +62,14 @@ cdef class CompletionBanner:
         object make_func
         bint _active
 
-        generate(self)
-        _update(self)
+        generate(self) noexcept
+        _update(self) noexcept
 
-    cpdef set_callbacks(self, object make_func, object check_func)
-    cpdef give_up(self)
+    cpdef set_callbacks(self, object make_func, object check_func) noexcept
+    cpdef give_up(self)  noexcept
 
-    cpdef move_cursor_up(self)
-    cpdef move_cursor_down(self)
+    cpdef move_cursor_up(self) noexcept
+    cpdef move_cursor_down(self) noexcept
     cpdef select_item(self)
 
 cdef class Window:
@@ -108,5 +108,5 @@ cdef class Screen(Window):
 
     @locals(rv=list)
     cpdef tuple get_line_list(self)
-    cpdef void alternative_screen(self)
-    cpdef void original_screen(self)
+    cpdef void alternative_screen(self) noexcept
+    cpdef void original_screen(self) noexcept

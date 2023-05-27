@@ -90,13 +90,6 @@ global_config.DEBUG = cmdline.debug
 ########    DEBUG MODE     ###########################################
 
 import sys
-
-def enter_debugger():
-    from __main__ import Editor
-    Editor.stop_async_io()
-    sys.__breakpointhook__()
-sys.breakpointhook = enter_debugger
-
 #if cmdline.debug:
     #import sys
     #from pprint import pp
@@ -112,6 +105,13 @@ sys.breakpointhook = enter_debugger
 from vy.editor import _Editor as Editor
 
 Editor = Editor(*cmdline.files, command_line=cmdline)
+
+def enter_debugger():
+    from __main__ import Editor
+    Editor.stop_async_io()
+    sys.__breakpointhook__()
+
+sys.breakpointhook = enter_debugger
 
 
 def _tests():

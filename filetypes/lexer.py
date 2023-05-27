@@ -1,4 +1,4 @@
-from vy import global_config
+from vy.global_config import DONT_USE_PYGMENTS_LIB
 #from vy.filetypes.completer import make_word_list
 
 from keyword import iskeyword
@@ -40,7 +40,7 @@ def txt_lexer(string):
         yield 0, '', line
 
 try:
-    if global_config.DONT_USE_PYGMENTS_LIB:
+    if DONT_USE_PYGMENTS_LIB:
         raise ImportError
     from pygments.lexers import guess_lexer_for_filename
     from pygments.util import ClassNotFound
@@ -48,12 +48,6 @@ try:
                                 String, Error, Number, Operator, 
                                 Generic, Token, Whitespace, Text)
 
-    def guess_pygments_lexer(path_str, code_str):
-        try:
-            return guess_lexer_for_filename(path_str, code_str).get_tokens_unprocessed
-        except ClassNotFound:
-            return guess_lexer_base(path_str, code_str)
-            
     colorscheme = {
       '':                 '',
       Token:              '',
@@ -78,14 +72,24 @@ except ImportError:
       'Comment':  '/gray/',
       'Operator': 'green',
     }
-    guess_pygments_lexer = None
+    DONT_USE_PYGMENTS_LIB = True    
 
-def guess_lexer(path, string):
+def guess_lexer(path, code_str):
     path_str = '' if path is None else str(path)
-    if guess_pygments_lexer is not None:
-        return guess_pygments_lexer(path_str, string)
-    else:
-        return guess_lexer_base(path_str, string)
+    if DONT_USE_PYGMENTS_LIB:
+        return guess_lexer_base(path_str, code_str)
+    try:
+        return guess_lexer_for_filename(path_str, code_str).get_tokens_unprocessed
+    except ClassNotFound:
+        pass
+    try:
+        return guess_lexer_for_filename('', code_str).get_tokens_unprocessed
+    except ClassNotFound:
+        pass
+    try:
+        return guess_lexer_for_filename(path_str, '').get_tokens_unprocessed
+    except ClassNotFound:
+        return guess_lexer_base(path_str, code_str)
 
 
 codes = {

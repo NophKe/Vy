@@ -7,7 +7,9 @@ def erase_word_backward(editor, *args, **kwargs):
     Erase one word backward.
     """
     with editor.current_buffer as curbuf:
-        del curbuf[curbuf.find_previous_delim():curbuf.cursor]       
+        start_of_deletion = curbuf.find_previous_delim()
+        del curbuf[start_of_deletion:curbuf.cursor]       
+        curbuf.cursor = start_of_deletion
 
 @atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
@@ -93,10 +95,10 @@ def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
     with editor.current_buffer as curbuf:
         if curbuf.set_autoindent:
-            _, start_of_line = curbuf.current_line_off
-            start_of_line = curbuf.string[start_of_line:curbuf.cursor]
-            content = start_of_line.strip()
-            if start_of_line and not content:
+            lin, col = editor.current_buffer.cursor_lin_col
+            col = col - 1 if col > 0 else 0
+            before_cursor = editor.current_buffer.current_line[:col]
+            if not before_cursor.strip():
                 from vy.actions.linewise import dedent_current_line
                 return dedent_current_line(editor)
         editor.current_buffer.backspace()
@@ -116,9 +118,48 @@ def increment(editor, reg=None, part=None, arg=None, count=1):
     If the cursor is on a number, increment it leaving the cursor in
     place.
     """ 
-    #>>> this is buggy because iw is buggy         # bug
     cur_word = editor.current_buffer['iw']      .replace('\n','')
     editor.warning(repr(cur_word))
     if cur_word.isnumeric():
         editor.current_buffer['iw'] = str(int(cur_word)+1)
-        
+
+@atomic_commands(f'{k.C_up}')
+def move_line_up(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the current line, one line up
+    """
+    with editor.current_buffer as curbuf:
+        cur_lin_idx = curbuf.current_line_idx
+        if cur_lin_idx > 0:
+            line_1 = curbuf.splited_lines[cur_lin_idx]
+            line_2 = curbuf.splited_lines[cur_lin_idx - 1]
+            
+            curbuf.splited_lines[cur_lin_idx] = line_2
+            curbuf.splited_lines[cur_lin_idx - 1] = line_1
+            curbuf.string = ''.join(curbuf.splited_lines)
+
+            curbuf.cursor_lin_col = (cur_lin_idx - 1, 0)
+            if curbuf.current_line.strip():
+                curbuf.move_cursor('_')
+            
+    
+    
+@atomic_commands(f'{k.C_down}')
+def move_line_down(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the current line, one line down.
+    """
+    with editor.current_buffer as curbuf:
+        cur_lin_idx = curbuf.current_line_idx
+        if cur_lin_idx < curbuf.number_of_lin - 1:
+            line_1 = curbuf.splited_lines[cur_lin_idx]
+            line_2 = curbuf.splited_lines[cur_lin_idx + 1]
+            
+            curbuf.splited_lines[cur_lin_idx] = line_2
+            curbuf.splited_lines[cur_lin_idx + 1] = line_1
+            curbuf.string = ''.join(curbuf.splited_lines)
+            
+            curbuf.cursor_lin_col = (cur_lin_idx + 1, 0)
+            if curbuf.current_line.strip():
+                curbuf.move_cursor('_')
+
