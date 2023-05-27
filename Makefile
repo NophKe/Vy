@@ -1,12 +1,11 @@
-all: top_level subdirs
+all: __init__.so editor.so 
 
-subdirs: filetypes_module
+filetypes/__init__.so: filetypes/textfile.so filetypes/basefile.so
+filetypes/basefile.so: utils.so
+filetypes/textfile.so: filetypes/basefile.so filetypes/lexer.so filetypes/completer.so
 
-filetypes_module:
-	$(MAKE) -C filetypes
+editor.so: filetypes/__init__.so screen.so
 
-top_level: keys.so editor.so screen.so
-editor.so: filetypes_module screen.so
 
 clean:
 	rm -f ./*.c
@@ -29,6 +28,7 @@ clean:
 	rm -Rf ./__pycache__/
 
 CC  = gcc --shared -s -I/usr/include/python3.11 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
+
 gcc-config:
 	echo ${CC}
 

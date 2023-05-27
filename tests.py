@@ -54,7 +54,7 @@ def bench_textfile():
             break
     print(f'bench_textfile:\t\t took {round(time() - start, 3)} seconds.')
 
-def bench_expandtabs():
+def _bench_expandtabs():
     from vy.screen import expandtabs_numbered
     tab_size = 4
     max_col = 16

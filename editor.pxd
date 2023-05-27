@@ -1,13 +1,13 @@
-from vy.interface import Interface
-from vy.console import getch_noblock
-from vy.global_config import DEBUG
+#from vy.interface import Interface
+#from vy.console import getch_noblock
+#from vy.global_config import DEBUG
 
 #from vy.console cimport getch_noblock
 # generator !!!  how to import ????
-
+#from vy.filetypes cimport Open_path
 
 from vy.screen cimport Screen 
-from vy.filetypes cimport Open_path
+from vy.utils cimport _HistoryList
 
 from cython import final, locals
 
@@ -32,16 +32,17 @@ cdef class _Register:
 @final
 cdef class _Editor:
     cdef:
+        public dict macros
+        public str record_macro
         public list arg_list
         public int arg_list_pointer
         save_in_jump_list(self)
-        public int jump_list_pointer 
         bint _async_io_flag
         bint _running
         #dict __dict__
         #Interface interface
         object interface
-        list jump_list
+        _HistoryList jump_list
         list command_list
         list _work_stack
         object command_line
