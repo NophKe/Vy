@@ -20,15 +20,23 @@ def init(editor):
     dictionary = editor.actions.insert
     
 def loop(editor):
+    editor.screen.minibar_completer.set_callbacks(
+                    lambda: editor.current_buffer.get_completions(), 
+                    lambda: editor.current_buffer.check_completions())
     mode = 'insert'
-    while mode == 'insert':
-        user_input = monoline_loop(editor) 
-        cancel_minibar = minibar(f' ( Processing command: {_escape(user_input)} )')
-        try:
-            action = dictionary[user_input]
-        except KeyError:
-            minibar(f' ( Invalid command: {_escape(user_input)} )')
+    while mode in ('insert', 'completion'):
+        if mode == 'completion':
+            return 'completion'
         else:
-            mode = action(editor) or 'insert'
-            cancel_minibar()
+            user_input = monoline_loop(editor) 
+            cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
+            try:
+                action = dictionary[user_input]
+            except KeyError:
+                minibar(f' ( Invalid command: {_escape(user_input)} )')
+            else:
+                mode = action(editor) or 'insert'
+                cancel_minibar()
+    
+    editor.screen.minibar_completer.give_up()
     return mode

@@ -40,10 +40,12 @@ class Folder(BaseFile):
             self._values = [ val.resolve() for val in value ]
             pretty  = [val for val in value ]
             self._text = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
+            self._lenght = len(self._string)
         return self._text
 
     @_string.setter
     def _string(self, value):
+        self._lenght = len(self._string)
         return
 
     def get_raw_screen(self, min_lin, max_lin):

@@ -1,7 +1,7 @@
-from vy.actions.helpers import atomic_commands
+from vy.actions.helpers import atomic_commands as _atomic_commands
 import vy.keys as k
 
-@atomic_commands(f'i_{k.C_W}')
+@_atomic_commands(f'i_{k.C_W}')
 def erase_word_backward(editor, *args, **kwargs):
     """
     Erase one word backward.
@@ -9,9 +9,9 @@ def erase_word_backward(editor, *args, **kwargs):
     with editor.current_buffer as curbuf:
         start_of_deletion = curbuf.find_previous_delim()
         del curbuf[start_of_deletion:curbuf.cursor]       
-        curbuf.cursor = start_of_deletion
+        #curbuf.cursor = start_of_deletion
 
-@atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
+@_atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts a newline.  If the current buffer has set_autoindent set,
@@ -35,7 +35,7 @@ def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
         else:
             cur_buf.insert_newline()
 
-@atomic_commands('i_\t')
+@_atomic_commands('i_\t')
 def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=None, count=1):
     """
     If 'expand_tabs' is set and the cursor at the start of a line this
@@ -56,14 +56,14 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
             new_len = len(curbuf.current_line)
             curbuf.cursor += (new_len - origin_len)
 
-@atomic_commands(f'i_{k.C_A}')
+@_atomic_commands(f'i_{k.C_A}')
 def insert_last_inserted_text(editor, **kwargs):
     """
     Re-insert last inserted text at cursor position.
     """
     editor.current_buffer.insert(editor.registr['.'])
 
-@atomic_commands(f'i_{k.C_R}')
+@_atomic_commands(f'i_{k.C_R}')
 def insert_from_register(editor, **kwargs):
     """
     Reads next key from keyboard, if it is a valid register, inserts it.
@@ -77,7 +77,7 @@ def insert_from_register(editor, **kwargs):
     else:
         cancel()
 
-@atomic_commands(f'i_{k.suppr} x')
+@_atomic_commands(f'i_{k.suppr} x')
 def do_suppr(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character under the cursor, joining current line with
@@ -86,7 +86,7 @@ def do_suppr(editor, reg=None, part=None, arg=None, count=1):
     """
     editor.current_buffer.suppr()
 
-@atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
+@_atomic_commands(f'i_{k.backspace} i_{k.linux_backpace} X')
 def do_backspace(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character on the left of the cursor, joining current
@@ -98,13 +98,11 @@ def do_backspace(editor, reg=None, part=None, arg=None, count=1):
             lin, col = editor.current_buffer.cursor_lin_col
             col = col - 1 if col > 0 else 0
             before_cursor = editor.current_buffer.current_line[:col]
-            if not before_cursor.strip():
-                from vy.actions.linewise import dedent_current_line
-                return dedent_current_line(editor)
+            if before_cursor and not before_cursor.strip():
+                return editor.actions.normal('<<')
         editor.current_buffer.backspace()
-        
 
-@atomic_commands("r")
+@_atomic_commands("r")
 def do_r(editor, reg=None, part=None, arg=None, count=1):
     """
     Replace the character under the cursor by next keystrike.
@@ -112,18 +110,18 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer[editor.current_buffer.cursor] = editor.read_stdin()
     
 
-@atomic_commands(f'i_{k.C_Z}')
+@_atomic_commands(f'i_{k.C_Z}')
 def increment(editor, reg=None, part=None, arg=None, count=1):
     """
     If the cursor is on a number, increment it leaving the cursor in
     place.
     """ 
-    cur_word = editor.current_buffer['iw']      .replace('\n','')
+    cur_word = editor.current_buffer[editor.current_buffer.inner_word].replace('\n','')
     editor.warning(repr(cur_word))
     if cur_word.isnumeric():
         editor.current_buffer['iw'] = str(int(cur_word)+1)
 
-@atomic_commands(f'{k.C_up}')
+@_atomic_commands(f'{k.C_up}')
 def move_line_up(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the current line, one line up
@@ -142,9 +140,7 @@ def move_line_up(editor, reg=None, part=None, arg=None, count=1):
             if curbuf.current_line.strip():
                 curbuf.move_cursor('_')
             
-    
-    
-@atomic_commands(f'{k.C_down}')
+@_atomic_commands(f'{k.C_down}')
 def move_line_down(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the current line, one line down.

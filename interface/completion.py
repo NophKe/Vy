@@ -57,34 +57,24 @@ def init(editor):
     global insert_dict
 
 def loop(editor):
-    try:
-        editor.current_buffer.set_undo_record(False)
-        
-        editor.screen.minibar_completer.set_callbacks(
-                        lambda: editor.current_buffer.get_completions(), 
-                        lambda: editor.current_buffer.check_completions())
-               
-        while True:
-            if not editor.screen.minibar_completer:
-                editor.screen.minibar(' ( Auto-completion aborted ) No more matches.')
-                break
-            else:
-                key_press = editor.visit_stdin()
-
-#            breakpoint()
-            if key_press in completion_dict:
-                if completion_dict[key_press](editor):
-                    editor.read_stdin()
-                    continue
-            elif not key_press.isspace() \
-                 and key_press not in editor.actions.insert \
-                 and key_press.isprintable():
-                editor.current_buffer.insert(key_press)
+#    editor.screen.minibar_completer.set_callbacks(
+#                    lambda: editor.current_buffer.get_completions(), 
+#                    lambda: editor.current_buffer.check_completions())
+#    
+    while key_press := editor.visit_stdin():
+        if not editor.screen.minibar_completer:
+            editor.screen.minibar(' ( Auto-completion aborted ) No more matches.')
+            break
+        if key_press in completion_dict:
+            if completion_dict[key_press](editor):
                 editor.read_stdin()
                 continue
             break
-    finally:
-        editor.current_buffer.set_undo_record(True)
-        editor.screen.minibar_completer.give_up()
+            
+        if key_press.isprintable():
+            editor.current_buffer.undo_list.skip_next()
+            editor.current_buffer.insert(editor.read_stdin())
+            continue
+        break
+    editor.screen.minibar_completer.give_up()
     return 'insert'
-

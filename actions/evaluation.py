@@ -70,6 +70,16 @@ def ex_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     return 'ex'
 
+@_atomic_commands(':mode')
+def change_mode(editor, arg=None, **kwargs):
+    """
+    Change the current mode to the one specified by arg.
+    """
+    try:
+        return arg
+    except ModuleNotFoundError:
+        editor.screen.minibar(' ( mode: «{arg}» not found )')
+
 doc_outro = """
 The commands shown here all execute the code inside the current
 interpreter instance.  This presents the advantage of allowing access to

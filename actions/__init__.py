@@ -169,7 +169,6 @@ def go_back_in_jump_list(editor, count=1, *args, **kwargs):
     Goes back in jump list. This motion will not record itself in
     the jump list.
     """
-#    breakpoint()
     try:
         buf, lin, col = editor.jump_list.pop()
     except IndexError:
@@ -263,7 +262,7 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     Shows the list of «cached» buffers.
     """
-    editor.warning(str(editor.cache))
+    editor.warning(editor.cache)
     return 'normal'
 
 @atomic_commands(f"{k.C_W}n {k.C_W}{k.C_N} :new :enew :ene")

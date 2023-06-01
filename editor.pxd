@@ -42,7 +42,7 @@ cdef class _Editor:
         #dict __dict__
         #Interface interface
         object interface
-        _HistoryList jump_list
+        public _HistoryList jump_list
         list command_list
         list _work_stack
         object command_line

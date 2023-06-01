@@ -38,6 +38,7 @@ try:
             if completion:
                 lengh = completion[0].get_completion_prefix_length()
                 return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
+            return None
 
 except ImportError:
     ScriptCompleter = None
@@ -46,7 +47,7 @@ class Completer:
     def __init__(self, buffer):
         self.completers = []
         if ScriptCompleter:
-            if buffer.path.name.lower().endswith('py'):
+            if buffer.path and buffer.path.name.lower().endswith('py'):
                 self.completers.append(ScriptCompleter(code=buffer.string))
         self.completers.append(WordCompleter(buffer))
         self.buff = buffer

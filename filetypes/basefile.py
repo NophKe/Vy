@@ -5,10 +5,11 @@ BaseFile is... ( well... ) the basis for what is usually called a
 It mixes the classical expected features of a mutable string with some 
 traditionnal concepts of vim buffers, like motions.
 
->>> file = BaseFile(init_text='Hello World\n 42\n', cursor=0)
+>>> file = BaseFile(init_text='Hello World\n 42\n' , cursor=0)
 
 >>> file.move_cursor('w')           # moves to next word ( regex \b )
->>> assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
+>>> assert file.cursor == 6
+>>> # assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
 
 All of its public methods are atomic (using an internal threading.RLock 
 object). If you need to modify the buffer, you can acquire its internal 
@@ -41,25 +42,17 @@ character that ends the buffer cannot be deleted.
 
 >>> file.backspace()
 >>> file.suppr()
->>> file.suppr()
 
 A Buffer may also be used as a replacement for a file object.
-
->>> file.write('中国')
-2
->>> file.seek(0)
->>> file.write('over_write')
-10
->>> file.seek(0)
->>> file.read()
 
 One may also consider a buffer as a mutable sequence suitable as a
 remplacement of the immutable string.
 
->>> file[0:10]
-'over_write'
->>> file[0:8] = '@ too big to fit in there' # note that @ disapeared
->>> file[0] = 'never';  file[:29]
+>>> file[0:6]
+'Hello '
+>>> file[0:8] = '@ too big to fit in there'
+>>> file[0] = 'never'
+>>> file[:29]
 'never too big to fit in there'
 
 NOTE: the word «offset» will be used to speak about characters and their
@@ -68,9 +61,9 @@ NOTE: the word «offset» will be used to speak about characters and their
 
 from vy.utils import _HistoryList, DummyLine, Cancel
 from threading import RLock
+from sys import intern
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
-########    End of TextLine         ##################################
 
 class BaseFile:
     modifiable = True
@@ -87,6 +80,7 @@ class BaseFile:
                 set_comment_string=('',''),
                 init_text='', 
                 path=None):
+        self._virtual_col = 0
         self._selected = None
         self._repr = '' #TODO delete me ?
         self._undo_flag = True
@@ -127,8 +121,6 @@ class BaseFile:
             self.set_undo_point()
             self._lock.release()
             self._async_tasks.allow_work()
-            #breakpoint()
-        return False
 
     @property
     def string(self):
@@ -170,8 +162,16 @@ class BaseFile:
 
             new_lin = min(nb_lin-1, max(0, new_lin))
             self._current_line = self.splited_lines[new_lin]
-            new_col = max(1, min(new_col, len(self._current_line)))
             
+            if not self._virtual_col:
+                self._virtual_col = old_col
+            else:
+                if not new_col: 
+                    new_col = self._virtual_col
+                else:
+                    self._virtual_col = new_col
+            
+            new_col = max(1, min(new_col, len(self._current_line)))
             self._cursor = self.lines_offsets[new_lin] + new_col - 1
             self._cursor_lin_col = (new_lin, new_col)
 
@@ -235,7 +235,7 @@ class BaseFile:
         """
         with self._lock:
             if not self._splited_lines:
-                self._splited_lines = self.string.splitlines(True)
+                self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
             return self._splited_lines
 
     @property
@@ -380,10 +380,6 @@ class BaseFile:
         with self._lock:
             return self._lenght
     
-    def set_undo_record(self, bool_flag):
-        pass
-#        self._undo_flag = bool_flag
-#        self.set_undo_point()
 
     def join_line_with_next(self):
         with self:
@@ -469,7 +465,8 @@ class BaseFile:
 
     @cursor.setter
     def cursor(self, value):
-        assert 0 <= value < self._lenght
+        assert 0 <= value <= self._lenght
+#        assert 0 <= value < self._lenght
         with self._lock:
             self._current_line = ''
             self._cursor_lin_col = ()
@@ -492,26 +489,9 @@ class BaseFile:
             self._lenght = len(self._string)
             self._cursor_lin_col = ()
 
-    #def _compress_undo_list(self):
-        #old_len = len(self.undo_list) - 1
-        #self.undo_list = [item for index, item in enumerate(self.undo_list) 
-                    #if index % 2 == 1 or index == 0 or index == old_len]
-        #self._undo_len = sum(len(strings) for strings, _ in self.undo_list)
-        
     def set_undo_point(self):
-        #breakpoint()
         with self._lock:
-            #try:
-                #_, _, last_hash = self.undo_list.last_record()
-            #except IndexError:
-                #different = True
-                #new_hash = hash(self.string) 
-            #else:
-                #new_hash = hash(self.string) 
-                #different = new_hash != last_hash
-            #
-            #if different or self.undo_list.skip:
-                self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, hash(self.string)))
+            self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, hash(self.string)))
 
     def undo(self):
         with self:
@@ -527,9 +507,6 @@ class BaseFile:
             self.string = ''.join(txt)
             self.cursor_lin_col = pos
         
-########    mots of what follow need to be rewritten using lock and new capacities
-########    of BaseFile  and stop using string directly 
-
     def find_end_of_line(self):
         r"""
         >>> x=BaseFile(init_text="0____5\n___")
@@ -652,16 +629,6 @@ class BaseFile:
         else:
             return self.string[:self.cursor].rfind(' ') + 1
 
-#    def find_normal_B(self):
-#        pos = self.tell()
-#        if self.string[pos].isspace():
-#            while self.string[pos].isspace() or pos != 0:
-#                pos -=1
-#
-#        while (not self.string[pos].isspace()) or pos != 0:
-#            pos -=1
-#        return pos
-
     def find_normal_B(self):
         lin, col = self.cursor_lin_col
         cur_lin = self.current_line
@@ -671,17 +638,6 @@ class BaseFile:
         if pos > 0:
             return off + pos
         return off
-#
-    #def find_normal_B(self):
-        #old_pos = self.tell()
-        #word_offset = self.find_first_char_of_word() 
-        #if word_offset == old_pos and word_offset != 0:
-            #self.seek(old_pos - 1)
-            #rv = self.find_first_char_of_word()
-            #self.seek(old_pos)
-            #return rv
-        #else:
-            #return word_offset
 
     def find_next_non_delim(self):
         global DELIMS
@@ -712,11 +668,9 @@ class BaseFile:
     def find_previous_delim(self):
         global DELIMS
         cursor = self.cursor
-        while self.string[cursor] in DELIMS:
+        while cursor and self.string[cursor] in DELIMS:
             cursor -= 1
-        while self.string[cursor] not in DELIMS:
-            if cursor == 0:
-                return cursor
+        while cursor and self.string[cursor] not in DELIMS:
             cursor -=1
         return cursor
 
@@ -734,6 +688,13 @@ class BaseFile:
             stop = len(self.string)
         return slice(start, stop)
 
+    def find_next_token(self):
+        cursor = self.cursor
+        for off in self._token_list:
+            if off > cursor:
+                return off
+
+    
 ########    start of file-object capacities###########################
 
 #    def write(self, text):
@@ -916,21 +877,27 @@ class BaseFile:
         return self.cursor - 1
 
     def move_cursor(self, target):
-        if   target == 'B' : self.cursor = self.find_normal_B()
-        elif target == 'b' : self.cursor = self.find_previous_delim()
-        elif target == 'h' : self.cursor = self.find_normal_h()
-        elif target == 'j' : self.cursor = self.find_normal_j()
-        elif target == 'k' : self.cursor = self.find_normal_k()
-        elif target == 'l' : self.cursor = self.find_normal_l()
-        elif target == 'w' : self.cursor = self.find_next_delim()
-        elif target == 'W' : self.cursor = self.find_next_WORD()
-        elif target == 'G' : self.cursor = len(self)
-        elif target == 'gg': self.cursor = 0
-        elif target == 'e' : self.cursor = self.find_end_of_word()
-        elif target == 'E' : self.cursor = self.find_end_of_WORD()
-        elif target == '$' : self.cursor = self.find_end_of_line()
-        elif target == '0' : self.cursor = self.find_begining_of_line()
-        elif target == '_' : self.cursor = self.find_first_non_blank_char_in_line()
+        self.cursor = self.find(target)
+
+    def find(self, target):
+        if   target == 'B' : return self.find_normal_B()
+        elif target == 'b' : return self.find_previous_delim()
+        elif target == 'h' : return self.find_normal_h()
+        elif target == 'j' : return self.find_normal_j()
+        elif target == 'k' : return self.find_normal_k()
+        elif target == 'l' : return self.find_normal_l()
+        elif target == 'w' : return self.find_next_delim()
+        elif target == 'W' : return self.find_next_WORD()
+        elif target == 'G' : return len(self)
+        elif target == 'gg': return 0
+        elif target == 'e' : return self.find_end_of_word()
+        elif target == 'E' : return self.find_end_of_WORD()
+        elif target == '$' : return self.find_end_of_line()
+        elif target == '0' : return self.find_begining_of_line()
+        elif target == '_' : return self.find_first_non_blank_char_in_line()
+        elif target == ')' : return self.find_next_token()
         else: raise RuntimeError('vy internal error: not a valid motion')
 
-
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

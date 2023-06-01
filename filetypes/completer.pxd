@@ -1,4 +1,5 @@
 from vy.global_config import DONT_USE_JEDI_LIB
+
 from re import split
 from jedi import Script, settings
 
@@ -10,11 +11,11 @@ cdef class WordCompleter:
     cdef set words
     cdef list split
 
-    cdef tuple complete(self, int line, int column)
+    cpdef tuple complete(self, int line, int column)
     #settings.add_bracket_after_function = True
     
 cdef class Completer:
     cdef list completers
     cdef object buff
         
-    cdef complete(self, int line, int column)
+    cpdef complete(self, int line, int column)

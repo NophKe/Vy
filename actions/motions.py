@@ -133,16 +133,16 @@ def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
     """
     Move one line down.
     """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin+count, col)
+    lin, _ = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin+count, 0)
 
 @_motion_commands(f'i_{_k.up} {_k.up} {_k.C_P} k -')
 def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
     """
     Move one line up.
     """
-    lin, col = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin-count, col)
+    lin, _ = editor.current_buffer.cursor_lin_col
+    editor.current_buffer.cursor_lin_col = (lin-count, 0)
 
 @_motion_commands(f'l i_{_k.right} {_k.space} {_k.right}')
 def do_normal_l(editor, reg=None, part=None, arg=None, count=1):
@@ -181,7 +181,6 @@ def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
     """
     curbuf = editor.current_buffer
     curbuf.cursor = len(curbuf) - 1
-#    curbuf.cursor_lin_col
 
 @_motion_commands('gg')
 def do_normal_gg(editor, reg=None, part=None, arg=None, count=1):
@@ -292,7 +291,7 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
             editor.screen.minibar(f'String: «{needle}» not found!')
         else:
             curbuf.cursor = offset
-    editor.actions.normal['zz'](editor)
+    editor.actions.normal('zz')
         
     
 @_motion_commands("N")
@@ -304,10 +303,18 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     from vy.keys import C_M
     editor.push_macro(C_M)
     loop(editor)
-    editor.actions.normal['zz'](editor)
+    editor.actions.normal('zz')
 
 @_motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):
-    editor.registr['/'] = editor.current_buffer[editor.current_buffer.inner_word()]
-    do_normal_n(editor)
+    editor.registr['/'] = editor.current_buffer[editor.current_buffer.inner_word()].strip()
+    editor.actions.normal('n')
 
+@_motion_commands(')')
+def do_move_to_next_token(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Move cursor one token forward.
+    """
+    with editor.current_buffer as curbuf:
+        for _ in range(count):
+            curbuf.cursor = curbuf.find_next_token()

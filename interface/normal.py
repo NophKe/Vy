@@ -24,7 +24,7 @@ def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
     if CMD                  : texte += ' Command: ' + CMD + ' '
     if MOTION_COUNT         : texte += ' Motion count: ' + str(MOTION_COUNT) + ' '
     if RANGE                : texte += ' Motion: ' + RANGE + ' '
-    if key                  : texte += ' (not fully evaluated: ' + _escape(key) + ' )'
+    if key                  : texte += ' ( not fully evaluated: ' + _escape(key) + ' )'
     if texte:
         editor.screen.minibar(texte)
     return editor.read_stdin()
@@ -78,6 +78,7 @@ def loop(editor, capture=True):
         cancel()
         return rv
 
+    
     if action.atomic:
         cancel_minibar = minibar(f' ( Processing Command: {_escape(key)} )')
         rv = action(editor, count=COUNT)
@@ -91,6 +92,7 @@ def loop(editor, capture=True):
         return rv
 
     elif action.full:
+        origin_position = editor.current_buffer.cursor_lin_col
         CMD = key
         key = get_char()
 
@@ -110,6 +112,7 @@ def loop(editor, capture=True):
             
             rv = action(editor, reg=REG if REG else '"', part=slice(start,stop))
             cancel()
+            curbuf.cursor_lin_col = origin_position
             return rv
 
         while one_inside_dict_starts_with(motion_cmd, key):
@@ -131,5 +134,6 @@ def loop(editor, capture=True):
 
         rv = action(editor, reg=REG if REG else '"', part=RRANGE)
         cancel()
+        curbuf.cursor_lin_col = origin_position
         return rv
 

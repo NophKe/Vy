@@ -12,7 +12,6 @@ the classes defined in this module directly.
 """
 
 from pathlib import Path
-from traceback import print_tb
 from bdb import BdbQuit
 from pdb import post_mortem
 from itertools import repeat, chain
@@ -24,7 +23,7 @@ from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import getch_noblock
-from vy.global_config import DEBUG
+from vy.global_config import DEBUG, USER_DIR, DONT_USE_USER_CONFIG
 from vy.utils import _HistoryList
 
 class _Cache:
@@ -112,12 +111,26 @@ class _Cache:
 ########## end of class _Cache ##########
 
 class _Register:
-    __slots__ = "dico"
+    __slots__ = ("persistance", "dico")
     valid_registers  = ( 'abcdefghijklmnopqrstuvwxyz'
                          'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                          '>+-*/.:%#"=!0123456789')
     def __init__(self):
         self.dico = dict()
+        self.persistance = USER_DIR / 'registers'
+        try:
+            content = self.persistance.read_text().splitlines()
+        except FileNotFoundError:
+            content = ["''"] * len(self.valid_registers)
+            self.persistance.touch()
+            self.persistance.write_text('\n'.join(content))
+        
+        for register, value in zip(self.valid_registers, content):
+            if value := eval(value):
+                self.dico[register] = value
+    
+    def save(self):
+        self.persistance.write_text('\n'.join(repr(self.dico.get(reg, '')) for reg in self.valid_registers))
 
     def __str__(self):
         rv = str()
@@ -177,13 +190,19 @@ class _Register:
         else:
             raise RuntimeError
 
+class ActionDict(dict):
+    def __init__(self, instance):
+        self.instance = instance
+    def __call__(self, value, **kwargs):
+        return self[value](self.instance, **kwargs)
+    
 class NameSpace:
     __slots__ = ('insert', 'command', 'visual', 'normal', 'motion')
-    def __init__(self):
+    def __init__(self, instance):
         self.insert = dict()
         self.command= dict()
         self.visual = dict()
-        self.normal = dict()
+        self.normal = ActionDict(instance)
         self.motion = dict()
 
 class _Editor:
@@ -195,7 +214,7 @@ class _Editor:
 
     def _init_actions(self):
         from vy.actions import __dict__ as action_dict
-        actions = NameSpace()
+        actions = NameSpace(self)
         try:
             for name, action in action_dict.items():
                 if callable(action) and not name.startswith('_'):
@@ -353,7 +372,7 @@ class _Editor:
                     sleep(0.04)
                     self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
                     f'Failed: {missed} time(s), '
-                    f'waiting keystrokes: {self._input_queue.qsize()}')
+                    f'waiting keystrokes: {left_keys()}')
 
                 new_screen, ok_flag = get_line_list()
 
@@ -377,10 +396,10 @@ class _Editor:
                 infos = traceback.format_exc().replace('\n', '\r\n')
                 self.screen.original_screen()
                 self.screen.show_cursor()
-                print( 'Editor.print_thread crashed ! ')
-                print(  'The following *unhandled* exception was encountered:\r\n'
-                       f'  >  {repr(exc)} indicating:\r\n'
-                       f'  >  {str(exc)}\r\n'
+                print(  'Editor.print_thread crashed ! \r\n'
+                        '  The following *unhandled* exception was encountered:\r\n'
+                       f'    >  {repr(exc)} indicating:\r\n'
+                       f'    >  {str(exc)}\r\n'
                        f'{infos}\r\n'
                         '(you have to quit blindly or repair live.)')
 
@@ -449,13 +468,14 @@ class _Editor:
                     pass
                 except BaseException as exc:
                     import sys
+                    from traceback import print_tb
                     type_, value_, trace_ = sys.exc_info()
                     self.stop_async_io()
                     print(self.screen.infobar_txt)
                     print(  'The following *unhandled* exception was encountered:\n'
                            f'  >  {repr(exc)} indicating:\n'
                            f'  >  {str(exc)}\n')
-                    print_tb(exc.__traceback__)
+                    print_tb(trace_)
                     print('\nThe program may be corrupted, save all and restart quickly.')
                     try:
                         input(('Press [ENTER] to try resuming\n'
@@ -472,4 +492,5 @@ class _Editor:
         finally:
             self._running = False
             self.stop_async_io()
+            self.registr.save()
         return 0 # exit_code

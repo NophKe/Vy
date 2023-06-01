@@ -1,10 +1,12 @@
 """
 This module is a mess that handles screen rendering.
 """
+
 from os import get_terminal_size
 from sys import stdout
 
 from vy.global_config import DEBUG
+from vy.utils import Cancel, Thread
 
 def expand_quick(max_col, text):
     line = ''
@@ -41,12 +43,10 @@ def expand_quick(max_col, text):
     return retval
 
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
-    #assert '/n' not in text
     number = f'{on_lin:{num_len}}: '
     line =  f'\x1b[2;37;27m{number}\x1b[39;22m'
-    start_cursor = '\x1b[7;5m' #;7m'
-    stop_cursor = '\x1b[27;25m' #5;27m'
-    #stop_cursor = '\x1b[39;49;00m'
+    start_cursor = '\x1b[7;5m'
+    stop_cursor = '\x1b[27;25m' 
     retval: list = list()
     on_col: int = len(number)
     cursor_col += on_col - 1
@@ -110,10 +110,8 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 
         if visual and on_col == stop_v:
             line += '\x1b[27m'
-            start_cursor = '\x1b[7;5m' #;7m'
-            stop_cursor = '\x1b[27;25m' #5;27m'
-            #start_cursor = '\x1b[7m'
-            #stop_cursor = '\x1b[27m'
+            start_cursor = '\x1b[7;5m'
+            stop_cursor = '\x1b[27;25m' 
 
     line += '\x1b[39;22m'
     if stop_v == -1:
@@ -122,13 +120,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
 
-#def expand_quick(max_col, text):
-    #return expandtabs_numbered(0, max_col, text, '', 0, 0, 0, (0,0))
-#
-#@cache
 def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
-#    raise Errror
-    #assert '/n' not in text
     retval: list = list()
     line: str = '\x1b[49m'
     start_cursor = '\x1b[5;7m'
@@ -138,13 +130,15 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
     esc_flag: bool = False
     cursor_flag: bool = False
 
-    if visual:
-        start_v, stop_v = visual
-        visual = bool(visual)
-        start_v += on_col - 1
-        stop_v += on_col - 1
-#        if stop_v == start_v:
-#            visual = False
+    visual_flag = any(visual)
+    start_v, stop_v = visual
+    if start_v:
+        if start_v == -1:
+            line += '\x1b[7m'
+        else:
+            start_v += on_col - 1
+    if stop_v:
+        stop_v += on_col 
 
     char: str
     for char in text:
@@ -159,10 +153,10 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
             line += char
             continue
 
-        if visual and on_col == start_v: # and on_col == cursor_col:
-                line += '\x1b[7m'
-                start_cursor = '\x1b[27;5;4m'
-                stop_cursor = '\x1b[7;25;24m'
+        if visual and on_col == start_v:
+            line += '\x1b[7m'
+            start_cursor = '\x1b[4;5m'
+            stop_cursor = '\x1b[24;25m'
 
         if on_col ==  max_col:
             line += '\x1b[49m'
@@ -204,10 +198,15 @@ class CompletionBanner:
         self.check_func = lambda: False
         self.make_func = lambda: ([], 0)
         self._active = False
+        self._completer_proc = Thread(target=self.generate, args=(), daemon=True)
+        self._completer_proc.start()
+        self._async_work = Cancel()
 
     def set_callbacks(self, make_func, check_func):
+        self._async_work.cancel_work()
         self.make_func = make_func
         self.check_func = check_func
+        self._async_work.allow_work()
         self.generate()
 
     def generate(self):
@@ -215,8 +214,8 @@ class CompletionBanner:
             self.completion, self.prefix_len = self.make_func()
         except TypeError: #Jedi-completer returned None
             return self.give_up()
-        if self.completion:
-            self.selected = 0
+        if self.completion: # and self.prefix_len > 0:
+            self.selected = -1
             self.view_start = 0
             self.max_selected = len(self.completion) - 1
             self._active = True
@@ -253,15 +252,17 @@ class CompletionBanner:
         self.pretty_completion = [
             f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
                    for index, k in enumerate(self.completion)]
-        if self.selected <= self.view_start:
-            self.view_start = self.selected
-        if self.selected > self.view_start + 7:
-            self.view_start = self.selected - 7
+        if self.selected >= 0:
+            if self.selected <= self.view_start:
+                self.view_start = self.selected
+            if self.selected > self.view_start + 7:
+                self.view_start = self.selected - 7
 
     def select_item(self):
         if self.completion:
             return self.completion[self.selected], self.prefix_len
         return '', 0
+        
 
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
@@ -636,7 +637,7 @@ class Screen(Window):
             left = left[:middle - 5] + '....'
         else:
             left = left.ljust(middle, ' ')
-        left =  '\x1b[7m' + left + '\x1b[27m'
+        left =  '\x1b[7;1m' + left + '\x1b[27;22m'
         return f"{left}{right}"
 
     def hide_cursor(self):

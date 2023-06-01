@@ -16,10 +16,9 @@ class TextFile(BaseFile):
         BaseFile.__init__(self, *args, **kwargs)
         self._lexed_cache = {}
         self._lexed_lines = list()
-#        self._undo_proc = Thread(target=self._undo_away, args=(), daemon=True)
+        self._token_list = list()
         self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
         self._lexer_proc.start()
-#        self._undo_proc.start()
         self._completer = None, None
 
     @property
@@ -47,13 +46,6 @@ class TextFile(BaseFile):
             else:
                 return [], 0
 
-#    def _undo_away(self):
-#        while True:
-#            self.cancel.notify_working()
-#            self.set_undo_point()
-#            self.cancel.notify_stopped()
-#            sleep(5)
-#
     def _lex_away(self):
         from vy.filetypes.lexer import guess_lexer, get_prefix
         lexer = guess_lexer(self.path, self._string)
@@ -71,9 +63,10 @@ class TextFile(BaseFile):
                 continue
 
             line = ''
-            for _, tok, val in lexer(self.string):
+            for off, tok, val in lexer(self.string):
                 if cancel_handler: 
                     break
+                self._token_list.append(off)
                 tok = get_prefix(tok)
                 if '\n' in val:
                     for token_line in val.splitlines(True):
@@ -90,9 +83,10 @@ class TextFile(BaseFile):
                 if line and line != tok: #No eof
                     local_dict[local_split()] = line
                     local_lexed.append(line)
-
+            
             cancel_handler.notify_stopped()
             self._lexed_lines.clear()
+            self._token_list.clear()
 
     def get_raw_screen(self, min_lin, max_lin):
         # This method does not take the internal lock allowing
@@ -122,6 +116,7 @@ class TextFile(BaseFile):
                     cur_lex = self._lexed_cache.get(cur_lin, cur_lin.replace('\n',' '))
                     # if the line got lexed by a previous lexer pass, use the cached
                     # lexed version. Otherwise, just remove the newline character
+                
                 raw_line_list.append(cur_lex)
         
         except IndexError: #local_split[on_lin] raised IndexError

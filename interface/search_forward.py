@@ -1,4 +1,3 @@
-from vy.actions import do_zz, do_normal_n
 from vy.interface.helpers import Completer
 
 def init(editor):
@@ -14,8 +13,7 @@ def loop(editor):
     if user_input:
         editor.registr['/'] = user_input
     
-    do_normal_n(editor)
-    do_zz(editor)
-    
+    editor.actions.normal('n')
+    editor.actions.normal('zz')
     return 'normal'
     

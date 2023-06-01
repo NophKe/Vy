@@ -22,7 +22,7 @@ cdef class TextFile(BaseFile):
         public object lexer
         public dict _lexed_cache
     cpdef void _lex_away(self) noexcept
-    cdef check_completions(self) noexcept
+    cpdef check_completions(self) noexcept
     cpdef get_completions(self) noexcept
     cpdef tuple get_raw_screen(self, int min_lin, int max_lin)
 
