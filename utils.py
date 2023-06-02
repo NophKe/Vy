@@ -120,6 +120,7 @@ class _HistoryList:
         return self.data[self.pointer-1]
     
     def skip_next(self):
+        assert not self.skip        
         self.skip = True        
         
     def last_record(self):
@@ -127,7 +128,7 @@ class _HistoryList:
             return self.data[self.pointer-1]
         elif self.pointer == 0:
             return self.data[0] 
-            # raise only if self.data is truly empty
+            # raise only if self.data is truly empty (
         raise IndexError
 
     def __str__(self):
@@ -137,34 +138,40 @@ class _HistoryList:
 class Cancel:
     def __init__(self):
         self.lock = Lock()
-        self.must_start = Event()
         self.must_stop = Event()
-        self.all_in_line = Queue()
-        self.must_start.set()
-        self.parties = 0 
-    
-    def notify_stopped(self):
-        self.must_stop.wait()
-        self.all_in_line.put(None)
-        self.must_start.wait()
+        self.task_done = Event()
+        self.restart = Queue(1)
+        self.working = False
 
     def notify_working(self):
         with self.lock:
-            self.parties += 1
-    
+            self.working = True
+            
+    def notify_task_done(self):
+        self.task_done.set()
+        self.notify_stopped()
+        
+    def notify_stopped(self):
+        self.must_stop.wait()
+        self.all_in_line.put(None)
+        self.all_in_line.join()
+
     def cancel_work(self):
         self.lock.acquire()
-        self.must_start.clear()
         self.must_stop.set()
-        for _ in range(self.parties):
+        if self.working:
             self.all_in_line.get()
-            self.all_in_line.task_done()
-        self.parties = 0
+        self.task_done.clear()
+
+    def complete_work(self):
+        self.task_done.wait()
 
     def allow_work(self):
         self.must_stop.clear()
+        if self.working:
+            self.all_in_line.task_done()
+            self.working = False
         self.lock.release()
-        self.must_start.set()
             
     def __bool__(self):
         return self.must_stop._flag
