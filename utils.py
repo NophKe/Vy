@@ -153,14 +153,14 @@ class Cancel:
         
     def notify_stopped(self):
         self.must_stop.wait()
-        self.all_in_line.put(None)
-        self.all_in_line.join()
+        self.restart.put(None)
+        self.restart.join()
 
     def cancel_work(self):
         self.lock.acquire()
         self.must_stop.set()
         if self.working:
-            self.all_in_line.get()
+            self.restart.get()
         self.task_done.clear()
 
     def complete_work(self):
@@ -169,7 +169,7 @@ class Cancel:
     def allow_work(self):
         self.must_stop.clear()
         if self.working:
-            self.all_in_line.task_done()
+            self.restart.task_done()
             self.working = False
         self.lock.release()
             

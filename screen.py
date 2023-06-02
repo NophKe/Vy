@@ -198,38 +198,49 @@ class CompletionBanner:
         self.check_func = lambda: False
         self.make_func = lambda: ([], 0)
         self._active = False
-        self._completer_proc = Thread(target=self.generate, args=(), daemon=True)
-        self._completer_proc.start()
-        self._async_work = Cancel()
+        self._completer_proc = lambda: Thread(target=self.generate, args=()).start()
 
     def set_callbacks(self, make_func, check_func):
-        self._async_work.cancel_work()
+        self.give_up()
         self.make_func = make_func
         self.check_func = check_func
-        self._async_work.allow_work()
-        self.generate()
+        self._completer_proc()
 
     def generate(self):
         try:
             self.completion, self.prefix_len = self.make_func()
-        except TypeError: #Jedi-completer returned None
-            return self.give_up()
+        except TypeError:
+            pass #Jedi-completer returned None
+
         if self.completion: # and self.prefix_len > 0:
             self.selected = -1
             self.view_start = 0
             self.max_selected = len(self.completion) - 1
-            self._active = True
             self._update()
-        else:
-            self.give_up()
+            self._active = True
     
     def give_up(self):
-        self.__init__()
+        self.view_start = 0
+        self.max_selected = -1
+        self.selected = -1
+        self.completion = []
+        self.pretty_completion = []
+        self.prefix_len = 0
+        self._active = False
 
     def __iter__(self):
-        if self.check_func():
-            self.generate()
-        yield from self.pretty_completion[self.view_start:self.view_start+8]
+        if self._active:
+            if self.check_func():
+                self._active = False
+                self.view_start = 0
+                self.max_selected = -1
+                self.selected = -1
+                self.completion = []
+                self.pretty_completion = []
+                self.prefix_len = 0
+                self._completer_proc()
+            else:
+                yield from self.pretty_completion[self.view_start:self.view_start+8]
 
     def __bool__(self):
         return self._active #and self.selected > 0
