@@ -1,5 +1,10 @@
-from threading import Thread, Event, Barrier, Lock
+from threading import Event as _Event
+from threading import Lock
 from queue import Queue
+
+class Event(_Event):
+    def __bool__(self):
+        return self._flag
 
 class DummyLine:
     r"""
@@ -165,6 +170,10 @@ class Cancel:
 
     def complete_work(self):
         self.task_done.wait()
+
+    def restart_work(self):
+        self.cancel_work()
+        self.allow_work()
 
     def allow_work(self):
         self.must_stop.clear()

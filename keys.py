@@ -109,8 +109,8 @@ def _escape(text):
     if evaluing:
         final += ('<' + _reprs[evaluing] + '>').replace('_','-')
 
-#    assert final.isprintable()
-#    assert not any(forbiden in final for forbiden in '\n\t\x1b')
+    assert final.isprintable()
+    assert not any(forbiden in final for forbiden in '\n\t\x1b')
     return final
 
 def _build_table():

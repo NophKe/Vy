@@ -25,7 +25,7 @@ def bench_basefile():
         file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
     print(f'bench_basefile:\t\t took {round(time() - start, 3)} seconds.')
 
-path ='/home/nono/test.c'
+path = Path('/home/nono/test.c')
 file = open(path)
 value= file.read()
 file.close()

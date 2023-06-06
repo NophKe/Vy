@@ -1,6 +1,5 @@
 from threading import Thread
 from time import sleep
-
 from vy.filetypes.basefile import BaseFile
 from vy.filetypes.completer import Completer
 
@@ -19,32 +18,10 @@ class TextFile(BaseFile):
         self._token_list = list()
         self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
         self._lexer_proc.start()
-        self._completer = None, None
-
-    @property
-    def completer_engine(self):
-        with self._lock:
-            engine, version = self._completer
-            if version != self._string:
-                engine = Completer(self)
-                self._completer = engine, self.string
-            return engine
-
-    def check_completions(self):
-        _, version = self._completer
-        if self._string == version and self.cursor_lin_col == self._last_comp:
-            return False
-        return True
+        self.completer_engine = Completer(self)
 
     def get_completions(self):
-        with self._lock:
-            lin, col = self.cursor_lin_col
-            self._last_comp = lin, col
-            completions = self.completer_engine.complete(line=lin+1, column=col-1)
-            if completions:
-                return completions
-            else:
-                return [], 0
+        return self.completer_engine.get_raw_screen()            
 
     def _lex_away(self):
         from vy.filetypes.lexer import guess_lexer, get_prefix

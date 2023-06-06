@@ -78,63 +78,58 @@ global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
 
 if not global_config.DONT_USE_USER_CONFIG:
     global_config._source_config()
-
 global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
 global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
 global_config.DEBUG = cmdline.debug
 
+
 ########    SIGNAL HANDLING    #######################################
 
-#from signal import signal, SIGWINCH, SIGINT
+from signal import signal, SIGWINCH, SIGINT, raise_signal
+import threading
+import sys
 
 ########    DEBUG MODE     ###########################################
 
-import sys
-#if cmdline.debug:
-    #import sys
+#def dump_infos(a, b):
+    #from __main__ import Editor
+    #from os import system
     #from pprint import pp
     #import faulthandler
-    #def dump_infos(a, b):
+    #try:
         #Editor.screen.original_screen()
-        #sys.stdout.flush()
-        #faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
-    #signal(SIGINT, dump_infos)
-#
-#########    START THE EDITOR #########################################
+    #except AttributeError:
+        #pass
+    #try:
+        #Editor.stop_async_io()
+    #except:
+        #pass
+    #faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+    #breakpoint()
+    #raise Editor.exception
 
-from vy.editor import _Editor as Editor
-
-Editor = Editor(*cmdline.files, command_line=cmdline)
 
 def enter_debugger():
     from __main__ import Editor
     Editor.stop_async_io()
     sys.__breakpointhook__()
-
 sys.breakpointhook = enter_debugger
 
+def retrive_exc_in_main_thread(a, b):
+    from __main__ import Editor
+    raise Editor.exception.exc_value from None
+signal(SIGINT, retrive_exc_in_main_thread)
 
-def _tests():
-    global Editor
-    Editor.edit('/home/nono/test.c')
-    file = Editor.current_buffer
-    import time
-    start = time.time()
-    for _ in range(100):
-        file.cursor = file.find_end_of_line()
-        file.insert('hi')
-        file.backspace()
-        lin, col = file.cursor_lin_col
-        file.cursor_lin_col = lin+1, col+1
-        file.insert('hi')
-        file.suppr()
-        file.move_cursor('w')
-        file[file.find_first_non_blank_char_in_line()] = 'toto'
-        file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
-    return f'took {time.time() - start} seconds'
+def raise_unraisable(unraisable):
+    from __main__ import Editor
+    Editor.exception = unraisable
+    raise_signal(SIGINT)
+threading.excepthook = raise_unraisable
 
+#sys.unraisablehook = raise_unraisable
+from vy.editor import _Editor as Editor
+Editor = Editor(*cmdline.files, command_line=cmdline)
 
-#global_config._source_rcfile(Editor)
 
 if cmdline.profile:
     import cProfile, pstats, io

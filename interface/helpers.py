@@ -19,6 +19,7 @@ class Completer:
         self.buffer = DummyLine()
         self._last_comp = self.state, self.buffer.string, self.buffer.cursor
         self.buffered = []
+        self.selected = -1
     
     def __call__(self, buffered=None):
         """
@@ -80,7 +81,12 @@ class Completer:
             screen.minibar('')
 
     def select_item(self):
-        to_insert, to_delete = self.screen.minibar_completer.select_item()
+        # wait for result
+        try:
+            to_insert, to_delete = self.completion[self.selected], self.prefix_len
+        except IndexError:
+            self.selected = -1
+            self.state = ''
         text = self.buffer.string
         cursor = self.buffer.cursor
         self.state = ''
@@ -90,14 +96,26 @@ class Completer:
         rv += text[cursor:]
         self.buffer.string = rv
         self.buffer.cursor += len(to_insert) - to_delete
-
+        
     def update_minibar(self):
         mini_text = self.prompt + ''.join(
                 char if idx != self.buffer.cursor
                 else f'\x1b[7m{char}\x1b[27m' 
                 for idx, char in enumerate(self.buffer.string + ' ')
                 )
+        
         self.screen.minibar(*(self.buffered + [mini_text]))
+        if not self.state:
+            self.screen.minibar_completer.give_up()
+        elif self.buffer.cursor != len(self.buffer.string):
+            self.state = ''
+        else:
+            self.completion, self.prefix_len = getattr(self, 'get_' + self.state)()
+            if self.selected > len(self.completion) - 1:
+                self.selected = 0
+            if self.selected < 0:
+                self.selected = 0
+            self.screen.minibar_completer(lambda: (self.completion, self.selected))
 
     def get_filenames(self, arg=None):
         if arg is None:
@@ -118,28 +136,6 @@ class Completer:
             #prefix = len(arg)
         return rv, len(arg)
 
-    def _get_completions(self):
-        if self.state:
-            if self.buffer.cursor != len(self.buffer.string):
-                self.state = ''
-            else:
-                completer = getattr(self, 'get_' + self.state)
-                rv = completer()
-                self._last_comp = self.state, self.buffer.string, self.buffer.cursor
-                return rv
-        return [], 0
-
-    def check_completion(self):
-        if self._last_comp == (self.state, self.buffer.string, self.buffer.cursor):
-            return False
-        return True
-    
-    def update_minibar_completer(self):
-        if not self.state:
-            self.screen.minibar_completer.give_up()
-        else:
-            self.screen.minibar_completer.set_callbacks(lambda: self._get_completions(), lambda: self.check_completion())
-
     def get_history(self):
         return [item for item in self.history if item.startswith(self.buffer.string)], len(self.buffer.string)
     
@@ -149,13 +145,28 @@ class Completer:
     def start_complete(self):
         if not self.state:
             self.state = 'complete'
-            self.update_minibar_completer()
-        elif not self.editor.screen.minibar_completer.completion:
-            pass
-        elif len(self.editor.screen.minibar_completer.completion) == 1:
+#        elif not self.completion:
+#            self.selected = 0
+        elif len(self.completion) == 1:
             self.select_item()
         else:
-            self.screen.minibar_completer.move_cursor_down()
+            self.move_cursor_down()
+            
+    def move_cursor_up(self):
+        if self.state:
+            if self.selected > 0:
+                self.selected -= 1
+            else:
+                self.selected = len(self.completion) - 1
+        else: 
+            self.selected = 0
+            self.state = 'history'
+        
+    def move_cursor_down(self):
+        if self.selected == len(self.completion) - 1:
+            self.selected = 0
+        else:
+            self.selected += 1
 
     def move_left(self):
         if self.buffer.cursor > 0:
@@ -166,18 +177,6 @@ class Completer:
         if self.buffer.cursor < len(self.buffer.string):
             self.buffer.cursor += 1
         self.state = ''
-
-    def move_cursor_up(self):
-        if self.state:
-            self.screen.minibar_completer.move_cursor_up()
-        else: 
-            self.state = 'history'
-            self.update_minibar_completer()
-            self.screen.minibar_completer.move_cursor_up()
-
-    def move_cursor_down(self):
-        if self.state:
-            self.screen.minibar_completer.move_cursor_down()
 
 def one_inside_dict_starts_with(dictio, pattern):
     maybe = False

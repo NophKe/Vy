@@ -304,6 +304,9 @@ class _Editor:
         ( you don't have access to the editor variable ) you should raise an 
         exception.
         """
+        if isinstance(msg, Exception):
+            self.exception = msg
+            from signal import raise_signal
         if not self._running:
             print(msg)
             return

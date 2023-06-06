@@ -16,6 +16,13 @@ class Folder(BaseFile):
     modifiable = False
     
     @property
+    def _lenght(self):
+        return len(self._string)
+    @_lenght.setter
+    def _lenght(self, value):
+        pass
+
+    @property
     def _lexed_lines(self):
         return self._splited_lines
     @_lexed_lines.setter
@@ -45,7 +52,6 @@ class Folder(BaseFile):
 
     @_string.setter
     def _string(self, value):
-        self._lenght = len(self._string)
         return
 
     def get_raw_screen(self, min_lin, max_lin):

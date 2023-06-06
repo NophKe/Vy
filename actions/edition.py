@@ -1,15 +1,16 @@
 from vy.actions.helpers import atomic_commands as _atomic_commands
 import vy.keys as k
+from vy.editor import _Editor
 
 @_atomic_commands(f'i_{k.C_W}')
-def erase_word_backward(editor, *args, **kwargs):
+def erase_word_backward(editor: _Editor, *args, **kwargs):
     """
     Erase one word backward.
     """
     with editor.current_buffer as curbuf:
         start_of_deletion = curbuf.find_previous_delim()
         del curbuf[start_of_deletion:curbuf.cursor]       
-        #curbuf.cursor = start_of_deletion
+        curbuf.cursor = start_of_deletion
 
 @_atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
@@ -46,7 +47,16 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
     completer = editor.screen.minibar_completer
     curbuf = editor.current_buffer
     if curbuf.cursor > curbuf.find_first_non_blank_char_in_line():
-        return 'completion'
+        completer = curbuf.completer_engine
+        completer._async.task_done.wait()
+        answers = len(completer.completion)
+        if answers:
+            if not completer.is_active:
+                completer.move_cursor_down()
+            if answers == 1:
+                completer.select_item()
+            return 'insert'
+        
     with editor.current_buffer as curbuf:
         curbuf.insert('\t')
         if curbuf.set_expandtabs:

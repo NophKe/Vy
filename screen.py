@@ -6,7 +6,7 @@ from os import get_terminal_size
 from sys import stdout
 
 from vy.global_config import DEBUG
-from vy.utils import Cancel, Thread
+from vy.utils import Cancel
 
 def expand_quick(max_col, text):
     line = ''
@@ -190,90 +190,33 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
 class CompletionBanner:
     def __init__(self):
         self.view_start = 0
-        self.max_selected = -1
-        self.selected = -1
-        self.completion = []
         self.pretty_completion = []
-        self.prefix_len = 0
-        self.check_func = lambda: False
         self.make_func = lambda: ([], 0)
-        self._active = False
-        self._completer_proc = lambda: Thread(target=self.generate, args=()).start()
+        self.selected = -1
 
-    def set_callbacks(self, make_func, check_func):
-        self.give_up()
-        self.make_func = make_func
-        self.check_func = check_func
-        self._completer_proc()
+    def __call__(self, make_func):
+        self.make_func = make_func 
 
-    def generate(self):
-        try:
-            self.completion, self.prefix_len = self.make_func()
-        except TypeError:
-            pass #Jedi-completer returned None
-
-        if self.completion: # and self.prefix_len > 0:
-            self.selected = -1
-            self.view_start = 0
-            self.max_selected = len(self.completion) - 1
-            self._update()
-            self._active = True
-    
     def give_up(self):
+        self.make_func = lambda: ([], 0)
         self.view_start = 0
-        self.max_selected = -1
         self.selected = -1
         self.completion = []
         self.pretty_completion = []
-        self.prefix_len = 0
-        self._active = False
 
     def __iter__(self):
-        if self._active:
-            if self.check_func():
-                self._active = False
-                self.view_start = 0
-                self.max_selected = -1
-                self.selected = -1
-                self.completion = []
-                self.pretty_completion = []
-                self.prefix_len = 0
-                self._completer_proc()
-            else:
-                yield from self.pretty_completion[self.view_start:self.view_start+8]
+        self.completion, self.selected = self.make_func()
+        if self.selected != -1:
+            self.pretty_completion = [
+                f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
+                       for index, k in enumerate(self.completion)]
+            if self.selected >= 0:
+                if self.selected <= self.view_start:
+                    self.view_start = self.selected
+                if self.selected > self.view_start + 7:
+                    self.view_start = self.selected - 7
+            yield from self.pretty_completion[self.view_start:self.view_start+8]
 
-    def __bool__(self):
-        return self._active #and self.selected > 0
-
-    def move_cursor_up(self):
-        if self.selected > 0:
-            self.selected -= 1
-        else:
-            self.selected = self.max_selected
-        self._update()
-
-    def move_cursor_down(self):
-        if self.selected == self.max_selected:
-            self.selected = 0
-        else:
-            self.selected += 1
-        self._update()
-
-    def _update(self):
-        self.pretty_completion = [
-            f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
-                   for index, k in enumerate(self.completion)]
-        if self.selected >= 0:
-            if self.selected <= self.view_start:
-                self.view_start = self.selected
-            if self.selected > self.view_start + 7:
-                self.view_start = self.selected - 7
-
-    def select_item(self):
-        if self.completion:
-            return self.completion[self.selected], self.prefix_len
-        return '', 0
-        
 
 class Window():
     def __init__(self, parent, shift_to_col, shift_to_lin, buff):
@@ -287,7 +230,7 @@ class Window():
         self.v_split_shift: int = 0
         self._focused: Window = self 
         self._iter = []
-        self._last = ()
+        #self._last = ()
     
     def __iter__(self):
         if self._v_split_flag:
@@ -297,11 +240,11 @@ class Window():
         else:
             yield self
         
-    def needs_redraw(self):
-        actual = self._last_shown()
-        if self._last != actual:
-            return True
-        return False
+    #def needs_redraw(self):
+        #actual = self._last_shown()
+        #if self._last != actual:
+            #return True
+        #return False
 
     #def __iter__(self):
         #if self.needs_redraw():
@@ -309,11 +252,10 @@ class Window():
         #yield from self._iter
 
     def set_focus(self):
-        if self.parent is self:
-            return
-        elif self.parent._focused is not self:
-            self.parent._focused = self
-        self.parent.set_focus()
+        if self.parent is not self:
+            if self.parent._focused is not self:
+                self.parent._focused = self
+            self.parent.set_focus()
 
     def get_left_buffer(self, caller=None):
         if caller is self:
@@ -448,8 +390,8 @@ class Window():
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
                                             self.right_panel.gen_window())]
-        if not self.needs_redraw():
-            return self._last_computed
+        #if not self.needs_redraw():
+            #return self._last_computed
            
         max_col = self.number_of_col
         min_lin = self.shift_to_lin
@@ -506,8 +448,6 @@ class Window():
                 else:
                     line_list.pop()
 
-        self._last = self._last_shown()
-        self._last_computed = line_list
         return line_list
 
     def _last_shown(self):
@@ -525,7 +465,6 @@ class Window():
 
 class Screen(Window):
     def __init__(self, buff):
-        self._last = None
         self.buff = buff
         self._v_split_flag = False
         self.v_split_shift = 0
@@ -584,52 +523,18 @@ class Screen(Window):
         return rv, ok_flag
 
     def minibar(self, *lines):
-        self._minibar_txt.clear()
-        self._minibar_txt.extend(lines)
-        copy = self._minibar_txt.copy()
-        self._last = None
-        return lambda: (self._minibar_txt.clear(),
-                        self._minibar_txt.append('')) if self._minibar_txt == copy else None
+        self._minibar_txt = lines
+        return lambda: self.minibar('') if self._minibar_txt == lines else None
     
-    if DEBUG:
-        @property
-        def minibar_banner(self):
-            from time import sleep
-            
-            from vy.global_config import USER_DIR
-            from pprint import pformat
-            from __main__ import Editor
-#                from time import asctime
-            debug_file = USER_DIR / "debugging_values"
-            to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m\n'
-            for line in debug_file.read_text().splitlines():
-                if line:
-                    try:
-                        value = pformat(eval(line))
-                        to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-                    except BaseException as exc:
-                        value = str(exc)
-                        to_print += f'\x1b[35;1m{line}\n     <<< ___ERROR____ >>>\n{value}\x1b[0m'
-            rv = list()
-            for line in to_print.splitlines():
-                rv.extend(expand_quick(self.number_of_col, line))
-            rv.append(self.infobar_txt)
-            for line in self.minibar_completer:
-                rv.extend(expand_quick(self.number_of_col, line))
-            for line in self._minibar_txt:
-                rv.extend(expand_quick(self.number_of_col, line))
-#                rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
-            return rv
-    else:
-        @property
-        def minibar_banner(self):
-            rv = list()
-            for line in self.minibar_completer:
-                rv.extend(expand_quick(self.number_of_col, line))
-            rv.append(self.infobar_txt)
-            for line in self._minibar_txt:
-                rv.extend(expand_quick(self.number_of_col, line))
-            return rv
+    @property
+    def minibar_banner(self):
+        rv = list()
+        for line in self.minibar_completer:
+            rv.extend(expand_quick(self.number_of_col, line))
+        rv.append(self.infobar_txt)
+        for line in self._minibar_txt:
+            rv.extend(expand_quick(self.number_of_col, line))
+        return rv
 
     def infobar(self, left='', right=''):
         self._infobar_left = left
@@ -701,3 +606,35 @@ class Screen(Window):
     def clear_screen(self):
         stdout.write('\x1b[2J')
         
+class DebugScreen(Screen):
+    @property
+    def minibar_banner(self):
+        from time import sleep
+        
+        from vy.global_config import USER_DIR
+        from pprint import pformat
+        from __main__ import Editor
+#                from time import asctime
+        debug_file = USER_DIR / "debugging_values"
+        to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m\n'
+        for line in debug_file.read_text().splitlines():
+            if line:
+                try:
+                    value = pformat(eval(line))
+                    to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
+                except BaseException as exc:
+                    value = str(exc)
+                    to_print += f'\x1b[35;1m{line}\n     <<< ___ERROR____ >>>\n{value}\x1b[0m'
+        rv = list()
+        for line in to_print.splitlines():
+            rv.extend(expand_quick(self.number_of_col, line))
+        rv.append(self.infobar_txt)
+        for line in self.minibar_completer:
+            rv.extend(expand_quick(self.number_of_col, line))
+        for line in self._minibar_txt:
+            rv.extend(expand_quick(self.number_of_col, line))
+#                rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
+        return rv
+
+if DEBUG:
+    Screen = DebugScreen
