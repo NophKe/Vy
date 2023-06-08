@@ -137,8 +137,8 @@ class _HistoryList:
         raise IndexError
 
     def __str__(self):
-        return '\n'.join( repr(value)[:20] + ' <-- pointer\n' if idx == self.pointer 
-                          else repr(value)[:20] + '\n' for idx, value in enumerate(self.data) )
+        return '\n'.join( repr(value) + ' <-- pointer' if idx == self.pointer 
+                          else repr(value) for idx, value in enumerate(self.data) )
 
 class Cancel:
     def __init__(self):

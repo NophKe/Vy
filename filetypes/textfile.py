@@ -16,7 +16,8 @@ class TextFile(BaseFile):
         self._lexed_cache = {}
         self._lexed_lines = list()
         self._token_list = list()
-        Thread(target=self._lex_away, args=(), daemon=True).start()
+        self._lexer_proc = Thread(target=self._lex_away, args=(), daemon=True)
+        self._lexer_proc.start()
         self.completer_engine = Completer(self)
 
     def get_completions(self):
@@ -30,12 +31,7 @@ class TextFile(BaseFile):
         cancel_handler = self._async_tasks
 
         while True:
-            while cancel_handler.must_stop.wait(0):
-                pass
             cancel_handler.notify_working()
-            if cancel_handler:
-                cancel_handler.notify_stopped()
-                continue
             local_split = iter(self.splited_lines).__next__
             self.cursor_lin_col
             self.number_of_lin
