@@ -25,6 +25,7 @@ cdef class BaseFile:
         public int set_tabsize
         public bint set_expandtabs
         public bint set_autoindent
+        int _virtual_col
         
         str _init_text
         tuple _selected      

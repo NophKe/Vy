@@ -33,7 +33,8 @@ try:
     if DONT_USE_JEDI_LIB:
         raise ImportError
     from jedi import Script, settings
-    #settings.add_bracket_after_function = True
+    settings.add_bracket_after_function = True
+    settings.case_insensitive_completion = True
     
     class ScriptCompleter(Script):
         def complete(self, line, column):
@@ -100,7 +101,7 @@ class Completer:
             self.prefix_len = 0
                 
     def get_raw_screen(self):
-        if self._async.task_done.is_set():
+        if self._async.task_done:
             if self.buff.cursor_lin_col != self._last:
                 self._last = self.buff.cursor_lin_col
                 self._async.restart_work()
@@ -110,10 +111,10 @@ class Completer:
         if self.selected > 0:
             self.selected -= 1
         else:
-            self.selected = len(self.completion)
+            self.selected = len(self.completion) - 1
 
     def move_cursor_down(self):
-        if self.selected == len(self.completion):
+        if self.selected == len(self.completion) - 1:
             self.selected = 0
         else:
             self.selected += 1

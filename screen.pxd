@@ -53,24 +53,12 @@ cdef list expand_quick(int max_col,
 cdef class CompletionBanner:
     cdef:
         int view_start
-        int max_selected 
         int selected
-        public list completion
+        list completion
         list pretty_completion
         int prefix_len
-        object check_func 
         object make_func
-        bint _active
-
-        generate(self) noexcept
-        _update(self) noexcept
-
-    cpdef set_callbacks(self, object make_func, object check_func) noexcept
-    cpdef give_up(self)  noexcept
-
-    cpdef move_cursor_up(self) noexcept
-    cpdef move_cursor_down(self) noexcept
-    cpdef select_item(self)
+    #cpdef give_up(self)  noexcept
 
 cdef class Window:
     cdef public tuple _last
@@ -97,16 +85,18 @@ cdef class Window:
             true_cursor=int)
     cdef list gen_window(self)
 
-@final
-cdef class Screen(Window):
+cdef class _Screen(Window):
     cdef int _number_of_lin
     cdef int _number_of_col
     cdef str _infobar_right
     cdef str _infobar_left
-    cdef list _minibar_txt
+    cdef tuple _minibar_txt
     cdef list _minibar_completer
 
     @locals(rv=list)
     cpdef tuple get_line_list(self)
     cpdef void alternative_screen(self) noexcept
     cpdef void original_screen(self) noexcept
+
+cdef class DebugScreen(_Screen):
+    pass

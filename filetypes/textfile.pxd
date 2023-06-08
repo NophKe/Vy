@@ -1,6 +1,7 @@
 from vy.filetypes.basefile cimport BaseFile
 from vy.filetypes.lexer import get_prefix
 from vy.filetypes.lexer cimport get_prefix
+from vy.filetypes.completer cimport Completer
 
 from cython import final, locals
 
@@ -14,16 +15,11 @@ cdef dict codes
 #@final
 cdef class TextFile(BaseFile):
     cdef:
-        object _last_comp
-        tuple _completer
+        public Completer completer_engine
         public list _lexed_lines
-        object _lexer_proc 
-        object _undo_proc 
-        public object lexer
         public dict _lexed_cache
+        public list _token_list
+        
     cpdef void _lex_away(self) noexcept
-    cpdef check_completions(self) noexcept
     cpdef get_completions(self) noexcept
     cpdef tuple get_raw_screen(self, int min_lin, int max_lin)
-
-

@@ -245,8 +245,7 @@ class BaseFile:
         """
         with self._lock:
             if not self._number_of_lin:
-                if self._splited_lines:
-                    self._number_of_lin = len(self.splited_lines)
+                self._number_of_lin = len(self.splited_lines)
             return self._number_of_lin
 
     def suppr(self):

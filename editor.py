@@ -191,6 +191,7 @@ class _Register:
             raise RuntimeError
 
 class ActionDict(dict):
+    __slots__ = 'instance'
     def __init__(self, instance):
         self.instance = instance
     def __call__(self, value, **kwargs):
@@ -199,11 +200,11 @@ class ActionDict(dict):
 class NameSpace:
     __slots__ = ('insert', 'command', 'visual', 'normal', 'motion')
     def __init__(self, instance):
-        self.insert = dict()
-        self.command= dict()
-        self.visual = dict()
+        self.insert = ActionDict(instance)
+        self.command= ActionDict(instance)
+        self.visual = ActionDict(instance)
         self.normal = ActionDict(instance)
-        self.motion = dict()
+        self.motion = ActionDict(instance)
 
 class _Editor:
     """ This class is the data structure representing the state of the Vym editor.
@@ -429,15 +430,16 @@ class _Editor:
         self.print_thread.start()
 
     def stop_async_io(self):
-        self._async_io_flag = False
-        self.input_thread.join()
-        self.print_thread.join()
-        if not DEBUG:
-            self.screen.clear_screen()
-            self.screen.original_screen()
-        self.screen.show_cursor()
-        #assert self._input_queue.join() ## one key may get stuck there
-        #                                ## what can we do ?
+        if self._async_io_flag:
+            self._async_io_flag = False
+            self.input_thread.join()
+            self.print_thread.join()
+            if not DEBUG:
+                self.screen.clear_screen()
+                self.screen.original_screen()
+            self.screen.show_cursor()
+            #assert self._input_queue.join() ## one key may get stuck there
+            #                                ## what can we do ?
         
     def __call__(self, buff=None, mode='normal'):
         """

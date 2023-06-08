@@ -10,12 +10,17 @@ cdef class WordCompleter:
     cdef object buff
     cdef set words
     cdef list split
-
+    
     cpdef tuple complete(self, int line, int column)
-    #settings.add_bracket_after_function = True
     
 cdef class Completer:
-    cdef list completers
     cdef object buff
-        
-    cpdef complete(self, int line, int column)
+    cdef int selected
+    cdef list completers
+    cdef list completion
+    cdef int prefix_len
+    cdef object _async
+    cdef object _last
+    cdef object last_version
+    
+    cpdef get_raw_screen(self)
