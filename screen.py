@@ -1,7 +1,6 @@
 """
 This module is a mess that handles screen rendering.
 """
-
 from os import get_terminal_size
 from sys import stdout
 
@@ -28,10 +27,11 @@ def expand_quick(max_col, text):
 
         if on_col ==  max_col:
             line += '\x1b[39;22m'
-            retval.append(line)
-            line = '\x1b[39;22m'
-            on_col = 1
-            esc_flag = False
+            return line
+#            retval.append(line)
+#            line = '\x1b[39;22m'
+#            on_col = 1
+#            esc_flag = False
 
         if char == '\t':
             line += ' '
@@ -186,36 +186,30 @@ def expandtabs(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len,
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
-
+    
 class CompletionBanner:
     def __init__(self):
-        self.view_start = 0
-        self.pretty_completion = []
         self.make_func = lambda: ([], 0)
-        self.selected = -1
+        self.view_start = 0
 
     def __call__(self, make_func):
         self.make_func = make_func 
 
     def give_up(self):
-        self.make_func = lambda: ([], 0)
-        self.view_start = 0
-        self.selected = -1
-        self.completion = []
-        self.pretty_completion = []
+        return self.__init__()
 
     def __iter__(self):
-        self.completion, self.selected = self.make_func()
-        if self.selected != -1:
-            self.pretty_completion = [
-                f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
-                       for index, k in enumerate(self.completion)]
-            if self.selected >= 0:
-                if self.selected <= self.view_start:
-                    self.view_start = self.selected
-                if self.selected > self.view_start + 7:
-                    self.view_start = self.selected - 7
-            yield from self.pretty_completion[self.view_start:self.view_start+8]
+        completion, selected = self.make_func()
+        if selected != -1:
+            pretty_completion = [
+                f'| {k} ' if index != selected else f"|\x1b[7m {k} \x1b[27m" 
+                       for index, k in enumerate(completion)]
+            if selected >= 0:
+                if selected <= self.view_start:
+                    self.view_start = selected
+                if selected > self.view_start + 7:
+                    self.view_start = selected - 7
+                yield from pretty_completion[self.view_start:self.view_start+8]
 
 
 class Window():
@@ -307,7 +301,7 @@ class Window():
         maxline = new_buffer.number_of_lin
         halfscreen = self.number_of_lin // 2
         max_shift = maxline - halfscreen
-        new_shift = cursor_line - halfscreen
+        new_shift = cursor_line - halfscreen        
         self.shift_to_lin = min(maxline, max(0, new_shift))
         return self
             
@@ -358,7 +352,7 @@ class Window():
 
     @property
     def number_of_lin(self):
-        return self.parent.number_of_lin
+        return self.parent.number_of_lin - 1
 
     @property
     def vertical_split(self):
@@ -380,22 +374,29 @@ class Window():
                 self.left_panel.set_focus()
         return self._focused
 
+    def gen_layout(self, header):
+        max_col = self.number_of_col
+        min_lin = self.shift_to_lin #+ len(header)
+        max_lin = self.number_of_lin + self.shift_to_lin - 1 # For header
+        return max_col, min_lin, max_lin
+
+    def gen_accumulator(self):
+        notabs = lambda x: expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_col, stop_col))
+        if wrap:
+            return lambda xline_list, on_lin, start_col, stop_col: line_list.append(notabs())
+
     def gen_window(self):
         if self.vertical_split:
-            #if not self.right_panel.needs_redraw() and not self.left_panel.needs_redraw():
-                #return [f'{left}|{right}' for left, right in zip(
-                                            #self.left_panel._last_computed,
-                                            #self.right_panel._last_computed)]
-                
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
                                             self.right_panel.gen_window())]
-        #if not self.needs_redraw():
-            #return self._last_computed
-           
-        max_col = self.number_of_col
-        min_lin = self.shift_to_lin
-        max_lin = self.number_of_lin + self.shift_to_lin
+        header = expand_quick(self.number_of_col - 8, repr(self.buff)) 
+        header = '\x1b[1m**  ' + header[0] + '  **\x1b[22m'
+
+        max_col, min_lin, max_lin = self.gen_layout(header)
+        
+#        accumulate = self.gen_accumulator(self)
+        
         wrap = self.buff.set_wrap
         if (number := self.buff.set_number):
             num_len = len(str(max_lin))
@@ -404,14 +405,9 @@ class Window():
             expand = expandtabs
             num_len = None
         tab_size = self.buff.set_tabsize
-        default = f"~{' ':{max_col- 1}}"
+        
         true_cursor = 0
-
-        if self.buff.selected_lin_col:
-            (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
-            visual_flag = True
-        else:
-            visual_flag = False
+        default = f"~{' ':{max_col- 1}}"
         
         cursor_lin, cursor_col, raw_line_list \
                 = self.buff.get_raw_screen(min_lin, max_lin)
@@ -447,7 +443,10 @@ class Window():
                     true_cursor -= 1
                 else:
                     line_list.pop()
+        #else:
+            #assert len(line_list) == self.number_of_lin - 1 # For header
 
+        #return [header, *line_list]
         return line_list
 
     def _last_shown(self):
@@ -463,7 +462,7 @@ class Window():
                 len(self.buff._splited_lines) + len(self.buff._lexed_lines),
                 )
 
-class Screen(Window):
+class _Screen(Window):
     def __init__(self, buff):
         self.buff = buff
         self._v_split_flag = False
@@ -474,7 +473,7 @@ class Screen(Window):
         self.shift_to_col = 0
         self._infobar_right = ''
         self._infobar_left = ''
-        self._minibar_txt = ['']
+        self._minibar_txt = ('',)
         self.minibar_completer = CompletionBanner()
 
         columns, lines = get_terminal_size()
@@ -514,7 +513,7 @@ class Screen(Window):
             ok_flag = True
 
         try:
-            rv = self.gen_window().copy()
+            rv = self.gen_window()
         except RuntimeError:
             rv = [''] * self._number_of_lin
             ok_flag = False
@@ -606,7 +605,7 @@ class Screen(Window):
     def clear_screen(self):
         stdout.write('\x1b[2J')
         
-class DebugScreen(Screen):
+class _DebugScreen(_Screen):
     @property
     def minibar_banner(self):
         from time import sleep
@@ -638,3 +637,5 @@ class DebugScreen(Screen):
 
 if DEBUG:
     Screen = DebugScreen
+else:
+    Screen = _Screen
