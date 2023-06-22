@@ -290,8 +290,10 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
         if offset == -1:
             editor.screen.minibar(f'String: «{needle}» not found!')
         else:
-            curbuf.cursor = offset
-    editor.actions.normal('zz')
+            curbuf.cursor = offset    
+        editor.actions.normal('zz')
+    else:
+        editor.minibar(' ( No previous search. )')
         
     
 @_motion_commands("N")
@@ -299,11 +301,24 @@ def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to previous occurrence of last searched text.
     """
-    from vy.interface.search_backward import loop
-    from vy.keys import C_M
-    editor.push_macro(C_M)
-    loop(editor)
-    editor.actions.normal('zz')
+    needle = editor.registr['/']
+    if needle:
+        offset = curbuf.string.rfind(needle, 0, curbuf.cursor)
+
+        if offset == current_offset:
+            offset = curbuf.string.rfind(needle, 0, curbuf.cursor - 1)
+    
+        if offset == -1:
+            editor.screen.minibar('String not found: back to the end.')
+            offset = curbuf._string.rfind(needle)
+    
+        if offset == -1:
+            editor.screen.minibar('String not found!')
+            return 'normal'
+    
+        editor.actions.normal('zz')
+    else:
+        editor.minibar(' ( No previous search. )')
 
 @_motion_commands('*')
 def do_normal_star(editor, reg=None, part=None, arg=None, count=1):

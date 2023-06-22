@@ -12,14 +12,16 @@ the editor minibar.  If the result is a str object, its value will be
 used instead of its repr.
 
 Execution takes place in a separated namespace that gets created just 
-before prompting user input for the first time, and will be populated
-with 3 shortcut variables that will be updated at every new prompt, the
-clear() function and the python builtins.
+before prompting user input for the first time. It will be populated
+with 3 shortcut variables that will be updated at every new prompt.
+
+The clear() function may be used to restore the name-space to its
+original state containing only the builtins and the following variables.
 
     - 'ed' is the editor instance
     - 'cb' is editor.current_buffer
     - 'cw' is editor.current_window
-    - clear() function may be used to clear the namespace
+    - clear() to reset the namespace
 """
 from code import InteractiveConsole
 from vy.interface.helpers import Completer
@@ -49,7 +51,6 @@ try:
             
 except ImportError:
     Readline = Completer
-
 
 def init(editor):
     global readline

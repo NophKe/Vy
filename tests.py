@@ -23,7 +23,27 @@ def bench_basefile():
         file.move_cursor('w')
         file[file.find_first_non_blank_char_in_line()] = 'toto'
         file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
-    print(f'bench_basefile:\t\t took {round(time() - start, 3)} seconds.')
+    print(f'bench_basefile:\n\t\t took {round(time() - start, 3)} seconds.')
+
+def bench_insert_str():
+    start = time()
+    for _ in range(100):
+        file.cursor = _
+        file._string_insert('hi')
+        len(file.string)
+        len(file.splited_lines)
+        file.cursor_lin_col
+    print(f'bench_insert_string:\n\t\t took {round(time() - start, 3)} seconds.')
+    
+def bench_insert_list():
+    start = time()
+    for _ in range(100):
+        file.cursor = _
+        file._list_insert('hi')
+        len(file.string)
+        len(file.splited_lines)
+        file.cursor_lin_col
+    print(f'bench_insert_list:\n\t\t took {round(time() - start, 3)} seconds.')
 
 path = Path('/home/nono/test.c')
 file = open(path)
@@ -38,7 +58,7 @@ def bench_grab_lock():
     for t in range(100):
         with file:
             pass
-    print(f'bench_grab_lock:\t\t took {round(time() - start, 3)} seconds.')
+    print(f'bench_grab_lock:\n\t\t took {round(time() - start, 3)} seconds.')
 
 def bench_textfile():
     global file
@@ -52,7 +72,7 @@ def bench_textfile():
                 sleep(0.04)
                 continue
             break
-    print(f'bench_textfile:\t\t took {round(time() - start, 3)} seconds.')
+    print(f'bench_textfile:\n\t\t took {round(time() - start, 3)} seconds.')
 
 def _bench_expandtabs():
     from vy.screen import expandtabs_numbered
@@ -80,31 +100,29 @@ def _bench_expandtabs():
         cursor_col = 8
         visual = (6,11)
         expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)    
-    print(f'bench_expandtabs:\t\t took {round(time() - start, 3)} seconds.')
+    print(f'bench_expandtabs:\n\t\t took {round(time() - start, 3)} seconds.')
 
-    # This class should one day replace the command class
-class CMD:
-    def __new__(cls, *args, **kwargs):
-        cls.seen = set()
-        super.__new__(cls, *args, **kwargs)
-    def __init_subclass__(cls, /, alias_dict, **kwargs):
-        self.alias_dict = alias_dict
-        super().__init_subclass__(cls, **kwargs)
-    def __init__(self, header, mode_prefix):
-        self.header = self.v_header % (v_alias[0] ,
-                                    ' '.join(_escape(item) for item in v_alias).ljust(60))
-    def update_func(self, alias, func):
-        for item in alias.split(' '):
-            self.alias_dict[alias] = func
-        header = ''
-        if func.__doc__:
-            func.__doc__ = self.header + '\n' + func.__doc__ + '\n'
-    def __call__(self, alias):
-        return lambda func : self.update_func(alias, func)
 
 if __name__ == '__main__':
     start = time()
     for test in dir():
         if test.startswith('bench') or test.startswith('test'):
             globals()[test]()
-    print(f'Whole Test Suite:\t took {round(time() - start, 3)} seconds.')
+    print(f'Whole Test Suite:\n\t\t took {round(time() - start, 3)} seconds.')
+
+else:
+    from vy.editor import _Editor as Editor
+    ed = Editor()
+    ed.edit('/home/nono/test_me.py')
+    for dic in [ed.actions.command, ed.actions.insert, ed.actions.insert, ed.actions.motion, ed.actions.motion]:
+        for act in dic:
+            try:
+                dic[act](ed)
+            except BaseException as exc:
+                print(exc.__cause__)
+                print(act)
+                print(f'{dic is ed.actions.command =}')
+                print(f'{dic is ed.actions.insert =}')
+                print(f'{dic is ed.actions.normal = }')
+                print(f'{dic is ed.actions.motion =}')
+                print(f'{dic is ed.actions.visual =}')

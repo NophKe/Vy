@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -S -m
+#!/usr/bin/python3 -m
 """
 This file is the main entry point for the Vy Editor and is not supposed 
 to be executed outside the Vy package. This module is in charge of basic
@@ -15,6 +15,7 @@ and begin user interaction.
 To see all available option on command line, use:
 
  python -m vy --help
+ 
 
 """
 
@@ -28,7 +29,8 @@ if __name__ != '__main__' or __package__ != 'vy':
 #######    SANITY CHECKS
 
 # Required dependency from standard library, if those are not present,
-# on current setup, we just let the exception propagate. 
+# on current setup, we just let the ImportError exception propagate. 
+
 from argparse import ArgumentParser 
 from sys import stdin, stdout, exit
 
@@ -38,7 +40,9 @@ if not (stdin.isatty() and stdout.isatty()):
 ########   COMMAND LINE PARSING #############################
 
 parser = ArgumentParser(prog='Vy',
-                        description='LEGACY-FREE VI-LIKE EDITOR',)
+                        description='LEGACY-FREE VI-LIKE EDITOR',
+                        epilog='\n----\n',
+                        )
 
 parser.add_argument('--profile', default=False,
             action="store_true",
@@ -64,6 +68,10 @@ parser.add_argument('--no-jedi', default=False,
             action="store_true",
             help='Do not use Jedi library for code completion even if available.')
 
+parser.add_argument('--command', default='',
+            type=str,
+            help='Screen shows selected infos and enter the debugger.')
+
 parser.add_argument("files", default=None,
             help="List of files to Open.", 
             nargs='*') 
@@ -85,7 +93,7 @@ global_config.DEBUG = cmdline.debug
 
 ########    SIGNAL HANDLING    #######################################
 
-from signal import signal, SIGWINCH, SIGINT, raise_signal
+from signal import signal, SIGWINCH, SIGUSR1, raise_signal
 import threading
 import sys
 
@@ -110,20 +118,31 @@ import sys
 
 
 def enter_debugger():
-    from __main__ import Editor
-    Editor.stop_async_io()
+    try: Editor.stop_async_io()
+    except: pass
     sys.__breakpointhook__()
 sys.breakpointhook = enter_debugger
 
 def retrive_exc_in_main_thread(a, b):
-    from __main__ import Editor
-    raise Editor.exception.exc_value from None
-signal(SIGINT, retrive_exc_in_main_thread)
+    assert Editor.exception.exc_value, "Received signal but no exception"
+    if Editor._async_io_flag:
+        try: Editor.stop_async_io()
+        except: pass
+    exc = Editor.exception
+    import sys
+    from traceback import print_tb
+    type_, value_, trace_ = sys.exc_info()
+    print(Editor.screen.infobar_txt)
+    print(  'The following *unhandled* exception was encountered:\n'
+           f'  >  {repr(exc)} indicating:\n'
+           f'  >  {str(exc)}\n')
+    print_tb(trace_)
+    exit(1)
+signal(SIGUSR1, retrive_exc_in_main_thread)
 
 def raise_unraisable(unraisable):
-    from __main__ import Editor
     Editor.exception = unraisable
-    raise_signal(SIGINT)
+    raise_signal(SIGUSR1)
 threading.excepthook = raise_unraisable
 
 #sys.unraisablehook = raise_unraisable
@@ -146,6 +165,10 @@ if cmdline.profile:
     ps.print_stats()
     with open('stats.LOG', 'w+') as out_file:
         print(s.getvalue(), file=out_file)
-else:
-    exit(Editor(mode=cmdline.mode))
+    exit()
+
+if cmdline.command:
+    Editor.push_macro(cmdline.command)
+    
+Editor(mode=cmdline.mode)
 

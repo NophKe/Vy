@@ -10,11 +10,9 @@ In 'normal mode', these are the commands that await a valid motion or an
 operator to work on.  You can also use visual mode to select the range
 upon which the action will operate.
 """
-from vy.actions.helpers import full_commands, sa_commands
-from vy import keys as k
+from vy.actions.helpers import full_commands as _full_commands
 
-
-@full_commands('c v_c')
+@_full_commands('c v_c')
 def change(editor, reg='_', part=None, arg=None, count=1):
     """
     Deletes the text from the cursor position to MOTION argument, or
@@ -33,7 +31,7 @@ def change(editor, reg='_', part=None, arg=None, count=1):
         curbuf.cursor = part.start
         return 'insert'
 
-@full_commands('y v_y')
+@_full_commands('y v_y')
 def yank(editor, reg='"', part=None, arg=None, count=1):
     """
     Yanks (copies) the text from the cursor position to {movement}
@@ -44,7 +42,7 @@ def yank(editor, reg='"', part=None, arg=None, count=1):
     text = editor.current_buffer[part]
     editor.registr[reg] = text
 
-@full_commands('d v_d')
+@_full_commands('d v_d')
 def delete(editor, reg='"', part=None, arg=None, count=1):
     """
     Deletes the text from the cursor position to {movement} argument, or
@@ -56,7 +54,7 @@ def delete(editor, reg='"', part=None, arg=None, count=1):
     del editor.current_buffer[part]
     editor.registr[reg] = to_be_del
 
-@full_commands('gu v_gu')
+@_full_commands('gu v_gu')
 def lower_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Makes the text lower case from the cursor position to {movement}
@@ -69,7 +67,7 @@ def lower_case(editor, reg='_', part=None, arg=None, count=1):
         curbuf[part] = curbuf[part].lower()
         curbuf.cursor = part.stop
 
-@full_commands('gU v_gU')
+@_full_commands('gU v_gU')
 def upper_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Makes the text upper case from the cursor position to {movement}
@@ -82,7 +80,7 @@ def upper_case(editor, reg='_', part=None, arg=None, count=1):
         curbuf[part] = curbuf[part].upper()
         curbuf.cursor = part.stop
 
-@full_commands('g~ v_g~')
+@_full_commands('g~ v_g~')
 def swap_case(editor, reg='_', part=None, arg=None, count=1):
     """
     Swaps the case of the text from the cursor position to {movement}
@@ -95,4 +93,4 @@ def swap_case(editor, reg='_', part=None, arg=None, count=1):
         curbuf[part] = curbuf[part].swapcase()
         curbuf.cursor = part.stop
 
-del full_commands, k, sa_commands
+del _full_commands

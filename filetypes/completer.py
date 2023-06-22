@@ -4,10 +4,10 @@ from re import split
 from vy.utils import Cancel
 from threading import Thread
 
+ANY_BUFFER_WORD_SET = set()
+
 def make_word_set(string):
     return set(split(r'[{}\. :,()\[\]]|$', string))
-
-ANY_BUFFER_WORD_SET = set()
 
 class WordCompleter:
     def __init__(self, buff):
@@ -38,11 +38,16 @@ try:
     
     class ScriptCompleter(Script):
         def complete(self, line, column):
-            completion = super().complete(line=line+1, column=column-1)
-            if completion:
+            try:           
+                completion = super().complete(line=line+1, column=column-1)
                 lengh = completion[0].get_completion_prefix_length()
                 return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
-            return None
+            except:
+                # Jedi Library uses threads and subprocesses. Its use in a
+                # multi-threaded application may be unstable, this is inherent
+                # to jedi's design, and is well stated in jedi's documentation
+                # so we silent any exception.
+                return None
 
 except ImportError:
     ScriptCompleter = None
@@ -56,10 +61,9 @@ class Completer:
         self._async = Cancel()    
         self._last = (0,0)
         self.last_version = None
-        
         self.completers = []
+        
         if ScriptCompleter:
-            #breakpoint()
             if buffer.path and buffer.path.name.lower().endswith('py'):
                 self.completers.append(ScriptCompleter(code=buffer.string))
         self.completers.append(WordCompleter(buffer))
@@ -68,9 +72,7 @@ class Completer:
         
     @property
     def is_active(self):
-        return self._async.task_done.is_set() \
-               and len(self.completion)       \
-               and self.selected >= 0
+        return self._async.task_done and self.completion and self.selected != -1
                
     def generate(self):
         while True:     
@@ -93,19 +95,20 @@ class Completer:
                 self.completion, self.prefix_len = [], 0
                 # All completers returned None
             else:
-                self.selected = -1
+                if self.selected != -1 and len(self.completion):
+                    self.selected = 0
             
             self._async.notify_task_done()
-            self.selected = -1
+#            self.selected = -1
             self.completion = []
             self.prefix_len = 0
                 
     def get_raw_screen(self):
+        if self.buff._cursor_lin_col != self._last:
+            self._last = self.buff.cursor_lin_col
+            self._async.restart_work()
         if self._async.task_done:
-            if self.buff.cursor_lin_col != self._last:
-                self._last = self.buff.cursor_lin_col
-                self._async.restart_work()
-        return self.completion, self.selected
+            return self.completion, self.selected
         
     def move_cursor_up(self):
         if self.selected > 0:

@@ -593,13 +593,13 @@ def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
     Optionnal {count} argument is ignored.
     """
     with editor.current_buffer as curbuf:
-        editor.registr[reg] = curbuf['cursor:$']
-        del curbuf['cursor:$']
+        editor.registr[reg] = curbuf[curbuf.cursor:curbuf.find_end_of_line()]
+        del curbuf[curbuf.cursor:curbuf.find_end_of_line()]
         return 'insert'
 
 
 # TODO Add k.F1 and i_k.F1( but set value in keys.py first ) 
-#@with_args_commands(':help :h')
+
 @atomic_commands(':help :h')
 def do_help(editor, reg=None, part=None, arg=':help', count=1):
     """
@@ -769,3 +769,27 @@ def execute_macro(editor, reg=None, part=None, arg=None, count=1):
 
 del sa_commands, atomic_commands, k
 
+
+
+
+# This class should one day replace the command class
+class CMD:
+    def __new__(cls, *args, **kwargs):
+        cls.seen = set()
+        super.__new__(cls, *args, **kwargs)
+    def __init_subclass__(cls, /, alias_dict, **kwargs):
+        self.alias_dict = alias_dict
+        super().__init_subclass__(cls, **kwargs)
+    def __init__(self, header, mode_prefix):
+        self.header = self.v_header % (v_alias[0] ,
+                                    ' '.join(_escape(item) for item in v_alias).ljust(60))
+    def update_func(self, alias, func):
+        for item in alias.split(' '):
+            self.alias_dict[alias] = func
+        header = ''
+        if func.__doc__:
+            func.__doc__ = self.header + '\n' + func.__doc__ + '\n'
+    def __call__(self, alias):
+        return lambda func : self.update_func(alias, func)
+
+del CMD

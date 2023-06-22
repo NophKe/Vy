@@ -149,6 +149,8 @@ class Cancel:
         self.working = False
 
     def notify_working(self):
+        while self.must_stop.wait(0.01):
+            pass
         with self.lock:
             self.working = True
             
@@ -181,7 +183,4 @@ class Cancel:
             self.restart.task_done()
             self.working = False
         self.lock.release()
-            
-    def __bool__(self):
-        return self.must_stop._flag
             

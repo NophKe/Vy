@@ -12,12 +12,12 @@ class Completer:
         self.histfile = histfile
         self.history = [ item for item in histfile.read_text().splitlines() ]
         self.state = ''
-        self.prompt = f'\x1b[39;1m{prompt}\x1b[39;22m'
+        self.prompt = f'\x1b[97;1m{prompt}\x1b[97;22m'
         self.editor = editor
         self.reader = editor.read_stdin
         self.screen = editor.screen
         self.buffer = DummyLine()
-        self._last_comp = self.state, self.buffer.string, self.buffer.cursor
+#        self._last_comp = self.state, self.buffer.string, self.buffer.cursor
         self.buffered = []
         self.selected = -1
     

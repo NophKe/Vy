@@ -6,15 +6,15 @@
 This is Vy's version of the normal mode loop of the classical vi-like
 editors.  There is not much to know about it except that all commands
 belonging to the commands categories will be handled in a similar
-fashion and argument parsing algorithm is precisely defined.
+manner and argument parsing algorithm is precisely defined.
 
-Action writers are invited to read th source for more accurate description.
+Action writers are invited to read the vy.interface.normal module source
+for a more accurate description.
 
 """
 
 from vy.interface.helpers import one_inside_dict_starts_with
 from vy.keys import _escape
-#from time import time
 
 def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
     """Updates mini-bar before reading a new key-strike"""
@@ -31,14 +31,15 @@ def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
 
 def loop(editor, capture=True):
     """ Normal mode event-loop function """
+    # Capture local variables
     get_char = lambda: _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key)
-
+    
     dictionary = {}
     minibar = editor.screen.minibar
     curbuf = editor.current_buffer
     motion_cmd = editor.actions.motion
     local_actions = curbuf.actions 
-    #dictionary.update(motion_cmd)
+    
     dictionary.update(editor.actions.normal)
     dictionary.update(local_actions)
 
@@ -125,7 +126,7 @@ def loop(editor, capture=True):
         COUNT = COUNT * MOTION_COUNT
         curbuf.start_selection()
         
-        motion_cmd[key](editor, count=COUNT)   #new
+        motion_cmd[key](editor, count=COUNT)
         
         RRANGE = curbuf.selected_offsets
         curbuf.stop_selection()

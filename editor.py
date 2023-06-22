@@ -246,7 +246,6 @@ class _Editor:
     def __init__(self, *buffers, command_line=''):
         self.jump_list = _HistoryList()
         self._init_actions()
-        #self.actions = _Actions(self)
         self.cache = _Cache()
         self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
@@ -257,7 +256,6 @@ class _Editor:
         self._async_io_flag = False
         self.arg_list = [self.cache[buff].path for buff in buffers]
         self.arg_list_pointer = 0
-        #self.command_list = list()
         self.macros = {}
         self.record_macro = ''
         self.current_mode = ''
@@ -307,7 +305,7 @@ class _Editor:
         """
         if isinstance(msg, Exception):
             self.exception = msg
-            from signal import raise_signal
+#            from signal import raise_signal
         if not self._running:
             print(msg)
             return
@@ -362,50 +360,38 @@ class _Editor:
         old_screen = list()
 
         while self._async_io_flag:
-            try:
-                sleep(0.04)             # do not try more than  25fps
-                if ((now := time()) - start) > 10: # and force redraw every 10 seconds
-                    self.screen._last = None
-                    old_screen = []
-                    start = now
+            sleep(0.04)             # do not try more than  25fps
+            if ((now := time()) - start) > 10: # and force redraw every 10 seconds
+                self.screen._last = None
+                old_screen = []
+                start = now
 
-                if ok_flag and not left_keys() > 1:
-                    self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
-                    pass
-                else:
-                    sleep(0.04)
-                    self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
-                    f'Failed: {missed} time(s), '
-                    f'waiting keystrokes: {left_keys()}')
+            if ok_flag and not left_keys() > 1:
+                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                pass
+            else:
+                sleep(0.04)
+                self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
+                f'Failed: {missed} time(s), '
+                f'waiting keystrokes: {left_keys()}')
 
-                new_screen, ok_flag = get_line_list()
+            new_screen, ok_flag = get_line_list()
 
-                filtered = ''
-                for index, (line, old_line) in enumerate(
-                                zip(new_screen, chain(old_screen, repeat(''))),
-                                start=1):
-                    if line != old_line:
-                        filtered += f'\x1b[{index};1H{line}'
+            filtered = ''
+            for index, (line, old_line) in enumerate(
+                            zip(new_screen, chain(old_screen, repeat(''))),
+                            start=1):
+                if line != old_line:
+                    filtered += f'\x1b[{index};1H{line}'
 
-                if filtered:
-                    print(filtered, end='\r', flush=True)
+            if filtered:
+                print(filtered, end='\r', flush=True)
 
-                if ok_flag:
-                    missed = 0
-                    old_screen = new_screen
-                else:
-                    missed + 1
-            except BaseException as exc:
-                import traceback
-                infos = traceback.format_exc().replace('\n', '\r\n')
-                self.screen.original_screen()
-                self.screen.show_cursor()
-                print(  'Editor.print_thread crashed ! \r\n'
-                        '  The following *unhandled* exception was encountered:\r\n'
-                       f'    >  {repr(exc)} indicating:\r\n'
-                       f'    >  {str(exc)}\r\n'
-                       f'{infos}\r\n'
-                        '(you have to quit blindly or repair live.)')
+            if ok_flag:
+                missed = 0
+                old_screen = new_screen
+            else:
+                missed + 1
 
     def input_loop(self):
         reader = getch_noblock()
@@ -424,6 +410,7 @@ class _Editor:
             self.screen.clear_screen()
         self.screen.hide_cursor()
         self._async_io_flag = True
+        print('\x1b[48:5:233m', flush=True)
         self.input_thread = Thread(target=self.input_loop)
         self.print_thread = Thread(target=self.print_loop,)
         self.input_thread.start()
@@ -476,6 +463,7 @@ class _Editor:
                     from traceback import print_tb
                     type_, value_, trace_ = sys.exc_info()
                     self.stop_async_io()
+                    self.screen.alternative_screen() # bad idea ?
                     print(self.screen.infobar_txt)
                     print(  'The following *unhandled* exception was encountered:\n'
                            f'  >  {repr(exc)} indicating:\n'

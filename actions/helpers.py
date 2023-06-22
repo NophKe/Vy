@@ -1,5 +1,4 @@
 from vy.keys import _escape
-from vy.actions import action_dicts
 
 class _command:
     def update_func(self, alias, func):

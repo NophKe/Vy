@@ -96,7 +96,7 @@ The Vy editor is accessible by the «Editor» variable.
 Python Mode
 -----------
 The repl inside the editor.
-
+```py
     :python
             You are now in a python repl.
             You can access Vy by the «Editor» variable.
@@ -111,11 +111,12 @@ The repl inside the editor.
     ... 	editor.current_buffer.insert(asctime())
 	...
 	>>> Editor.action.normal[C_T] = insert_time_in_buffer
+```
 
 from vy.filetypes.textfile import TextFile
 ------------------------------------------
 
-```
+```py
     >>> buffer = TextFile('/etc/hosts')
 
     >>> buffer.read()
