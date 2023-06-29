@@ -63,7 +63,7 @@ def getch():
     things left to read in the stdin buffer.  This way we read one char
     at a time, but we steal collapse escape sequences.
     """
-    mode = tcgetattr(stdin)
+    old_mode = tcgetattr(stdin)
     setraw(stdin)
     rv = stdin.read(1)
     if rv == '\x1b':
@@ -71,7 +71,7 @@ def getch():
         esc_seq = stdin.read()
         if esc_seq:
             rv += esc_seq
-    tcsetattr(stdin, TCSAFLUSH, mode)
+    tcsetattr(stdin, TCSADRAIN, old_mode)
     return rv
 
 def getch_noblock():

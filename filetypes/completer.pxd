@@ -15,7 +15,7 @@ cdef class WordCompleter:
     
 cdef class Completer:
     cdef object buff
-    cdef int selected
+    cdef public int selected
     cdef list completers
     cdef list completion
     cdef int prefix_len

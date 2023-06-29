@@ -431,7 +431,7 @@ class Window():
 
         return line_list
 
-class Screen(Window):
+class _Screen(Window):
     def __init__(self, buff):
         self.buff = buff
         self._v_split_flag = False
@@ -442,7 +442,7 @@ class Screen(Window):
         self.shift_to_col = 0
         self._infobar_right = ''
         self._infobar_left = ''
-        self._minibar_txt = ['']
+        self._minibar_txt = ('',)
         self.minibar_completer = CompletionBanner()
 
         columns, lines = get_terminal_size()
@@ -574,7 +574,7 @@ class Screen(Window):
     def clear_screen(self):
         stdout.write('\x1b[2J')
         
-class DebugScreen(Screen):
+class DebugScreen(_Screen):
     @property
     def minibar_banner(self):
         from time import sleep
@@ -582,7 +582,7 @@ class DebugScreen(Screen):
         from vy.global_config import USER_DIR
         from pprint import pformat
         from __main__ import Editor
-#                from time import asctime
+#        from time import asctime
         debug_file = USER_DIR / "debugging_values"
         to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m\n'
         for line in debug_file.read_text().splitlines():
@@ -601,8 +601,10 @@ class DebugScreen(Screen):
             rv.extend(expand_quick(self.number_of_col, line))
         for line in self._minibar_txt:
             rv.extend(expand_quick(self.number_of_col, line))
-#                rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
+#            rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
         return rv
 
 if DEBUG:
     Screen = DebugScreen
+else:
+    Screen = _Screen

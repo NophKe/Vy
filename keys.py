@@ -6,6 +6,7 @@ You may also use this file to check the escape sequence your computer uses
 by calling it from command line ('python keys.py'). In this case it will
 produce valid python statements as below.
 """
+from vy.alt_keys import *
 
 # Control + misc
 C_rbra = '\x1d'
@@ -119,6 +120,7 @@ def _build_table():
         
 
 if __name__ == '__main__':
+    import readline
     from vy.console import getch
     print(' press [ i ] to inspect')
     print(' press [ t ] to test')

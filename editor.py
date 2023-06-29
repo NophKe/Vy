@@ -362,7 +362,6 @@ class _Editor:
         while self._async_io_flag:
             sleep(0.04)             # do not try more than  25fps
             if ((now := time()) - start) > 10: # and force redraw every 10 seconds
-                self.screen._last = None
                 old_screen = []
                 start = now
 

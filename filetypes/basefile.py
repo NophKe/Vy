@@ -384,28 +384,17 @@ class BaseFile:
         with self:
             line_idx = self.current_line_idx
             next_line_idx = line_idx + 1
-            if next_line_idx == self.number_of_lin:
-                return # nothing to do, we are on last line
-
-            self._current_line = self.current_line.removesuffix('\n') \
-                                 + self.splited_lines[next_line_idx]
-            self._splited_lines[line_idx] = self._current_line
-            self._splited_lines.pop(next_line_idx)
-            self._lines_offsets.clear()
-            self._lenght -=1
-            if self._number_of_lin:
-                self._number_of_lin -= 1
-            self._string = ''
-
-    #def delete_line(self, index):
-        #with self._lock:
-            #assert self.splited_lines 
-            #assert self.number_of_lin
-            #self._splited_lines.pop(index)
-            #self._cursor_lin_col = ()
-            #self._number_of_lin = self._number_of_lin - 1
-            #self._lines_offsets.clear()
-            #self._string = ''
+            if next_line_idx != self.number_of_lin:
+                # nothing to do on last line
+                self._current_line = self.current_line.removesuffix('\n') \
+                                     + self.splited_lines[next_line_idx]
+                self._splited_lines[line_idx] = self._current_line
+                self._splited_lines.pop(next_line_idx)
+                self._lines_offsets.clear()
+                self._lenght -=1
+                if self._number_of_lin:
+                    self._number_of_lin -= 1
+                self._string = ''
 
     def insert_newline(self):
         """
@@ -692,105 +681,10 @@ class BaseFile:
         for off in self._token_list:
             if off > cursor:
                 return off
-
-    
-########    start of file-object capacities###########################
-
-#    def write(self, text):
-#        assert isinstance(text, str)
-#        if text:
-#            self.string = self.string[:self.cursor] + text + self.string[self.cursor + len(text):]
-#            self.cursor = self.cursor + len(text)
-#        return len(text)
-#
-#    def read(self, nchar= -1):
-#        if nchar == -1:
-#            rv = self.string[self.cursor:]
-#            self.cursor = len(self)
-#        else:
-#            rv = self.string[self.cursor:(self.cursor + nchar)]
-#            self.cursor = self.cursor + nchar
-#        return rv
-#
-#    def tell(self):
-#        return self.cursor
-#
-#    def seek(self,offset=0, flag=0):
-#        assert isinstance(offset, int)
-#        assert isinstance(flag, int)
-#        if len(self) == 0:
-#            return 0
-#        max_offset = len(self)
-#        if (offset == 0 and flag == 2) or (offset > max_offset):
-#            self.cursor = max_offset
-#        elif 0 <= offset <= max_offset:
-#            self.cursor = offset
-
-#    def move_cursor(self, offset_str):
-#        with self._lock:
-#            new_val = self._get_offset(offset_str)
-#            self.cursor = new_val
     
     def __getitem__(self, key):
         return self.string[key]
-        
-#        with self._lock:
-#            if isinstance(key, str):
-#                assert key #, f'{key = }'
-#                key = self._get_range(key)
-#            assert ( isinstance(key, int) and key >= 0
-#                   or isinstance(key, slice)) #, f'{key = } {type(key) = }'
-#            return self.string[key]
 
-#    def _get_range(self,key):
-#        with self._lock:
-#            if ':' in key:
-#                start, stop = key.split(':', maxsplit=1)
-#                start = start.lstrip(':')
-#                stop = stop.rstrip(':')
-#                if not start:
-#                    start = 0
-#                if not stop:
-#                    stop = len(self)
-#                return slice(self._get_offset(start, default_start=True), self._get_offset(stop, default_start=False))
-#            return self._get_offset(key)
-#
-#    def _get_offset(self, key, default_start=True):
-#        with self._lock:
-### TODO this function should be protected against passsing string like '+-2'
-#            if isinstance(key, int):
-                #assert len(self) >= key >= 0
-#                return key
-#            elif isinstance(key, str):
-#                try:
-#                    line, current_line_start = self.current_line_off
-#                    if key == '#.':
-#                        return current_line_start
-#                    elif key.startswith('#+'):
-#                        entry = line + int(key[2:])
-#                        return self.lines_offsets[entry]
-#                    elif key.startswith('#-'):
-#                        entry = line - int(key[2:])
-#                        return self.lines_offsets[entry]
-#                    elif key.startswith('#'):
-#                        index = int(key[1:])
-#                        return self.lines_offsets[index]
-#                    elif key.isdigit():
-#                        return int(key)
-#                    else:
-#                        try:
-#                            func = self.motion_commands[key]
-#                            return func()
-#                        except KeyError:
-#                            raise ValueError('Vy: not a valid motion.')
-#                except IndexError:
-#                    if default_start:
-#                        return 0
-#                    else:
-#                        return len(self) - 1
-#            else:
-#                raise TypeError('key sould be int or valid motion str') 
-#
     def __delitem__(self, key):
         with self:
             if isinstance(key, int):

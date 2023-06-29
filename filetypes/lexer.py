@@ -1,8 +1,8 @@
 from vy.global_config import DONT_USE_PYGMENTS_LIB
-#from vy.filetypes.completer import make_word_list
 
 from keyword import iskeyword
 from re import split, sub
+
 def guess_lexer_base(path_str, code_str):
     if path_str.lower().endswith('.vy.doc'):
         return doc_lexer
@@ -15,14 +15,7 @@ def py_lexer(string):
         if line.lstrip().startswith('#'):
             yield 0, 'Comment', line
         else:
-#            word_list = 
-#            for word in make_word_list(line):
-#                if iskeyword(word):
-#                    line = line.replace(word
             yield 0, '', line
-    #for word in word_list:
-        #if iskeyword(word):
-            #string = string.replace(word, f'\x1b[1m{word}\x1b[0m')
 
 def doc_lexer(string):
     for line in string.splitlines(True):

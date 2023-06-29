@@ -16,7 +16,7 @@ class TextFile(BaseFile):
         self._lexed_cache = {}
         self._lexed_lines = list()
         self._token_list = list()
-        Thread(target=self._lex_away, args=(), daemon=True).start()
+        Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True).start()
         self.completer_engine = Completer(self)
 
     def get_completions(self):
@@ -60,7 +60,9 @@ class TextFile(BaseFile):
                 if line and line != tok: #No eof
                     local_dict[local_split()] = line
                     local_lexed.append(line)
-            
+            #import time
+            #if round(time.time()) % 2 == 0:
+                #raise IndexError
             cancel_handler.notify_task_done()
             self._token_list.clear()
             self._lexed_lines.clear()

@@ -137,7 +137,6 @@ def retrive_exc_in_main_thread(a, b):
            f'  >  {repr(exc)} indicating:\n'
            f'  >  {str(exc)}\n')
     print_tb(trace_)
-    exit(1)
 signal(SIGUSR1, retrive_exc_in_main_thread)
 
 def raise_unraisable(unraisable):

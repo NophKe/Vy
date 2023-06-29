@@ -18,9 +18,11 @@ See ':help! interface.ex' and ':help! interface.python' for more.
 """
 from vy.actions.helpers import sa_commands as _sa_commands
 from vy.actions.helpers import atomic_commands as _atomic_commands
+from vy.keys import C_Q
+from vy.editor import _Editor
 
 @_atomic_commands(':source%')
-def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
+def execute_python_file(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Executes the current file as a Vy script.
     --- 
@@ -38,7 +40,7 @@ def execute_python_file(editor, reg=None, part=None, arg=None, count=1):
     exec(editor.current_buffer.string, main_dict)
 
 @_atomic_commands(":eval%")
-def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
+def do_eval_buffer(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Executes the current file as a Python script.
     ---
@@ -57,6 +59,30 @@ def do_eval_buffer(editor, reg=None, part=None, arg=None, count=1):
     exec(editor.current_buffer.string, name_space)
     return python.loop(editor, source=name_space)
 
+@_atomic_commands(f'{C_Q} i_{C_Q}')
+def do_eval_buffer_until_cursor(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    """
+    Executes the current file as a Python until it reaches the end of
+    the current line.
+    ---
+    The content of the current buffer will be passed to exec() with a
+    new empty namespace.  Beware that allready imported modules will not
+    be reloaded.  (This creates a new namespace, but it is not a new
+    instance of the python interpreter.)
+    To interract with the editor, use 'from __main__ import Editor'.
+    ---
+    If the code does not raise an exception.  You will be brought to
+    «python» mode inside the newly populated namespace.
+    """
+    from vy.interface import python
+    curbuf = editor.current_buffer
+    target_lines = curbuf.splited_lines[:curbuf.current_line_idx+1]
+    target = ''.join(target_lines)
+    editor.stop_async_io()
+    name_space = {}
+    exec(target, name_space)
+    python.loop(editor, source=name_space)
+    
 @_atomic_commands('Q')
 def ex_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -79,6 +105,7 @@ def change_mode(editor, arg=None, **kwargs):
         return arg
     except ModuleNotFoundError:
         editor.screen.minibar(' ( mode: «{arg}» not found )')
+
 
 doc_outro = """
 The commands shown here all execute the code inside the current

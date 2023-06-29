@@ -67,12 +67,7 @@ def init(editor):
                 editor.screen.minibar(*text)
             
     console = Console(locals=global_dict)
-
-    def displayer(arg):
-        if isinstance(arg, str):
-            editor.screen.minibar(arg)    
-        else:
-            editor.screen.minibar(*pformat(arg).splitlines())    
+    displayer = lambda arg: editor.screen.minibar(*pformat(arg).splitlines())    
 
 def populate_namespace(editor):
     global_dict['cb'] = editor.current_buffer
@@ -97,8 +92,6 @@ def loop(editor):
             line = readline(buffered=screen)
             editor.registr['>'] += line
             
-    except (KeyboardInterrupt, EOFError):
-        pass
     finally:
         sys.displayhook = origin
         return 'normal'
