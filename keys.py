@@ -147,9 +147,9 @@ if __name__ == '__main__':
         else:
             from sys import stdout as file_out
 
-        print('hit [SPACE] to leave.')
-
+        print('hit [SPACE] to leave or enter new keypress')
         key_press = getch()
+
         while (key_press  != ' '):
             name = input('give this key a name:')
             file_out.write(f"{name} = '")
@@ -162,4 +162,5 @@ if __name__ == '__main__':
                     file_out.write('x' + seq)
             file_out.write("'\n")
             file_out.flush()
+            print('hit [SPACE] to leave or enter new keypress')
             key_press = getch()

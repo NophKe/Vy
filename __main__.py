@@ -15,7 +15,6 @@ and begin user interaction.
 To see all available option on command line, use:
 
  python -m vy --help
- 
 
 """
 
@@ -68,10 +67,6 @@ parser.add_argument('--no-jedi', default=False,
             action="store_true",
             help='Do not use Jedi library for code completion even if available.')
 
-parser.add_argument('--command', default='',
-            type=str,
-            help='Screen shows selected infos and enter the debugger.')
-
 parser.add_argument("files", default=None,
             help="List of files to Open.", 
             nargs='*') 
@@ -86,6 +81,7 @@ global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
 
 if not global_config.DONT_USE_USER_CONFIG:
     global_config._source_config()
+
 global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
 global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
 global_config.DEBUG = cmdline.debug
@@ -93,29 +89,11 @@ global_config.DEBUG = cmdline.debug
 
 ########    SIGNAL HANDLING    #######################################
 
-from signal import signal, SIGWINCH, SIGUSR1, raise_signal
+from signal import signal, raise_signal, SIGKILL
+import faulthandler
 import threading
 import sys
-
-########    DEBUG MODE     ###########################################
-
-#def dump_infos(a, b):
-    #from __main__ import Editor
-    #from os import system
-    #from pprint import pp
-    #import faulthandler
-    #try:
-        #Editor.screen.original_screen()
-    #except AttributeError:
-        #pass
-    #try:
-        #Editor.stop_async_io()
-    #except:
-        #pass
-    #faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
-    #breakpoint()
-    #raise Editor.exception
-
+import traceback
 
 def enter_debugger():
     try: Editor.stop_async_io()
@@ -123,31 +101,24 @@ def enter_debugger():
     sys.__breakpointhook__()
 sys.breakpointhook = enter_debugger
 
-def retrive_exc_in_main_thread(a, b):
-    assert Editor.exception.exc_value, "Received signal but no exception"
-    if Editor._async_io_flag:
-        try: Editor.stop_async_io()
-        except: pass
-    exc = Editor.exception
-    import sys
-    from traceback import print_tb
-    type_, value_, trace_ = sys.exc_info()
-    print(Editor.screen.infobar_txt)
-    print(  'The following *unhandled* exception was encountered:\n'
-           f'  >  {repr(exc)} indicating:\n'
-           f'  >  {str(exc)}\n')
-    print_tb(trace_)
-signal(SIGUSR1, retrive_exc_in_main_thread)
-
 def raise_unraisable(unraisable):
-    Editor.exception = unraisable
-    raise_signal(SIGUSR1)
+    try:
+        Editor.stop_async_io()
+        Editor.screen.clear_screen()
+    except: pass
+    from traceback import print_tb
+    print(  'The following *unhandled* exception was encountered:\n'
+           f'  >  {str(unraisable.exc_type)} indicating:\n'
+           f'  >  {unraisable.exc_value}\n')
+    print_tb(unraisable.exc_traceback)
+    print()
+    faulthandler.dump_traceback(all_threads=True)
+    print()
+    raise_signal(SIGKILL)
 threading.excepthook = raise_unraisable
 
-#sys.unraisablehook = raise_unraisable
-from vy.editor import _Editor as Editor
-Editor = Editor(*cmdline.files, command_line=cmdline)
-
+from vy.editor import _Editor
+Editor = _Editor(*cmdline.files, command_line=cmdline)
 
 if cmdline.profile:
     import cProfile, pstats, io
@@ -166,8 +137,5 @@ if cmdline.profile:
         print(s.getvalue(), file=out_file)
     exit()
 
-if cmdline.command:
-    Editor.push_macro(cmdline.command)
-    
 Editor(mode=cmdline.mode)
 

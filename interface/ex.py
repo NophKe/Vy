@@ -75,23 +75,26 @@ def populate_namespace(editor):
     global_dict['ed'] = editor
     global_dict['vy'] = vy
     global_dict['clear'] = global_dict.clear
-        
+
 def loop(editor):
     populate_namespace(editor)
     origin = sys.displayhook
     try:
-        line = readline()
         sys.displayhook = displayer
-        editor.registr['>'] = line
-
-        while console.push(line):
-            if console.buffer:
-                screen = ['    ' + val.removesuffix('\n') for val in console.buffer]
-            else:
-                screen = []
-            line = readline(buffered=screen)
-            editor.registr['>'] += line
-            
+        editor.registr['>'] = line = readline()
+        more = console.push(line)
+        
+        if more and line:        
+            while more or line:
+                if console.buffer:
+                    prompt = '... ' if more else '>>> '
+                    screen = [prompt + val.removesuffix('\n') for val in console.buffer]
+                else:
+                    screen = []
+                line = readline(buffered=screen)
+                more = console.push(line)
+                editor.registr['>'] += line
+#                
     finally:
         sys.displayhook = origin
         return 'normal'
