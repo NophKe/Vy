@@ -123,6 +123,7 @@ system and the internals of the different commands implementations.
 #  *All* docstrings and all doc_* variables must start and end by newline
 #  
 
+from vy.editor import _Editor
 from vy import keys as _k
 from vy.actions.helpers import sa_commands as _sa_commands
 from vy.actions.helpers import atomic_commands as _atomic_commands
@@ -597,6 +598,7 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
     NOTE: To enter a "special key" prepend [CTRL+V].
     """
     import sys
+    import pydoc
     try:
         if arg.startswith(':'):
             arg_dest = editor.actions.command[arg[1:]]
@@ -610,11 +612,10 @@ def do_help(editor, reg=None, part=None, arg=':help', count=1):
             arg_dest = editor.actions.normal[arg]
     except KeyError:
         editor.warning(f'{arg} not found in help.')
-        return 'normal'
-
-    editor.stop_async_io()
-    help(arg_dest)
-    editor.start_async_io()
+    else:
+        editor.stop_async_io()
+        pydoc.help(arg_dest)
+        editor.start_async_io()
     return 'normal'
 
 @_sa_commands("p :pu :put")
@@ -648,7 +649,7 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
             curbuf.insert(editor.registr[reg])
 
 @_atomic_commands("gf")
-def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
+def do_normal_gf(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Interpret the word the cursor is on as a file name, and try to open it.
     If the file cannot be found in the folder that contains the current buffer,
@@ -656,10 +657,11 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
     dots (as in a python package), Vym will search in the parents directories.
     """
     from pathlib import Path
-    filename = editor.current_buffer['IW'].lstrip().strip()
+    filename = editor.current_buffer[editor.current_buffer.inner_WORD()].lstrip().strip()
     if filename.startswith('/') or filename[1:3] == ':\\':
         if Path(filename).exists():
             return editor.edit(filename)
+            
     cur_buf = editor.current_buffer
     for guess in [ cur_buf.path.parent / filename,
         cur_buf.path.parent / (filename + '.py'),
@@ -672,19 +674,13 @@ def do_normal_gf(editor, reg=None, part=None, arg=None, count=1):
         else:
             editor.screen.minibar(f'file {filename!r} not found.')
 
+@_atomic_commands(':last_saved')
+def reload_last_saved(editor: _Editor, *args, **kwargs):
+    last_record = editor.current_buffer.path.read_text()
+    editor.current_buffer.string = last_record
+    editor.current_buffer.cursor = 0
+    
 ########    DEBUGGING ################################################
-
-@_atomic_commands(':help!')
-def dump_help(editor, reg=None, arg='actions', part=None, count=1):
-    """
-    Dumps the Vy documentation in a new unnamed buffer.
-    """
-    editor.edit(None)
-    from vy.help import section_builder
-    with editor.current_buffer as curbuf:
-        curbuf.insert(section_builder(arg))
-        curbuf.cursor = 0
-        curbuf.string
 
 @_atomic_commands('µ')
 def print_some(editor, reg=None, part=None, arg=None, count=1):
@@ -729,3 +725,4 @@ def execute_macro(editor, reg=None, part=None, arg=None, count=1):
     else:
         editor.screen.minibar(f'executing: «{editor.record_macro}»')
         editor._macro_keys = macro.copy()
+        

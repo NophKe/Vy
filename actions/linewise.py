@@ -10,9 +10,10 @@ to operate on (defaulting to 1).  Even if it is never an error to give them a
 """
 from vy.actions.helpers import sa_commands as _sa_commands
 from vy import keys as k
+from vy.editor import _Editor
 
 @_sa_commands('gq v_gq')
-def format_line(editor, reg=None, count=1, **kwargs):
+def format_line(editor: _Editor, reg=None, count=1, **kwargs):
     """
     Format line.
     """

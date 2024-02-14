@@ -51,7 +51,8 @@ class TextFile(BaseFile):
                             line += tok + token_line[:-1] + ' \x1b[97;22m'
                             local_lexed.append(line)
                             local_dict[local_split()] = line
-                            line = tok
+                            line = ''                            
+#                            line = tok
                         else:
                             line += tok + token_line + '\x1b[97;22m'
                 else:

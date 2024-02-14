@@ -27,7 +27,7 @@ class WordCompleter:
             if not rv or (len(rv) == 1 and rv[0] == word):
                 rv = [item for item in ANY_BUFFER_WORD_SET if item.startswith(word)]
             return rv, prefix_len
-        return None
+        return [], -1
 
 try:
     if DONT_USE_JEDI_LIB:
@@ -47,7 +47,7 @@ try:
                 # multi-threaded application may be unstable, this is inherent
                 # to jedi's design, and is well stated in jedi's documentation
                 # so we silent any exception.
-                return None
+                return [], -1
 
 except ImportError:
     ScriptCompleter = None

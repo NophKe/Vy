@@ -77,7 +77,7 @@ def loop(editor, source=None):
                 jedi_setup_readline(source)
             else:
                 readline.set_completer(Completer(console.locals).complete)
-            console.interact()
+            console.interact('','')
     except SystemExit:
         pass
     finally:

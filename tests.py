@@ -2,9 +2,21 @@ bad_string = "H̹̙̦̮͉̩̗̗ͧ̇̏̊̾Eͨ͆͒̆ͮ̃͏̷̮̣̫̤̣Cͯ̂͐͏̨�
 #print(f'{len(bad_string) =}')
 
 from pathlib import Path
-from time import time
+from time import time, asctime
 from vy.filetypes.textfile import TextFile
 from vy.filetypes.basefile import BaseFile
+from sys import stdout as _stdout
+from sys import argv
+
+_bench_file = open("/home/nono/vy_benchmark.txt", mode="a")
+
+def _print(*args):
+    print(*args, file=_bench_file)
+    print(*args)
+
+def _insert_header():
+    _print(f'**************************** {asctime()}            ********************************')
+
 
 def bench_basefile():
     file_txt = Path('/home/nono/big.txt').read_text()
@@ -23,7 +35,7 @@ def bench_basefile():
         file.move_cursor('w')
         file[file.find_first_non_blank_char_in_line()] = 'toto'
         file.current_line = ' yep !' + file.splited_lines[file.current_line_idx]
-    print(f'bench_basefile:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'bench_basefile:\n\t\t took {round(time() - start, 3)} seconds.')
 
 def bench_insert_str():
     start = time()
@@ -33,7 +45,7 @@ def bench_insert_str():
         len(file.string)
         len(file.splited_lines)
         file.cursor_lin_col
-    print(f'bench_insert_string:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'bench_insert_string:\n\t\t took {round(time() - start, 3)} seconds.')
     
 def bench_insert_list():
     start = time()
@@ -43,7 +55,27 @@ def bench_insert_list():
         len(file.string)
         len(file.splited_lines)
         file.cursor_lin_col
-    print(f'bench_insert_list:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'bench_insert_list:\n\t\t took {round(time() - start, 3)} seconds.')
+
+def bench_lexed_lines():
+    File = TextFile("/home/nono/test_me.py")
+    counter = 0
+    start = time()
+    max_lin = File.number_of_lin
+    
+    for i in range(100):
+        saved = File.string
+        File._lexed_cache.clear()
+        File.string = "#pragma\n"
+        File.string = saved
+        try:
+            file.get_raw_screen(max_lin-i*10, max_lin)
+            File.get_raw_screen(0,max_lin)
+        except RuntimeError:
+            counter += 1
+            
+    _print(f'bench_get_lexed_lines:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'failed {counter} times')
 
 path = Path('/home/nono/test.c')
 file = open(path)
@@ -58,7 +90,7 @@ def bench_grab_lock():
     for t in range(100):
         with file:
             pass
-    print(f'bench_grab_lock:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'bench_grab_lock:\n\t\t took {round(time() - start, 3)} seconds.')
 
 def bench_textfile():
     global file
@@ -74,18 +106,18 @@ def bench_textfile():
             break
     print(f'bench_textfile:\n\t\t took {round(time() - start, 3)} seconds.')
 
-def _bench_expandtabs():
+def bench_expandtabs():
     from vy.screen import expandtabs_numbered
     tab_size = 4
     max_col = 16
-    text = '0123\x1b[31;45m4567\x1b[31;42;2m89ABCDEF' * 50
+    text = '0123\x1b[31;45m4567\x1b[31;42;2m89ABCDEF\n' * 50
     on_lin = 1
     num_len = 1
     
     start = time()
-    for _ in range(100):
+    for idx in range(100):
         cursor_lin = 1
-        cursor_col = 2
+        cursor_col = idx * 2
         visual = (0,0)
         expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)
         cursor_lin = 1
@@ -98,29 +130,49 @@ def _bench_expandtabs():
         expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)
         cursor_lin = 1
         cursor_col = 8
-        visual = (6,11)
+        visual = (6, 11+idx)
         expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual)    
-    print(f'bench_expandtabs:\n\t\t took {round(time() - start, 3)} seconds.')
+    _print(f'bench_expandtabs:\n\t\t took {round(time() - start, 3)} seconds.')
 
 
 if __name__ == '__main__':
-    start = time()
-    for test in dir():
-        if test.startswith('bench') or test.startswith('test'):
+    _insert_header()
+
+    if argv[1:]:
+        start = time()
+        for test in argv[1:]:
             globals()[test]()
-    print(f'Whole Test Suite:\n\t\t took {round(time() - start, 3)} seconds.')
+        _print(f'Whole Test Suite:\n\t\t took {round(time() - start, 3)} seconds.')
+        
+    else:
+        start = time()
+        for test in dir():
+            if test.startswith('bench') or test.startswith('test'):
+                globals()[test]()
+        _print(f'Whole Test Suite:\n\t\t took {round(time() - start, 3)} seconds.')
 
 else:
     from vy.editor import _Editor as Editor
     ed = Editor()
     ed.edit('/home/nono/test_me.py')
     for dic in [ed.actions.command, ed.actions.insert, ed.actions.insert, ed.actions.motion, ed.actions.motion]:
+        import time
+        ed.screen.clear_screen()
+        _print(f'testing {dic}')
+        time.sleep(1)
         for act in dic:
+            ed.screen.clear_screen()
+            print(f'testing {act}')
+            time.sleep(1)
             try:
-                dic[act](ed)
+                func = dic[act]
+                if hasattr(func, "not_tested"):
+                    continue
+                func(ed)
             except BaseException as exc:
                 print(exc.__cause__)
                 print(act)
+                print(func)
                 print(f'{dic is ed.actions.command =}')
                 print(f'{dic is ed.actions.insert =}')
                 print(f'{dic is ed.actions.normal = }')

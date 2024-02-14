@@ -1,6 +1,23 @@
 from interface.helpers import Completer
-readline = Completer('search_backward_history', '?', editor)
         
+def init(editor):
+    global readline
+    readline = Completer('search_backward_history', '?', editor)
+    
+def loop(editor):
+    try:
+        user_input = readline()
+    except KeyboardInterrupt:
+        return 'normal'
+
+    if user_input:
+        editor.registr['?'] = user_input
+    
+    editor.actions.normal('N')
+    editor.actions.normal('zz')
+    return 'normal'
+    
+    
 def loop(editor):
     curbuf = editor.current_buffer
     current_offset = curbuf.cursor

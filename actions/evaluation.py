@@ -18,7 +18,7 @@ See ':help! interface.ex' and ':help! interface.python' for more.
 """
 from vy.actions.helpers import sa_commands as _sa_commands
 from vy.actions.helpers import atomic_commands as _atomic_commands
-from vy.keys import C_Q
+from vy.keys import C_Q, C_X
 from vy.editor import _Editor
 
 @_atomic_commands(':source%')
@@ -39,7 +39,7 @@ def execute_python_file(editor: _Editor, reg=None, part=None, arg=None, count=1)
     from __main__ import __dict__ as main_dict
     exec(editor.current_buffer.string, main_dict)
 
-@_atomic_commands(":eval%")
+@_atomic_commands(f":eval% {C_X}")
 def do_eval_buffer(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Executes the current file as a Python script.
@@ -54,10 +54,27 @@ def do_eval_buffer(editor: _Editor, reg=None, part=None, arg=None, count=1):
     «python» mode inside the newly populated namespace.
     """
     from vy.interface import python
+    from traceback import format_exc
     name_space = {}
-    editor.stop_async_io()
-    exec(editor.current_buffer.string, name_space)
-    return python.loop(editor, source=name_space)
+    try:
+        code = compile(editor.current_buffer.string,
+                       editor.current_buffer.path,
+                       'exec')
+    except SyntaxError as exc:
+        editor.screen.minibar('syntax error during compilation',
+                              *format_exc().splitlines())
+    else:
+        editor.stop_async_io()
+        try:
+            exec(code, name_space)
+        except BaseException as exc:
+            editor.start_async_io()
+            editor.warning('syntax error during evaluation:\r\n' +
+                                  format_exc().replace('\n', '\r\n'))
+        else:
+            python.loop(editor, source=name_space)
+#        finally:
+#            editor.start_async_io()
 
 @_atomic_commands(f'{C_Q} i_{C_Q}')
 def do_eval_buffer_until_cursor(editor: _Editor, reg=None, part=None, arg=None, count=1):

@@ -147,6 +147,7 @@ class Cancel:
         self.task_done = Event()
         self.restart = Queue(1)
         self.working = False
+        self.cancelled = False
 
     def notify_working(self):
         while self.must_stop.wait(0.01):
@@ -164,11 +165,13 @@ class Cancel:
         self.restart.join()
 
     def cancel_work(self):
-        self.lock.acquire()
-        self.must_stop.set()
-        if self.working:
-            self.restart.get()
-        self.task_done.clear()
+        if not self.cancelled:
+            self.lock.acquire()
+            self.must_stop.set()
+            if self.working:
+                self.restart.get()
+            self.task_done.clear()
+            self.cancelled = True
 
     def complete_work(self):
         self.task_done.wait()
@@ -178,6 +181,7 @@ class Cancel:
         self.allow_work()
 
     def allow_work(self):
+        self.cancelled = False
         self.must_stop.clear()
         if self.working:
             self.restart.task_done()

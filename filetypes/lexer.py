@@ -1,8 +1,5 @@
 from vy.global_config import DONT_USE_PYGMENTS_LIB
 
-from keyword import iskeyword
-from re import split, sub
-
 def guess_lexer_base(path_str, code_str):
     if path_str.lower().endswith('.vy.doc'):
         return doc_lexer
@@ -14,6 +11,10 @@ def py_lexer(string):
     for line in string.splitlines(True):
         if line.lstrip().startswith('#'):
             yield 0, 'Comment', line
+        elif line.lstrip().startswith('class'):
+            yield 0, 'Keyword', line
+        elif line.lstrip().startswith('def'):
+            yield 0, 'Keyword', line
         else:
             yield 0, '', line
 
@@ -108,22 +109,12 @@ def get_prefix(token):
     try:
         return colorscheme[token]
     except KeyError:
-        pass
-    try:
-        it = token if isinstance(token, str) else repr(token)
-        pygments_name = 'Token.' + it
-        colorscheme[token] = colorscheme[pygments_name]
-        return colorscheme[token]
-    except KeyError:
-        pass
-            
-    accu = ''
-    for ttype in it.split('.'):
-        if ttype in colorscheme:
-            colorscheme[token] = colorscheme[ttype]
-        accu = f'{accu}{"." if accu else ""}{ttype}'
-        if accu in colorscheme:
-            colorscheme[token] = colorscheme[accu]
+        token_str = token if isinstance(token, str) else repr(token)
+        accu = ''
+        for ttype in token_str.split('.'):
+            accu = f'{accu}{"." if accu else ""}{ttype}'
+            if accu in colorscheme:
+                colorscheme[token] = colorscheme[accu]
     return colorscheme[token]
 
 def _resolve_prefix(color_string):

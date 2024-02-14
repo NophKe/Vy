@@ -18,6 +18,7 @@ from itertools import repeat, chain
 from time import sleep, time
 from threading import Thread
 from queue import Queue
+from signal import signal, SIGWINCH
 
 from vy.screen import Screen
 from vy.interface import Interface
@@ -305,7 +306,6 @@ class _Editor:
         """
         if isinstance(msg, Exception):
             self.exception = msg
-#            from signal import raise_signal
         if not self._running:
             print(msg)
             return
@@ -347,6 +347,14 @@ class _Editor:
 ###
 ### - replace self._asyncio_flag by a threading.Condition ?
 ###
+    def recenter_screen(self):
+        curwin = self.screen.focused
+        lin, col = curwin.buff.cursor_lin_col
+        if lin < curwin.shift_to_lin:
+            curwin.shift_to_lin = lin
+        elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+            curwin.shift_to_lin = lin - self.screen._number_of_lin + 1
+
     def print_loop(self):
         old_screen = list()
         infobar = self.screen.infobar
@@ -365,9 +373,9 @@ class _Editor:
                 old_screen = []
                 start = now
 
-            if ok_flag and not left_keys() > 1:
+            if ok_flag and not left_keys(): # > 1:
+                self.recenter_screen()
                 self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
-                pass
             else:
                 sleep(0.04)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
@@ -390,7 +398,7 @@ class _Editor:
                 missed = 0
                 old_screen = new_screen
             else:
-                missed + 1
+                missed += 1
 
     def input_loop(self):
         reader = getch_noblock()
@@ -403,6 +411,7 @@ class _Editor:
         del reader
 
     def start_async_io(self):
+#        signal(SIGWINCH, lambda x, y: self.screen.set_redraw_needed())
         assert not self._async_io_flag
         if not DEBUG:
             self.screen.alternative_screen()
@@ -452,6 +461,7 @@ class _Editor:
                     self.current_mode = self.interface(self.current_mode) \
                                         or self.current_mode
                     self.save_in_jump_list()
+#                    self.recenter_screen()
                     continue
                 except SystemExit:
                     raise

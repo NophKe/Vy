@@ -130,8 +130,8 @@ class Completer:
         path_list = [k for k in pth if str(k).startswith(arg)]
         dir_list = [k for k in path_list if k.is_dir()]
         file_list = [k for k in path_list if k not in dir_list]
-        rv = [str(k) + '/' for k in dir_list]
-        rv.extend(str(k) for k in file_list)
+        rv = sorted([str(k) + '/' for k in dir_list])
+        rv.extend(sorted(str(k) for k in file_list))
         #if len(rv) == 1 and user_input.is_dir():
             #prefix = len(arg)
         return rv, len(arg)
@@ -178,15 +178,5 @@ class Completer:
             self.buffer.cursor += 1
         self.state = ''
 
-def one_inside_dict_starts_with(dictio, pattern):
-    maybe = False
-    for key in dictio:
-        try:
-            if key.startswith(pattern):
-                if key != pattern:
-                    return True
-                else:
-                    maybe = True
-        except AttributeError:
-            pass
-    return maybe
+def one_inside_dict_starts_with(dic, pattern):
+    return (pattern in dic or any(key.startswith(pattern) for key in dic))

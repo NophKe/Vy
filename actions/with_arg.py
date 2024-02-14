@@ -142,14 +142,14 @@ def substitute(editor, arg=None, **kwargs):
     NOTE: This command does not follow the vim-syntax.  The main
     difference being the use of spaces to delimit {rhs} and {lhs}.
     ---
-    NOTE: As allways with 'command mode' in Vy, a space is needed after
-    the command before the first argument.
+    NOTE: In Vy, a space is *allways* needed after the command and
+    before the first argument.
     """
-    if not arg or ' ' not in arg:
+    if ' ' in arg:
+        rhs, lhs = arg.split(' ', maxsplit=1)
+        editor.current_buffer.current_line = editor.current_buffer.current_line.replace(rhs, lhs)
+    else:
         editor.warning(substitute.__doc__)
-        return
-    rhs, lhs = arg.split(' ', maxsplit=1)
-    editor.current_buffer.current_line = editor.current_buffer.current_line.replace(rhs, lhs)
 
 @_with_args(':debug')
 def debug_tool(editor, reg=None, part=None, arg='reload', count=1):

@@ -19,9 +19,7 @@ Modes correspond to the way keystrokes are interpreted. They do not belong
 themselves to any kind of action/command.  
 
 This document is about actions.  To get the different modes
-documentation use 'help(Editor.interface)' in python mode.  If you do
-not know what 'python mode' is, you should try to run the 'vy --tutor'
-command before anything. (soon!)
+documentation use 'help(Editor.interface)' in python mode.
 
 Modes are much more extensively used in Vy than the classical Vi.  And
 Vy has different private sub-modes that the current mode can set.  Modes

@@ -54,14 +54,14 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 
     visual_flag = any(visual)
     start_v, stop_v = visual
-    if start_v:
+    
+    if visual_flag:
         if start_v == -1:
-            line += '\x1b[7m'
+            start_v = on_col
         else:
             start_v += on_col - 1
-    if stop_v:
-        stop_v += on_col 
-
+        if stop_v != -1:
+            stop_v += on_col 
 
     char: str
     for char in text:
@@ -78,8 +78,8 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 
         if visual_flag and (on_col == start_v): # and on_col == cursor_col:
             line += '\x1b[7m'
-            start_cursor = '\x1b[4;5m'
-            stop_cursor = '\x1b[24;25m'
+            start_cursor = '\x1b[27;4;5m'
+            stop_cursor = '\x1b[7;24;25m'
 
         if on_col ==  max_col:
             line += '\x1b[97;22m'
@@ -107,7 +107,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
             cursor_char_flag = False
             line += stop_cursor
 
-        if visual and on_col == stop_v:
+        if visual_flag and on_col == stop_v:
             line += '\x1b[27m'
             start_cursor = '\x1b[7;5m'
             stop_cursor = '\x1b[27;25m' 
@@ -190,7 +190,7 @@ class CompletionBanner:
     def __init__(self):
         self.view_start = 0
         self.pretty_completion = []
-        self.make_func = lambda: ([], 0)
+        self.make_func = lambda: ([], -1)
         self.selected = -1
 
     def __call__(self, make_func):
@@ -373,6 +373,7 @@ class Window():
         max_col = self.number_of_col
         min_lin = self.shift_to_lin
         max_lin = self.number_of_lin + self.shift_to_lin
+        
         wrap = self.buff.set_wrap
         if (number := self.buff.set_number):
             num_len = len(str(max_lin))
@@ -381,6 +382,7 @@ class Window():
             expand = expandtabs
             num_len = None
         tab_size = self.buff.set_tabsize
+        
         default = f"~{' ':{max_col- 1}}"
         true_cursor = 0
 
@@ -402,20 +404,19 @@ class Window():
             if on_lin == cursor_lin and true_cursor == 0:
                 true_cursor = len(line_list)
        
-            if start_lin > on_lin or on_lin > stop_lin:
-                start_col = stop_col = 0
+            if start_lin <= on_lin <= stop_lin:
+                if start_lin != on_lin:
+                    start_v_col = -1
+                else: 
+                    start_v_col = start_col
+                if stop_lin != on_lin:
+                    stop_v_col = -1
+                else: 
+                    stop_v_col = stop_col
             else:
-                try:
-                    line_len = len(self.buff._splited_lines[on_lin])
-                except IndexError:
-                    # avoid use of public (locked) value, -1
-                    # is a safe value for a single screen frame
-                    line_len = - 1
-
-                start_col = start_col if start_lin == on_lin else -1 
-                stop_col = stop_col if stop_lin == on_lin else line_len
-
-            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_col, stop_col))
+                start_v_col = stop_v_col = 0
+            
+            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_v_col, stop_v_col))
             if wrap:
                 line_list.extend(to_print)
             else:
@@ -448,6 +449,7 @@ class _Screen(Window):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
+#        self._needs_new_redraw = False
 
     def vsplit(self):
         if self.focused != self:
@@ -463,26 +465,21 @@ class _Screen(Window):
     def number_of_lin(self):
         return self._number_of_lin
 
+#    def set_redraw_needed(self):
+#        self._needs_new_redraw = True
+    
     def get_line_list(self):
+        minibar = self.minibar_banner
+
+#        if self._needs_new_redraw:
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        minibar = self.minibar_banner.copy()
         self._number_of_lin = lines - len(minibar)
-        curwin = self.focused
-
-        try:
-            lin, col = curwin.buff._cursor_lin_col
-        except ValueError:
-            ok_flag = False
-        else:
-            if lin < curwin.shift_to_lin:
-                curwin.shift_to_lin = lin
-            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-                curwin.shift_to_lin = lin - self._number_of_lin + 1
-            ok_flag = True
-
+#        self._needs_new_redraw = False
+        
         try:
             rv = self.gen_window()
+            ok_flag = True
         except RuntimeError:
             rv = [''] * self._number_of_lin
             ok_flag = False
