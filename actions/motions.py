@@ -29,6 +29,7 @@ window redraw by example.
 
 from vy.keys import _escape
 from vy import keys as _k
+from vy.editor import _Editor
 
 class _motion:
     v_header = """
@@ -297,11 +298,12 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
         
     
 @_motion_commands("N")
-def do_normal_N(editor, reg=None, part=None, arg=None, count=1):
+def do_normal_N(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor to previous occurrence of last searched text.
     """
     needle = editor.registr['/']
+    curbuf = editor.current_buffer
     if needle:
         offset = curbuf.string.rfind(needle, 0, curbuf.cursor)
 

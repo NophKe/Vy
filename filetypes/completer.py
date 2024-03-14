@@ -4,20 +4,22 @@ from re import split
 from vy.utils import Cancel
 from threading import Thread
 
-ANY_BUFFER_WORD_SET = set()
 
 def make_word_set(string):
     return set(split(r'[{}\. :,()\[\]]|$', string))
 
 class WordCompleter:
+    ANY_BUFFER_WORD_SET = set()
+    
     def __init__(self, buff):
         self.buff = buff
         self.words = set()
         self.split = buff.string.splitlines()
         for line in self.split:
             for w in make_word_set(line):
-                ANY_BUFFER_WORD_SET.add(w)
-                self.words.add(w)
+                if w not in self.words:
+                    ANY_BUFFER_WORD_SET.add(w)
+                    self.words.add(w)
 
     def complete(self,line, column):
         word = self.buff.string[self.buff.find_previous_delim()+1:self.buff.cursor]

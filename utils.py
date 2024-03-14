@@ -187,4 +187,86 @@ class Cancel:
             self.restart.task_done()
             self.working = False
         self.lock.release()
-            
+
+from _thread import allocate_lock
+from threading import current_thread
+
+class RwLock:
+    def __init__(self):
+        self.read_lock = allocate_lock()
+        self.write_lock = allocate_lock()
+        self.members = 0
+
+    def lock_reading(self):
+        with self.read_lock:
+            if self.members == 0:
+                self.write_lock.acquire()
+            self.members += 1
+    
+    def unlock_reading(self):
+        with self.read_lock:
+            self.members -= 1
+            if self.members == 0:
+                self.write_lock.release()
+
+    def lock_writing(self):
+        self.write_lock.acquire()
+        assert not self.members
+
+    def unlock_writing(self):
+        assert not self.members
+        self.write_lock.release()
+
+class AtomicCounter:
+    def __init__(self, start=0):
+        self.lock = allocate_lock()
+        self.value = start
+        
+    def increment(self):
+        with self.lock:
+            self.value += 1
+
+    def decrement(self):
+        with self.lock:
+            self.value -= 1
+
+    def __bool__(self):
+        return self.value != 0
+
+class Canceller:
+    def __init__(self):
+        self.lock = RwLock()
+        self.must_stop = AtomicCounter()
+        self.waiters = []
+        self.owner = None
+
+    def notify_working(self):
+        self.lock.lock_reading()
+        
+    def notify_stopped(self):
+        wait_event = allocate_lock()
+        wait_event.acquire()
+        self.waiters.append(wait_event)
+        self.lock.unlock_reading()
+        wait_event.acquire()
+        wait_event.release()
+
+    def cancel_work(self):
+        if self.owner != current_thread:
+            self.lock.lock_writing()            
+            self.owner = current_thread()
+        self.must_stop.increment()
+
+    def restart_work(self):
+        self.cancel_work()
+        self.allow_work()
+
+    def allow_work(self):
+        self.must_stop.decrement()
+        if not self.must_stop:
+            for waiter in self.waiters:
+                waiter.release()
+            self.waiters.clear()
+        self.lock.unlock_writing()
+
+#Cancel = Canceller
