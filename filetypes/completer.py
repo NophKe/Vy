@@ -18,7 +18,7 @@ class WordCompleter:
         for line in self.split:
             for w in make_word_set(line):
                 if w not in self.words:
-                    ANY_BUFFER_WORD_SET.add(w)
+                    self.ANY_BUFFER_WORD_SET.add(w)
                     self.words.add(w)
 
     def complete(self,line, column):
@@ -27,7 +27,7 @@ class WordCompleter:
         if prefix_len:
             rv = [item for item in self.words if item.startswith(word)]
             if not rv or (len(rv) == 1 and rv[0] == word):
-                rv = [item for item in ANY_BUFFER_WORD_SET if item.startswith(word)]
+                rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
             return rv, prefix_len
         return [], -1
 

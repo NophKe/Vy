@@ -150,7 +150,7 @@ class Cancel:
         self.cancelled = False
 
     def notify_working(self):
-        while self.must_stop.wait(0.01):
+        while self.must_stop.wait(0):
             pass
         with self.lock:
             self.working = True

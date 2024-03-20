@@ -6,7 +6,8 @@ You may also use this file to check the escape sequence your computer uses
 by calling it from command line ('python keys.py'). In this case it will
 produce valid python statements as below.
 """
-from vy.alt_keys import *
+from .alt_keys import *
+from .function_keys import *
 
 # Control + misc
 C_rbra = '\x1d'
@@ -124,6 +125,7 @@ if __name__ == '__main__':
     from vy.console import getch
     print(' press [ i ] to inspect')
     print(' press [ t ] to test')
+    print(' press any other key to create a key mapping')
     key = getch()
     if key == 'i':
         from pprint import pp

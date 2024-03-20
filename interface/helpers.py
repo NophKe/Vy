@@ -87,6 +87,7 @@ class Completer:
         except IndexError:
             self.selected = -1
             self.state = ''
+            return
         text = self.buffer.string
         cursor = self.buffer.cursor
         self.state = ''

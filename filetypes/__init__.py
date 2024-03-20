@@ -85,13 +85,17 @@ def Open_path(location):
     """
     if location is None:
         return TextFile(path=None, init_text='\n')
-    elif isinstance(location, str):
-        location = Path(location).resolve()
+        # return a new empty buffer
+        
+    if isinstance(location, str):
+        location = Path(location)
+        
     if not isinstance(location, Path):
         raise TypeError('in function Open_path (Vy/filetypes/__init__.py)'
                         ' argument must be None, str or Path object')
 
     location = location.resolve()
+    
     try:
         init_text = location.read_text() 
     except FileNotFoundError:
@@ -107,6 +111,7 @@ def Open_path(location):
 
     if file_name in known_file_names:
         return known_file_names[file_name](path=location, init_text=init_text)
+        
     if '\t' in init_text:
         expand_tabs = False
     else:

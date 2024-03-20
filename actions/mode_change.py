@@ -37,7 +37,7 @@ of any buffer.
 
 
 @_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} {_k.C_C} i_{_k.C_C} v_{_k.C_C}'
-                  '² i_² v_² v_v :vi :visual :stopi :stopinsert')
+                  f'² i_² v_² v_v :vi :visual :stopi :stopinsert ² & {_k.F1}')
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Normal» mode.
