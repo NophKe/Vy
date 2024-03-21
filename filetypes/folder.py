@@ -58,8 +58,8 @@ class Folder(BaseFile):
         rv = list()
         for index in range(min_lin, max_lin):
             retval = ''
-#            if index == 1 or index == 0: #current or parent dir (., ..)
-#                retval = '\x1b[00;25;35;1m'
+            if index == 1 or index == 0: #current or parent dir (., ..)
+                retval = '\x1b[00;25;35;1m'
             if index == self.current_line_idx:
                 retval += '\x1b[2m'
             try:

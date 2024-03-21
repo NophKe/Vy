@@ -6,15 +6,26 @@ def guess_lexer_base(path_str, code_str):
     if path_str.lower().endswith('.py'):
         return py_lexer
     return txt_lexer
- 
+
+
 def py_lexer(string):
+    important_lines = ('class ', 'def ', 'return ', 'raise ', 'yield ', 'assert ', 'pass')
+    control_lines = ('if ', 'else ', 'elif ', 'else:', 'with ')
+    statements = ('try ', 'try:', 'except ', 'except:', 'from ', 'import ')
+    loops = ('for ', 'while ')
+                       
     for line in string.splitlines(True):
-        if line.lstrip().startswith('#'):
+        content = line.lstrip()
+        if content.startswith('#'):
             yield 0, 'Comment', line
-        elif line.lstrip().startswith('class'):
+        elif content.startswith(important_lines):
             yield 0, 'Keyword', line
-        elif line.lstrip().startswith('def'):
-            yield 0, 'Keyword', line
+        elif content.startswith(control_lines):
+            yield 0, 'Operator', line
+        elif content.startswith(statements):
+            yield 0, 'Statement', line
+        elif content.startswith(loops):
+            yield 0, 'Loop', line
         else:
             yield 0, '', line
 
@@ -65,6 +76,9 @@ except ImportError:
       'Keyword':  '*blue*',
       'Comment':  '/gray/',
       'Operator': 'green',
+      'Statement': 'cyan',
+      'Loop': '_green_', # TODO Find the bug
+      'Loop': '*green*',
     }
     DONT_USE_PYGMENTS_LIB = True    
 

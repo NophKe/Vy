@@ -36,6 +36,7 @@ def select_first_or_previous(editor: _Editor):
         return True
     return move_down(editor)
 
+
 @add_to_dict(k.C_P)
 def select_last_or_next(editor: _Editor):
     if completer_engine.selected == -1:

@@ -5,7 +5,7 @@
 
 Vy has two fundamental buffer types, the folder and the text-file.  Both
 are implemented as a python class that inherit from a base class
-'BaseFile'.  See ':help! filetypes.basefile' for more informations.
+'BaseFile'.  See ':help vy.filetypes.basefile' for more informations.
 
 The vy.filetype module defines a few mappings of known file extensions
 with the appropriate settings.  It is the place for adding custom
@@ -17,6 +17,11 @@ from os import access, W_OK
 
 from .folder import Folder
 from .textfile import TextFile
+from .pyfile import PyFile
+
+known_extensions = {
+    '.py': PyFile,
+    }
 
 known_file_names = {}
 
@@ -101,13 +106,17 @@ def Open_path(location):
     except FileNotFoundError:
         if not any(access(ancestor, W_OK) for ancestor in location.resolve().parents):
             raise PermissionError
-        return TextFile(path=location, init_text='\n')
+        init_text = '\n'
     except IsADirectoryError:
         return Folder(path=location)
 
     init_text = init_text or '\n'
     file_name = location.name.lower()
     file_other_name = location.name
+
+#    for extension, klass in known_extensions.items():
+#        if file_name.endswith(extension):
+#            return klass(path=location, init_text=init_text)
 
     if file_name in known_file_names:
         return known_file_names[file_name](path=location, init_text=init_text)

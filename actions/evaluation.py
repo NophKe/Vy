@@ -138,3 +138,28 @@ as well use the ':!' command.  See ':help :!' for more.
 Also, you are un-aware of ':python' and ':python!' commands read next
 section.
 """
+
+
+@_atomic_commands(':reload_actions')
+def reload_actions(editor :_Editor, *args, **kwargs):
+    """
+    Reloads the known actions.
+    """
+    from importlib import reload as _reload
+    from vy import actions
+    from vy.actions import helpers
+    from vy.actions import motions
+    from vy.actions import mode_change
+    from vy.actions import commands
+    from vy.actions import edition
+    from vy.actions import with_arg
+    from vy.actions import linewise
+    _reload(linewise)
+    _reload(with_arg)
+    _reload(edition)
+    _reload(helpers)
+    _reload(motions)
+    _reload(mode_change)
+    _reload(commands)
+    _reload(actions)
+    editor._init_actions()
