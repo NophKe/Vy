@@ -6,6 +6,9 @@ from threading import Thread
 
 
 def make_word_set(string):
+    """
+    >>> raise Error
+    """
     return set(split(r'[{}\. :,()\[\]]|$', string))
 
 class WordCompleter:
@@ -111,6 +114,7 @@ class Completer:
             self._async.restart_work()
         if self._async.task_done:
             return self.completion, self.selected
+        return [], -1
         
     def move_cursor_up(self):
         if self.selected > 0:
@@ -129,3 +133,6 @@ class Completer:
             return self.completion[self.selected], self.prefix_len
         return '', 0
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

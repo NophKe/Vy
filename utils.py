@@ -1,4 +1,5 @@
 from threading import Event as _Event
+from threading import Thread
 from threading import Lock
 from queue import Queue
 
@@ -270,3 +271,14 @@ class Canceller:
         self.lock.unlock_writing()
 
 #Cancel = Canceller
+
+
+class AsyncTask:
+    def __init__(self, buffer):
+        self.buffer = buffer
+        self.thread_handle
+    def worker(self, *args, **kwargs):
+        pass
+    def start():
+        pass
+        

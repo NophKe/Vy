@@ -208,12 +208,14 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
         try:
             count = int(arg)
         except ValueError:
-            editor.screen.minibar(f"Wrong count argument: {arg}")
+            editor.screen.minibar(f"Wrong count argument, must be an integer: {arg}")
             return
+    recenter = editor.actions.normal['zz']
     try:
         with editor.current_buffer as curbuf:
             for _ in range(count):
                 curbuf.undo()
+                recenter(editor)
     except IndexError:
         editor.screen.minibar(" ( older record ) ")
 
@@ -249,7 +251,7 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     Shows the list of «cached» buffers.
     """
-    editor.warning(editor.cache)
+    editor.warning(repr(editor.cache))
     return "normal"
 
 
@@ -724,34 +726,6 @@ def reload_last_saved(editor: _Editor, *args, **kwargs):
     editor.current_buffer.string = last_record
     editor.current_buffer.cursor = 0
 
-
-########    DEBUGGING ################################################
-
-
-@_atomic_commands("µ")
-def print_some(editor, reg=None, part=None, arg=None, count=1):
-    """
-    This command is used to print variables to debug.  It looks to a file
-    called "debugging_values" from the user config directory. This file should
-    contain a list of newline separated variables from the editor object
-    namespace.
-    """
-    from vy.global_config import USER_DIR
-    from pprint import pformat
-
-    vy = editor  # shorter to type
-    debug_file = USER_DIR / "debugging_values"
-    to_print = ""
-    for line in debug_file.read_text().splitlines():
-        parent = eval(line)
-        if not isinstance(parent, str):
-            value = ("\n" + pformat(parent)).replace("\n", "\n\t")
-        else:
-            value = "\n" + parent
-        to_print += f"\x1b[2m{line}\x1b[0m = {value} \n"
-    editor.warning(to_print)
-
-
 @_sa_commands("q")
 def record_macro(editor, reg=None, part=None, arg=None, count=1):
     if not editor.record_macro:
@@ -783,7 +757,10 @@ def open_parent_folder(editor: _Editor, *args, **kwargs):
 
 @_sa_commands(":format%")
 def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import black
+    try:
+        import black
+    except ImportError:
+        editor.warning('must install black WIP')
 
     editor.current_buffer.string = black.format_str(
         editor.current_buffer.string, mode=black.Mode()

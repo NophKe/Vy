@@ -128,14 +128,15 @@ def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin, col-count)
 
-@_motion_commands(f'i_{_k.down} {_k.down} j + {_k.C_M} {_k.C_J} {_k.CR}'
-                 f'{_k.C_J} {_k.C_N}')
-def do_normal_j(editor, reg=None, part=None, arg=None, count=1):
+@_motion_commands(f'i_{_k.down} {_k.down} j +'
+                  f'{_k.C_J} {_k.C_N}'
+                 )
+def do_normal_j(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Move one line down.
     """
-    lin, _ = editor.current_buffer.cursor_lin_col
-    editor.current_buffer.cursor_lin_col = (lin+count, 0)
+    cb = editor.current_buffer
+    cb.cursor_lin_col = (cb.current_line_idx+count, 0)
 
 @_motion_commands(f'i_{_k.up} {_k.up} {_k.C_P} k -')
 def do_normal_k(editor, reg=None, part=None, arg=None, count=1):
@@ -294,7 +295,7 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
             curbuf.cursor = offset    
         editor.actions.normal('zz')
     else:
-        editor.minibar(' ( No previous search. )')
+        editor.screen.minibar(' ( No previous search. )')
         
     
 @_motion_commands("N")

@@ -19,18 +19,16 @@ For reading single characters, modes can use the Editor.read_stdin()
 method.  If the main mode is currently delegating its job to a sub-mode,
 the sub-mode is expected to use the Editor.visit_stdin() method.
 
-If the sub-mode succeeds in handling the key that was pressed, it make a
+If the sub-mode succeeds in handling the key that was pressed, it makes a
 call to Editor.read_stdin() to discard the character from the input
 queue, otherwise it just return its parent mode name as a string.
 
 The 'vy.interface.helpers' module contains an implementation of a
 readline() function with editing capacities and per-mode history, see 
-':help! interface.helpers'.
+':help vy.interface.helpers' to learn more about it.
 """
 from importlib import import_module, reload
 from sys import modules
-
-from .normal import __doc__ as doc_normal_mode
 
 class Interface():
     __slots__ = ('inst', 'mode_dict')
@@ -40,6 +38,9 @@ class Interface():
         self.mode_dict = {}
     
     def __call__(self, name):
+        self.find_mode_and_execute_it(name)
+    
+    def find_mode_and_execute_it(name):
         loop = self.mode_dict.get(name, None)
 
         if loop is None:

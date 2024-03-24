@@ -4,6 +4,7 @@ the argument will be named, you will get differnet autocompletion.
 """
 from vy.actions.helpers import with_args_commands as _with_args
 from vy.actions.helpers import _command
+from vy.editor import _Editor
 
 class _CompletableCommand(_command):
     category = "with_args"
@@ -278,4 +279,19 @@ def draw_a_box_around_text(editor, reg=None, part=None, arg=' ', count=1):
         cur_buf.cursor_lin_col = cur_buf.current_line_idx, 0
         cur_buf.insert(to_insert)
 
-
+@_with_args(':grep')
+def grep_in_directory(editor: _Editor, arg=None, *args, **kwargs):
+    """
+    Scan for occurences of a pattern in files within the current directory.
+    """
+    from subprocess import run
+    if not arg:
+        editor.warning(grep_in_directory.__doc__)
+        return 'normal'
+    
+    command = f"grep -T -n -r {arg} ."
+    completed = run(command, capture_output=True, shell=True, text=True)
+    if completed.returncode:
+       editor.screen.infobar(f"error while evaluating '{command}'")
+    else:
+        editor.warning(completed.stdout)

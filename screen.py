@@ -204,21 +204,17 @@ class CompletionBanner:
         self.pretty_completion = []
 
     def __iter__(self):
-        try:    
-            self.completion, self.selected = self.make_func()
-        except TypeError:
-            pass
-        else:
-            if self.selected != -1:
-                self.pretty_completion = [
-                    f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
-                           for index, k in enumerate(self.completion)]
-                if self.selected >= 0:
-                    if self.selected <= self.view_start:
-                        self.view_start = self.selected
-                    if self.selected > self.view_start + 7:
-                        self.view_start = self.selected - 7
-                yield from self.pretty_completion[self.view_start:self.view_start+8]
+        self.completion, self.selected = self.make_func()
+        if self.selected != -1:
+            self.pretty_completion = [
+                f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
+                       for index, k in enumerate(self.completion)]
+            if self.selected >= 0:
+                if self.selected <= self.view_start:
+                    self.view_start = self.selected
+                if self.selected > self.view_start + 7:
+                    self.view_start = self.selected - 7
+            yield from self.pretty_completion[self.view_start:self.view_start+8]
 
 
 class Window():

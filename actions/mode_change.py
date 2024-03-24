@@ -27,6 +27,7 @@ are documented in ':help! interface'.
 """
 
 from vy import keys as _k
+from vy.editor import _Editor
 from vy.actions.helpers import atomic_commands as _atomic_commands
 
 
@@ -37,7 +38,10 @@ of any buffer.
 
 
 @_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} {_k.C_C} i_{_k.C_C} v_{_k.C_C}'
-                  f'² i_² v_² v_v :vi :visual :stopi :stopinsert ² & {_k.F1}')
+                                                   # escape and Ctrl+C should work in any mode
+                  f'² i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
+                  ':vi :visual :stopi :stopinsert' # classic
+                  )
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Normal» mode.
@@ -60,11 +64,12 @@ def visual_mode(editor, **kwargs):
 
 
 @_atomic_commands('I')
-def do_normal_I(editor, reg=None, part=None, arg=None, count=1):
+def do_normal_I(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «insert» mode at beginning of line.
     """
-    editor.actions.normal['0'](editor)
+    cb = editor.current_buffer
+    cb.cursor = cb.find_begining_of_line()
     return 'insert'
 
 @_atomic_commands(f': {_k.C_W}:')
@@ -140,13 +145,13 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     return 'insert'
 
 @_atomic_commands(f'{_k.backspace} {_k.linux_backpace}')
-def insert_mode_backspace(editor, reg=None, part=None, arg=None, count=1):
+def insert_mode_backspace(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes the character before the cursor and starts «Insert» mode.
     ---
     NOTE: Not Vim's behaviour.
     """
-    editor.actions.insert[_k.backspace](editor)
+    editor.current_buffer.backspace()
     return 'insert'
 
 @_atomic_commands('O')
