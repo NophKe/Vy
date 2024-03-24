@@ -12,6 +12,11 @@ def add_to_dict(*keys):
         return func
     return inner
 
+@add_to_dict(' ')
+def select_and_space(editor: _Editor):
+    select_item(editor)
+    editor.current_buffer.insert(' ')
+    
 @add_to_dict(k.up)
 def move_up(editor: _Editor):
     if completer_engine.selected != -1:
@@ -22,6 +27,9 @@ def move_up(editor: _Editor):
 def switch_or_select(editor: _Editor):
     lin, col = editor.current_buffer.cursor_lin_col
     completer_engine._async.complete_work()
+    if completer_engine.completion and completer_engine.selected == -1:
+        completer_engine.move_cursor_up()
+        
     if editor.current_buffer.current_line[:col].strip():
         if len(completer_engine.completion) == 1:
             return select_item(editor)
@@ -52,8 +60,8 @@ def move_down(editor: _Editor):
     
 @add_to_dict('\r', '\n', k.C_J, k.C_M)
 def select_item(editor: _Editor):
-    if not completer_engine.is_active:
-        return False
+#    if not completer_engine.is_active:
+#        return False
     to_insert, to_delete = completer_engine.select_item()
     if len(to_insert) == to_delete:
         return False
@@ -78,7 +86,9 @@ def give_up(editor: _Editor):
 def monoline_loop(editor: _Editor):
     last_insert = ''
     minibar_completer(editor.current_buffer.get_completions)
+#    assert completer_engine.selected != -1
     while True:
+#        assert completer_engine.selected != -1
         key_press = editor.read_stdin()
         if key_press in completion_dict:
             if completion_dict[key_press](editor):
@@ -87,6 +97,8 @@ def monoline_loop(editor: _Editor):
         elif key_press.isprintable():
             editor.current_buffer.undo_list.skip_next()
             editor.current_buffer.insert(key_press)
+#            completer_engine._async.restart_work()
+            completer_engine.selected = -1
             last_insert += key_press
             continue
         break
@@ -103,20 +115,20 @@ def init(editor: _Editor):
 def loop(editor: _Editor):
     global completer_engine
     completer_engine = editor.current_buffer.completer_engine
-    minibar_completer(completer_engine.get_raw_screen)
-    mode = None 
+    completer_engine.selected != -1
 
-    while mode in (None, 'insert'):
-        user_input = monoline_loop(editor) 
-        cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
-        completer_engine.selected = -1
-        try:
-            action = dictionary[user_input]
-        except KeyError:
-            minibar(f' ( Invalid command: {_escape(user_input)} )')
-        else:
-            mode = action(editor)
-            cancel_minibar()
+    user_input = monoline_loop(editor) 
+    cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
+    completer_engine.selected = -1
+    
+    try:
+        action = dictionary[user_input]
+    except KeyError:
+        minibar(f' ( Invalid command: {_escape(user_input)} )')
+        mode = 'insert'
+    else:
+        mode = action(editor)
+        cancel_minibar()
     
     minibar_completer.give_up()
     completer_engine.selected = -1

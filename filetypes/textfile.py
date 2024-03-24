@@ -61,9 +61,6 @@ class TextFile(BaseFile):
                 if line and line != tok: #No eof
                     local_dict[local_split()] = line
                     local_lexed.append(line)
-            #import time
-            #if round(time.time()) % 2 == 0:
-                #raise IndexError
             cancel_handler.notify_task_done()
             self._token_list.clear()
             self._lexed_lines.clear()

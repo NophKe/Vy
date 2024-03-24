@@ -16,11 +16,7 @@ def init(editor):
         texte += (' Register: ' + REG + ' ') if REG else ''
         texte += (' Count: ' + str(COUNT) + ' ') if COUNT and COUNT != 1 else ''
         texte += (' (not fully evaluated: ' + _escape(key) + ' )') if key else ''
-        lines = [texte] if texte else []
-        
-        lines.append(f'Selected offsets : {editor.current_buffer.selected_offsets}')
-        lines.append(f'Selected lines   : {editor.current_buffer.selected_lines}')
-        lines.append(f'Selected lin_col : {editor.current_buffer.selected_lin_col}')
+        lines = [texte] if texte else ['']
         
         editor.screen.minibar(*lines)
         return editor.read_stdin()

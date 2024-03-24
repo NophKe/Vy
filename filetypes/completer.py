@@ -4,12 +4,11 @@ from re import split
 from vy.utils import Cancel
 from threading import Thread
 
-
 def make_word_set(string):
     """
     >>> raise Error
     """
-    return set(split(r'[{}\. :,()\[\]]|$', string))
+    return set(split(r'[{}\. :,()\[\]]|$|\t', string))
 
 class WordCompleter:
     ANY_BUFFER_WORD_SET = set()
@@ -32,7 +31,7 @@ class WordCompleter:
             if not rv or (len(rv) == 1 and rv[0] == word):
                 rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
             return rv, prefix_len
-        return [], -1
+        return [], 0
 
 try:
     if DONT_USE_JEDI_LIB:
@@ -99,10 +98,7 @@ class Completer:
                 result, prefix = completer.complete(line=lin, column=col)
                 if result:
                     self.completion, self.prefix_len = result, prefix
-                    if self.selected != -1:
-                        self.selected = 0
-                    else:
-                        self.selected = -1
+                    self.selected = -1
                     break
             
             self._async.notify_task_done()

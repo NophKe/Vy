@@ -44,19 +44,6 @@ def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=No
     indentation, otherwise \\t is used instead.  If used in the middle
     of a line, it will trigger 'completion' sub-mode.
     """
-    completer = editor.screen.minibar_completer
-    curbuf = editor.current_buffer
-    if curbuf.cursor > curbuf.find_first_non_blank_char_in_line():
-        completer = curbuf.completer_engine
-        completer._async.task_done.wait()
-        answers = len(completer.completion)
-        if answers:
-            if not completer.is_active:
-                completer.move_cursor_down()
-            if answers == 1:
-                completer.select_item()
-            return 'insert'
-        
     with editor.current_buffer as curbuf:
         curbuf.insert('\t')
         if curbuf.set_expandtabs:
