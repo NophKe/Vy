@@ -37,8 +37,14 @@ class Interface():
         self.inst = inst
         self.mode_dict = {}
     
-    def __call__(self, name):
-        return self.find_mode_and_execute_it(name)
+    def __call__(self, mode_chain):
+        if ':' in mode_chain:
+            chain = mode_chain.split(':')
+            for mode in chain[:-1]:
+                self.find_mode_and_execute_it(mode)
+            return self.find_mode_and_execute_it(chain[-1])
+        
+        return self.find_mode_and_execute_it(mode_chain)
     
     def find_mode_and_execute_it(self, name):
         loop = self.mode_dict.get(name, None)

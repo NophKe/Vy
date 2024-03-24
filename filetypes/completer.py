@@ -46,7 +46,11 @@ try:
             try:           
                 completion = super().complete(line=line+1, column=column-1)
                 lengh = completion[0].get_completion_prefix_length()
-                return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
+                try:
+                    return [item.name_with_symbols for item in completion], lengh 
+#                    return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
+                except:
+                    assert all(hasattr(item) for item in completion)
             except:
                 # Jedi Library uses threads and subprocesses. Its use in a
                 # multi-threaded application may be unstable, this is inherent
@@ -92,19 +96,17 @@ class Completer:
                 self.completers.append(WordCompleter(self.buff))
             
             for completer in self.completers:
-                if (result := completer.complete(line=lin, column=col)):
+                result, prefix = completer.complete(line=lin, column=col)
+                if result:
+                    self.completion, self.prefix_len = result, prefix
+                    if self.selected != -1:
+                        self.selected = 0
+                    else:
+                        self.selected = -1
                     break
-            try:
-                self.completion, self.prefix_len = result
-            except TypeError:
-                self.completion, self.prefix_len = [], 0
-                # All completers returned None
-            else:
-                if self.selected != -1 and len(self.completion):
-                    self.selected = 0
             
             self._async.notify_task_done()
-#            self.selected = -1
+            self.selected = -1
             self.completion = []
             self.prefix_len = 0
                 
