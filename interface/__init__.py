@@ -38,9 +38,9 @@ class Interface():
         self.mode_dict = {}
     
     def __call__(self, name):
-        self.find_mode_and_execute_it(name)
+        return self.find_mode_and_execute_it(name)
     
-    def find_mode_and_execute_it(name):
+    def find_mode_and_execute_it(self, name):
         loop = self.mode_dict.get(name, None)
 
         if loop is None:
