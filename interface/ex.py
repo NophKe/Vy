@@ -29,6 +29,7 @@ from vy.global_config import DONT_USE_JEDI_LIB
 import sys
 from pprint import pformat
 import vy
+from vy.editor import _Editor
 
 global_dict = {}
 
@@ -76,7 +77,7 @@ def populate_namespace(editor):
     global_dict['vy'] = vy
     global_dict['clear'] = global_dict.clear
 
-def loop(editor):
+def loop(editori: _Editor):
     populate_namespace(editor)
     origin = sys.displayhook
     try:

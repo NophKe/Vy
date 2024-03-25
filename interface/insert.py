@@ -86,13 +86,15 @@ def give_up(editor: _Editor):
 def monoline_loop(editor: _Editor):
     last_insert = ''
     minibar_completer(editor.current_buffer.get_completions)
-#    assert completer_engine.selected != -1
     while True:
-#        assert completer_engine.selected != -1
         key_press = editor.read_stdin()
         if key_press in completion_dict:
             if completion_dict[key_press](editor):
                 continue
+
+        if key_press in editor.actions.insert:
+            return key_press
+            
         
         elif key_press.isprintable():
             editor.current_buffer.undo_list.skip_next()

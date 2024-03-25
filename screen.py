@@ -205,7 +205,7 @@ class CompletionBanner:
 
     def __iter__(self):
         self.completion, self.selected = self.make_func()
-        if self.completion:
+        if self.completion and self.selected != -1:
             self.pretty_completion = [
                 f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
                        for index, k in enumerate(self.completion)]

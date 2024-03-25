@@ -39,7 +39,7 @@ of any buffer.
 
 @_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} {_k.C_C} i_{_k.C_C} v_{_k.C_C}'
                                                    # escape and Ctrl+C should work in any mode
-                  f'² i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
+                  f' i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
                   ':vi :visual :stopi :stopinsert' # classic
                   )
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
