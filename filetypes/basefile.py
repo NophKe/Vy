@@ -749,11 +749,8 @@ class BaseFile:
     @property
     def unsaved(self):
         if self.path is None or not self.path.exists():
-            if self.string and self.string != '\n':
-                return True
-        elif self.path.read_text() != self.string != '\n':
-            return True
-        return False
+            return self.string and self.string != '\n'
+        return self.path.read_text() != self.string != '\n'
 
     def find_normal_l(self):
         try:
@@ -790,6 +787,10 @@ class BaseFile:
         elif target == '_' : return self.find_first_non_blank_char_in_line()
         elif target == ')' : return self.find_next_token()
         else: raise RuntimeError('vy internal error: not a valid motion')
+
+    @property
+    def header(self):
+        return [repr(self)]
 
 if __name__ == '__main__':
     import doctest

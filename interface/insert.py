@@ -16,6 +16,13 @@ def add_to_dict(*keys):
 def select_and_space(editor: _Editor):
     select_item(editor)
     editor.current_buffer.insert(' ')
+    return True
+    
+@add_to_dict('.')
+def select_and_dot(editor: _Editor):
+    select_item(editor)
+    editor.current_buffer.insert('.')
+    return True
     
 @add_to_dict(k.up)
 def move_up(editor: _Editor):
@@ -60,8 +67,8 @@ def move_down(editor: _Editor):
     
 @add_to_dict('\r', '\n', k.C_J, k.C_M)
 def select_item(editor: _Editor):
-#    if not completer_engine.is_active:
-#        return False
+    if not completer_engine.is_active:
+        return False
     to_insert, to_delete = completer_engine.select_item()
     if len(to_insert) == to_delete:
         return False
@@ -100,7 +107,7 @@ def monoline_loop(editor: _Editor):
             editor.current_buffer.undo_list.skip_next()
             editor.current_buffer.insert(key_press)
 #            completer_engine._async.restart_work()
-            completer_engine.selected = -1
+#            completer_engine.selected = -1
             last_insert += key_press
             continue
         break

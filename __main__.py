@@ -102,10 +102,13 @@ def enter_debugger():
 sys.breakpointhook = enter_debugger
 
 def raise_unraisable(unraisable):
+    Editor.screen.original_screen()
+    Editor.screen.show_cursor()
     try:
         Editor.stop_async_io()
-        Editor.screen.clear_screen()
-    except: pass
+    except BaseException as exc:
+        print(exc)
+        pass
     from traceback import print_tb
     print(  'The following *unhandled* exception was encountered:\n'
            f'  >  {str(unraisable.exc_type)} indicating:\n'

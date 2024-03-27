@@ -245,18 +245,20 @@ class _Editor:
             raise
 
     def __init__(self, *buffers, command_line=''):
-        self.jump_list = _HistoryList()
-        self._init_actions()
         self.cache = _Cache()
+        self.jump_list = _HistoryList()
+        self.interface = Interface(self)
+        # From arguments        
+        self.command_line = command_line
+        self.arg_list = [self.cache[buff].path for buff in buffers]
+        self.arg_list_pointer = 0
+        
+        self._init_actions()
         self.registr = _Register()
         self.screen = None # Wait to have a buffer before creating it.
-        self.interface = Interface(self)
-        self.command_line = command_line
         self._macro_keys = []
         self._running = False
         self._async_io_flag = False
-        self.arg_list = [self.cache[buff].path for buff in buffers]
-        self.arg_list_pointer = 0
         self.macros = {}
         self.record_macro = ''
         self.current_mode = ''
@@ -343,17 +345,17 @@ class _Editor:
     def current_buffer(self): 
         return self.screen.focused.buff
 
-### TODO -- move this fonction to screen module
-###
-### - replace self._asyncio_flag by a threading.Condition ?
-###
     def recenter_screen(self):
         curwin = self.screen.focused
-        lin, col = curwin.buff.cursor_lin_col
-        if lin < curwin.shift_to_lin:
-            curwin.shift_to_lin = lin
-        elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-            curwin.shift_to_lin = lin - self.screen._number_of_lin + 1
+        try:
+            lin, col = curwin.buff._cursor_lin_col
+        except TypeError: #buffer in inconsisant state
+            pass
+        else:
+            if lin < curwin.shift_to_lin:
+                curwin.shift_to_lin = lin
+            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
+                curwin.shift_to_lin = lin - self.screen._number_of_lin + 1
 
     def print_loop(self):
         old_screen = list()
@@ -375,7 +377,9 @@ class _Editor:
 
             if ok_flag and not left_keys(): # > 1:
                 self.recenter_screen()
-                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
+                self.screen.infobar(f' {self.current_mode.upper()} ', '')
+                pass
+#                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
             else:
                 sleep(0.04)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
@@ -416,9 +420,9 @@ class _Editor:
         if not DEBUG:
             self.screen.alternative_screen()
             self.screen.clear_screen()
-        self.screen.hide_cursor()
+            self.screen.hide_cursor()
+            print('\x1b[48:5:233m', flush=True)
         self._async_io_flag = True
-        print('\x1b[48:5:233m', flush=True)
         self.input_thread = Thread(target=self.input_loop)
         self.print_thread = Thread(target=self.print_loop,)
         self.input_thread.start()
@@ -432,7 +436,8 @@ class _Editor:
             if not DEBUG:
                 self.screen.clear_screen()
                 self.screen.original_screen()
-            self.screen.show_cursor()
+                print('\x1b[0m')
+                self.screen.show_cursor()
             #assert self._input_queue.join() ## one key may get stuck there
             #                                ## what can we do ?
         
@@ -443,6 +448,9 @@ class _Editor:
         """
         if self._running:
             return self.edit(buff)
+
+        import gc
+        gc.freeze()
 
         if buff:
             self.edit(buff)
@@ -472,8 +480,7 @@ class _Editor:
                     from traceback import print_tb
                     type_, value_, trace_ = sys.exc_info()
                     self.stop_async_io()
-                    self.screen.alternative_screen() # bad idea ?
-                    print(self.screen.infobar_txt)
+#                    self.screen.alternative_screen() # bad idea ?
                     print(  'The following *unhandled* exception was encountered:\n'
                            f'  >  {repr(exc)} indicating:\n'
                            f'  >  {str(exc)}\n')

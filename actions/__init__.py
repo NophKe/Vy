@@ -12,7 +12,7 @@ NOTE:
   all the basic «actions» upon the Vy editor and get to produce the
   final Vy documentation which is accessible through the  ':help'
   command.  A complete view of the documentation can be produced with
-  the  ':help! actions'  command.
+  the ':help vy.actions' command.
   
   Vy's code is intended to be readable, and because of the use of
   docstring for the high level documentation, most of the implementation
@@ -747,6 +747,7 @@ def execute_macro(editor, reg=None, part=None, arg=None, count=1):
         editor.screen.minibar(f" ( not a valid macro ) ")
     else:
         editor.screen.minibar(f"executing: «{editor.record_macro}»")
+        editor.macros['@'] = editor.macros[macro_name]
         editor._macro_keys = macro.copy()
 
 
@@ -760,7 +761,7 @@ def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
     try:
         import black
     except ImportError:
-        editor.warning('must install black WIP')
+        editor.warning('must install black (WIP sorry...)')
 
     editor.current_buffer.string = black.format_str(
         editor.current_buffer.string, mode=black.Mode()
