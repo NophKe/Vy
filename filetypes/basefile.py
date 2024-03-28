@@ -91,7 +91,7 @@ class BaseFile:
         self.set_tabsize = set_tabsize
         self.set_expandtabs = set_expandtabs
         self.set_autoindent = set_autoindent
-        self._init_text = init_text
+        self._states = [init_text]
         self._number_of_lin = 0
         self._cursor = 0
         self._cursor_lin_col = ()
@@ -709,22 +709,13 @@ class BaseFile:
                 raise TypeError(f'{key = } {type(key) = } expected int or slice.')
             self.string = self.string[:start] + value + self.string[stop:]
 
-    def __repr__(self):
-        if not self._repr:
-            self._repr = ( ('writeable ' if self.modifiable else 'read-only ')
-                          + self.__class__.__name__ 
-                          + ': '
-                          + ( str(self.path.relative_to(self.path.cwd())) if self.path and self.path.is_relative_to(self.path.cwd())
-                              else str(self.path.resolve()) if self.path 
-                              else 'undound to file system' ) )
-        return self._repr
-
 ########    saving mechanism     e#########################################
 
 # Saving mechanism
     def save(self):
         assert self.path is not None
         self.path.write_text(self.string)
+        self._states.append(self.string)
 
     def save_as(self, new_path, override=False):
         from pathlib import Path
@@ -750,7 +741,7 @@ class BaseFile:
     def unsaved(self):
         if self.path is None or not self.path.exists():
             return self.string and self.string != '\n'
-        return self.path.read_text() != self.string != '\n'
+        return self._states[-1] != self.string != '\n'
 
     def find_normal_l(self):
         try:
@@ -790,7 +781,18 @@ class BaseFile:
 
     @property
     def header(self):
-        return [repr(self)]
+        if not self._repr:
+            self._repr = ( ('writeable ' if self.modifiable else 'read-only ')
+                          + self.__class__.__name__ 
+                          + ': '
+                          + ( str(self.path.relative_to(self.path.cwd())) if self.path and self.path.is_relative_to(self.path.cwd())
+                              else str(self.path.resolve()) if self.path 
+                              else '( undound to file system )' ) )
+        return self._repr
+    @property
+    def footer(self):
+        return '  ( modified )' if self.unsaved else ''
+        
 
 if __name__ == '__main__':
     import doctest

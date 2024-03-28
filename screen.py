@@ -9,7 +9,7 @@ from vy.global_config import DEBUG
 def expand_quick(max_col, text):
     line = ''
     line = '\x1b[97;22m'
-    on_col = 1
+    on_col = 0
     retval = []
     esc_flag: bool = False
     for char in text:
@@ -218,22 +218,9 @@ class CompletionBanner:
 
 
 class Window():
-    def __init__(self, parent, shift_to_col, shift_to_lin, buff):
-        self.left_panel = None
-        self.right_panel = None
-        self.parent: Window = parent
-        self.shift_to_col: int = shift_to_col
-        self.shift_to_lin: int = shift_to_lin
-        self.buff = buff
-        self._v_split_flag: bool = False
-        self.v_split_shift: int = 0
-        self._focused: Window = self 
-        self._iter = []
-    
     def __iter__(self):
         if self._v_split_flag:
             yield from self.left_panel
-        if self._v_split_flag:
             yield from self.right_panel
         else:
             yield self
@@ -349,15 +336,12 @@ class Window():
         return int(((self.number_of_col + 1) / 2) + self.v_split_shift)
 
     def vsplit(self, right_focus=False):
-        if self._v_split_flag is False:
-            self._v_split_flag = True
-            self.left_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
-            self.right_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
+        assert not self._v_split_flag
+        self._v_split_flag = True
+        self.left_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
+        self.right_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
+        self.right_panel.set_focus() if right_focus else self.left_panel.set_focus()
 
-            if right_focus:
-                self.right_panel.set_focus()
-            else:
-                self.left_panel.set_focus()
         return self._focused
 
     def gen_window(self):
@@ -365,11 +349,32 @@ class Window():
             return [f'{left}|{right}' for left, right in zip(
                                             self.left_panel.gen_window(), 
                                             self.right_panel.gen_window())]
+        header = self.gen_header()
+        footer = self.gen_footer()
         
-        max_col = self.number_of_col
+        number_of_lines = self.number_of_lin - len(footer) - len(header)
         min_lin = self.shift_to_lin
-        max_lin = self.number_of_lin + self.shift_to_lin
+        max_lin = number_of_lines + self.shift_to_lin
+        self.shown_lines = (min_lin, max_lin)
         
+        header.extend(self.gen_body(min_lin, max_lin))
+        header.extend(footer)
+        return header 
+        
+    def gen_header(self):
+        if self.parent.focused is self:
+            head_line = '\x1b[1;7m' + self.buff.header + '\x1b[22;27m'
+        else:
+            head_line = '\x1b[02m' + self.buff.header + '\x1b[22;27m'
+        return expand_quick(self.number_of_col, head_line)
+        
+    def gen_footer(self):
+        if self.buff.unsaved:
+            return expand_quick(self.number_of_col, ' ( unsaved )')
+        return []
+        
+    def gen_body(self,min_lin, max_lin):
+        max_col = self.number_of_col
         wrap = self.buff.set_wrap
         if (number := self.buff.set_number):
             num_len = len(str(max_lin))
@@ -419,24 +424,34 @@ class Window():
                 line_list.append(to_print[0])
 
         if wrap:
-            while len(line_list) != self.number_of_lin:
-                if true_cursor >= self.number_of_lin:
-                    line_list.pop(0)
-                    true_cursor -= 1
-                else:
-                    line_list.pop()
+                shown_lines = max_lin - min_lin
+                # TODO some wher in this lies the bug
+                while len(line_list) != shown_lines:
+                    if true_cursor >= max_lin:
+                        line_list.pop()
+                        true_cursor -= 1
+                    else:
+                        line_list.pop(0)
 
         return line_list
 
-class Screen(Window):
-    def __init__(self, buff):
+    def __init__(self, parent, shift_to_col, shift_to_lin, buff):
+        self.parent = parent
+        self.shift_to_col = shift_to_col
+        self.shift_to_lin = shift_to_lin
         self.buff = buff
+        
+        self.left_panel = None
+        self.right_panel = None
         self._v_split_flag = False
         self.v_split_shift = 0
-        self._focused = self
-        self.parent = self
-        self.shift_to_lin = 0
-        self.shift_to_col = 0
+        self._focused = self 
+        self.shown_lines = (0,0)
+        
+class Screen(Window):
+    def __init__(self, buff):
+        super().__init__(self, 0, 0, buff)
+        
         self._infobar_right = ''
         self._infobar_left = ''
         self._minibar_txt = ('',)
@@ -445,6 +460,7 @@ class Screen(Window):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
+        self.shown_lines = (0,0)
 
     def vsplit(self):
         if self.focused != self:
@@ -512,7 +528,7 @@ class Screen(Window):
         return f"{left}{right}"
 
     def hide_cursor(self):
-        stdout.write('x1b[?25l')
+        stdout.write('\x1b[?25l')
 
     def show_cursor(self):
         stdout.write('\x1b[?25h')

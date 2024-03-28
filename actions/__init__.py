@@ -242,7 +242,6 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
 @_atomic_commands(":pwd :pw :pwd-verbose")
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
-
     editor.screen.minibar(str(Path.cwd()))
 
 
@@ -433,10 +432,7 @@ def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
     """
     Exits Vy immediatly without checking for any unsaved buffer.
     """
-    import sys
-
-    sys.exit(0)
-
+    raise SystemExit
 
 @_atomic_commands("zz")
 def do_zz(editor, reg=None, part=None, arg=None, count=1):
@@ -766,3 +762,17 @@ def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer.string = black.format_str(
         editor.current_buffer.string, mode=black.Mode()
     )
+
+@_atomic_commands(f'{_k.C_W}{_k.C_W}')
+def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    found = False
+    for window in editor.screen:
+        if found:
+            window.set_focus()
+            break
+        if window is editor.screen.focused:
+            found = True
+            continue
+    else:
+        next(iter(editor.screen)).set_focus()
+    

@@ -162,6 +162,22 @@ def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
     with editor.current_buffer as curbuf:
         curbuf.cursor = curbuf.find_begining_of_line()
 
+@_motion_commands('e')
+def do_normal_e(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor to the end of word.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_end_of_word()
+
+@_motion_commands('E')
+def do_normal_E(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    """
+    Moves the cursor to the end of WORD.
+    """
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_end_of_word()
+    
 @_motion_commands(f'$ {_k.end} i_{_k.end}')
 def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -237,39 +253,65 @@ def do_normal_w(editor, reg=None, part=None, arg=None, count=1):
             curbuf.cursor = curbuf.find_next_delim()
 
 @_motion_commands(f'{_k.page_down} i_{_k.page_down} {_k.C_B}')
-def do_page_down(editor, reg=None, part=None, arg=None, count=1):
+def do_page_down(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
-    First keystrike puts the cursor on last line shown in the current 
-    windows. Next keystrokes scrolls the text one page down.
+    If the cursor is on the higher part of the screen, the cursor goes to 
+    the middle of the current windows.
+    If the cursor is on the botton part of the screen, the cursor goes to 
+    the last line of the current windows.
+    
+    If on the last displayed line, scrolls the text one page down.
+    ---
+    NOTE: Not Vim behaviour.
+    ---
     """
     curbuf = editor.current_buffer
     curwin = editor.current_window
-    line_shift = curwin.shift_to_lin
-    page_size = curwin.number_of_lin
+    first, last = curwin.shown_lines
+    last -= 1
+    page_size = last - first
     lin, col = curbuf.cursor_lin_col
-    new_lin = (line_shift + page_size - 1)
-
-    if lin < new_lin:
-        curbuf.cursor_lin_col = (new_lin, col)
+    middle = first + (page_size // 2)
+    
+    
+    if lin < middle:
+        curbuf.cursor_lin_col = (middle, 0)
+    elif lin < last:
+        curbuf.cursor_lin_col = (last, 0)
     else:
-        curbuf.cursor_lin_col = (new_lin + page_size, col)
+        curbuf.cursor_lin_col = (last+page_size-1, 0)
 
+    if curbuf.current_line_idx == curbuf.number_of_lin - 1:
+        editor.actions.normal('zz')
+        
 @_motion_commands(f'{_k.page_up} i_{_k.page_up} {_k.C_F}')
 def do_page_up(editor, reg=None, part=None, arg=None, count=1):
     """
-    First keystrike puts the cursor on the first line shown in the current
-    windows.  Next keystrokes scrolls the text one page up.
+    If the cursor is on the higher part of the screen, the cursor goes to 
+    the middle of the current windows.
+    If the cursor is on the botton part of the screen, the cursor goes to 
+    the first line of the current windows.
+    
+    If on the first displayed line, scrolls the text one page up.
+    ---
+    NOTE: Not Vim behaviour.
+    ---
     """
     curbuf = editor.current_buffer
     curwin = editor.current_window
-    line_shift = curwin.shift_to_lin
-    page_size = curwin.number_of_lin
+    first, last = curwin.shown_lines
+    last -= 1
+    page_size = last - first
     lin, col = curbuf.cursor_lin_col
-
-    if lin > line_shift:
-        curbuf.cursor_lin_col = (line_shift, col)
+    middle = first + (page_size // 2)
+    
+    
+    if lin > middle:
+        curbuf.cursor_lin_col = (middle, 0)
+    elif lin > first:
+        curbuf.cursor_lin_col = (first, 0)
     else:
-        curbuf.cursor_lin_col = (lin - page_size, col)
+        curbuf.cursor_lin_col = (first - page_size, 0)
 
 @_motion_commands("n")
 def do_normal_n(editor, reg=None, part=None, arg=None, count=1):

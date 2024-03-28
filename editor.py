@@ -347,15 +347,18 @@ class _Editor:
 
     def recenter_screen(self):
         curwin = self.screen.focused
-        try:
-            lin, col = curwin.buff._cursor_lin_col
-        except TypeError: #buffer in inconsisant state
-            pass
-        else:
-            if lin < curwin.shift_to_lin:
-                curwin.shift_to_lin = lin
-            elif lin > curwin.shift_to_lin + curwin.number_of_lin - 1:
-                curwin.shift_to_lin = lin - self.screen._number_of_lin + 1
+        min_lin, max_lin = curwin.shown_lines
+        if max_lin: # gen_windows() allready got called once
+            try:
+                lin, col = curwin.buff._cursor_lin_col
+            except TypeError: #buffer in inconsisant state
+                pass
+            else:
+                if lin < min_lin:
+                    curwin.shift_to_lin = lin
+                elif lin >= max_lin:
+                    page_size = max_lin - min_lin - 1
+                    curwin.shift_to_lin = lin - page_size 
 
     def print_loop(self):
         old_screen = list()
