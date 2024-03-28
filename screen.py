@@ -428,7 +428,7 @@ class Window():
 
         return line_list
 
-class _Screen(Window):
+class Screen(Window):
     def __init__(self, buff):
         self.buff = buff
         self._v_split_flag = False
@@ -445,7 +445,6 @@ class _Screen(Window):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
-#        self._needs_new_redraw = False
 
     def vsplit(self):
         if self.focused != self:
@@ -461,17 +460,12 @@ class _Screen(Window):
     def number_of_lin(self):
         return self._number_of_lin
 
-#    def set_redraw_needed(self):
-#        self._needs_new_redraw = True
-    
     def get_line_list(self):
         minibar = self.minibar_banner
 
-#        if self._needs_new_redraw:
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(minibar)
-#        self._needs_new_redraw = False
         
         try:
             rv = self.gen_window()
@@ -518,7 +512,7 @@ class _Screen(Window):
         return f"{left}{right}"
 
     def hide_cursor(self):
-        stdout.write('\x1b[0m\x1b[?25l')
+        stdout.write('x1b[?25l')
 
     def show_cursor(self):
         stdout.write('\x1b[?25h')
@@ -526,9 +520,6 @@ class _Screen(Window):
     def insert(self, text):
         stdout.write(f'\x1b[@\x1b[7m{text}\x1b[27m')
         stdout.flush()
-
-    def clear(self):
-        stdout.write('\x1b[2J\x1b[09b3J')
 
     def save_cursor(self):
         stdout.write('\x1b\u009bs')
@@ -565,39 +556,6 @@ class _Screen(Window):
         stdout.write('\x1b[?47l')
 
     def clear_screen(self):
+        stdout.write('\x1b[1J')
         stdout.write('\x1b[2J')
-        
-class DebugScreen(_Screen):
-    @property
-    def minibar_banner(self):
-        from time import sleep
-        
-        from vy.global_config import USER_DIR
-        from pprint import pformat
-        from __main__ import Editor
-#        from time import asctime
-        debug_file = USER_DIR / "debugging_values"
-        to_print = '\x1b[04m ' * (self.number_of_col - 1) + '\x1b[0m\n'
-        for line in debug_file.read_text().splitlines():
-            if line:
-                try:
-                    value = pformat(eval(line))
-                    to_print += f'\x1b[2m{line}\x1b[0m = {value} \n'
-                except BaseException as exc:
-                    value = str(exc)
-                    to_print += f'\x1b[35;1m{line}\n     <<< ___ERROR____ >>>\n{value}\x1b[0m'
-        rv = list()
-        for line in to_print.splitlines():
-            rv.extend(expand_quick(self.number_of_col, line))
-        rv.append(self.infobar_txt)
-        for line in self.minibar_completer:
-            rv.extend(expand_quick(self.number_of_col, line))
-        for line in self._minibar_txt:
-            rv.extend(expand_quick(self.number_of_col, line))
-#            rv.extend(expandtabs(3, self.number_of_col , str(asctime()), 1, 0, 0, None, None))
-        return rv
-
-if DEBUG:
-    Screen = DebugScreen
-else:
-    Screen = _Screen
+        stdout.write('\x1b[3J')

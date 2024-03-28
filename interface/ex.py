@@ -53,7 +53,7 @@ try:
 except ImportError:
     Readline = Completer
 
-def init(editor):
+def init(editor: _Editor):
     global readline
     global console
     global displayer
@@ -69,15 +69,32 @@ def init(editor):
             
     console = Console(locals=global_dict)
     displayer = lambda arg: editor.screen.minibar(*pformat(arg).splitlines())    
-
+    
+        
 def populate_namespace(editor):
+    def my_print(*args, **kwargs):
+        to_print = []
+        for arg in args:
+            if isinstance(arg, str):
+                to_print.append(arg)
+            else:
+                to_print.append(repr(arg))
+        return '\n'.join(to_print)
+    
+    def my_help(*args, **kwargs):
+        editor.stop_async_io()
+        help(*args, **kwargs)
+        editor.start_async_io()
+        
     global_dict['cb'] = editor.current_buffer
     global_dict['cw'] = editor.current_window
     global_dict['ed'] = editor
     global_dict['vy'] = vy
+    global_dict['print'] = my_print    
+    global_dict['help'] = my_help
     global_dict['clear'] = global_dict.clear
 
-def loop(editori: _Editor):
+def loop(editor: _Editor):
     populate_namespace(editor)
     origin = sys.displayhook
     try:

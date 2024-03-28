@@ -120,6 +120,7 @@ def raise_unraisable(unraisable):
     raise_signal(SIGKILL)
 threading.excepthook = raise_unraisable
 
+print('Vy is starting.')
 from vy.editor import _Editor
 Editor = _Editor(*cmdline.files, command_line=cmdline)
 
@@ -141,4 +142,5 @@ if cmdline.profile:
     exit()
 
 Editor(mode=cmdline.mode)
-
+print('Thanks for using Vy in its beta version.\n'
+      'Any comment or issue posted on github.com/nophke/vy will be taken into account.')

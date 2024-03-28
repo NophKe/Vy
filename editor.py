@@ -472,7 +472,7 @@ class _Editor:
 #                    self.recenter_screen()
                     continue
                 except SystemExit:
-                    raise
+                    return
                 except BdbQuit:
                     pass
                 except BaseException as exc:
