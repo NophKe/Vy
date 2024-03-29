@@ -7,6 +7,8 @@ from sys import stdout
 from vy.global_config import DEBUG
 
 def expand_quick(max_col, text):
+    if not text:
+        return []
     line = ''
     line = '\x1b[97;22m'
     on_col = 0
@@ -369,9 +371,7 @@ class Window():
         return expand_quick(self.number_of_col, head_line)
         
     def gen_footer(self):
-        if self.buff.unsaved:
-            return expand_quick(self.number_of_col, ' ( unsaved )')
-        return []
+        return expand_quick(self.number_of_col, self.buff.footer)
         
     def gen_body(self,min_lin, max_lin):
         max_col = self.number_of_col
@@ -575,3 +575,13 @@ class Screen(Window):
         stdout.write('\x1b[1J')
         stdout.write('\x1b[2J')
         stdout.write('\x1b[3J')
+    
+    def enable_bracketed_paste(self):
+        stdout.write('\x1b[?2004h')
+    
+    def disable_bracketed_paste(self):
+        stdout.write('\x1b[?2004l')
+
+    def reset(self):
+        stdout.write('\x1b[0m')
+        

@@ -424,6 +424,7 @@ class _Editor:
             self.screen.alternative_screen()
             self.screen.clear_screen()
             self.screen.hide_cursor()
+            self.screen.enable_bracketed_paste()
             print('\x1b[48:5:233m', flush=True)
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop)
@@ -439,8 +440,11 @@ class _Editor:
             if not DEBUG:
                 self.screen.clear_screen()
                 self.screen.original_screen()
-                print('\x1b[0m')
                 self.screen.show_cursor()
+                self.screen.disable_bracketed_paste()
+                self.screen.bottom()
+                self.screen.reset()
+                print('\x1b[0m')
             #assert self._input_queue.join() ## one key may get stuck there
             #                                ## what can we do ?
         

@@ -174,5 +174,9 @@ def do_insert_C_O(editor, **kwargs):
     """
     from vy.interface.normal import loop
     loop(editor, False)
-    
 
+@_atomic_commands('vy:paste i_vy:paste')
+def paste_from_os_clipboard(editor: _Editor, *args, **kwrags):
+    editor.screen.infobar(' ( pasting from OS clipboard )')
+    editor.current_buffer.insert(editor.read_stdin())
+    return 'normal'

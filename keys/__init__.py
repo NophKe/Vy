@@ -95,7 +95,11 @@ def _escape(text):
             if any( [item.startswith(evaluing + char) for item in _reprs]):
                 evaluing += char
                 continue
-            final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+            try:
+                final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+            except KeyError:
+                return repr(evaluing)
+                
             if char.isprintable():
                 evaluing = ''
                 final += char.replace('_','-')
@@ -109,7 +113,10 @@ def _escape(text):
             assert not char.isspace()
             final += char
     if evaluing:
-        final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+        try:
+            final += ('<' + _reprs[evaluing] + '>').replace('_','-')
+        except KeyError:
+            return repr(evaluing)
 
     assert final.isprintable()
     assert not any(forbiden in final for forbiden in '\n\t\x1b')

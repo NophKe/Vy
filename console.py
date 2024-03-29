@@ -97,10 +97,54 @@ def getch_noblock():
                     # There is a subtil bug! if user holds a special key and
                     # presses a normal key very quickly.... What can we do ?
                     if esc_seq == '\x1b':
-                        yield ret
-                        ret = ''
+                        break
                     ret += esc_seq
+                    
+                    if ret == '\x1b[200~':
+                        break
+                        
                     esc_seq = stdin.read(1)
             yield ret
+    finally:
+        tcsetattr(stdin, TCSAFLUSH, old_mode)
+        
+def getch_noblock():
+    """
+    This is the couter-part of the getch() function from the same
+    module.  getch_noblock() returns a generator yielding key strokes or
+    None every 0.1 seconds
+    """
+    old_mode = tcgetattr(stdin)
+    try:
+        setraw(stdin)           # First,
+        setnonblocking(stdin)   # Second, 
+        while True:
+            select([stdin],[],[], 0.1)          # wait for a character 0.1 seconds
+            ret = stdin.buffer.read(1)          # rely on assertion .read(1) will not
+            if ret == b'\x1b':
+                next_one = stdin.buffer.read(1)
+                if next_one == b'[':
+                    ret = ret + next_one + stdin.buffer.read(1)
+                    
+                    while ret[-1] not in range(0x40,0x7e+1):
+                        ret += stdin.buffer.read(1) 
+                        
+                    if ret == b'\x1b[200~':
+                        ret = stdin.buffer.read(1)
+                        while not ret.endswith(b'\x1b[201~'):
+                            ret += stdin.buffer.read(1)
+                        ret = ret.removesuffix(b'\x1b[201~')
+                        yield 'vy:paste'
+#                        yield repr(ret)
+                        yield ret.replace(b'\r', b'\n').decode('utf-8', errors='ignore')
+                    else:
+                        yield ret.decode('ascii', errors='ignore')
+                        
+                else:
+                    yield (ret+next_one).decode('ascii',errors='ignore')
+                
+            else:
+                yield ret.decode('utf-8', errors='ignore')
+            
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
