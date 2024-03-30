@@ -22,9 +22,10 @@ prevented several call to the import machinery.
 """
 
 from select import select
-from termios import *
 from sys import stdin
-
+from termios import (TCSAFLUSH, TCSANOW, tcgetattr, tcsetattr, VMIN, VTIME,
+                        BRKINT, ICRNL, INPCK, ISTRIP, IXON, OPOST, CSIZE,
+                        PARENB, ECHO, ICANON, IEXTEN, ISIG, CS8)
 IFLAG = 0
 OFLAG = 1
 CFLAG = 2
@@ -85,7 +86,7 @@ def getch_noblock():
         setraw(stdin)           # First,
         setnonblocking(stdin)   # Second, 
         while True:
-            select([stdin],[],[], 0.1)   # wait for a character 0.1 seconds
+            select([stdin],[],[], 0.05)   # wait for a character 0.1 seconds
             ret = stdin.read(1)          # rely on assertion .read(1) will not
                                          # break multi-bytes characters
             if ret == '\x1b':
@@ -115,36 +116,40 @@ def getch_noblock():
     None every 0.1 seconds
     """
     old_mode = tcgetattr(stdin)
+    buffer = stdin.buffer
     try:
         setraw(stdin)           # First,
         setnonblocking(stdin)   # Second, 
         while True:
-            select([stdin],[],[], 0.1)          # wait for a character 0.1 seconds
-            ret = stdin.buffer.read(1)          # rely on assertion .read(1) will not
+            select([buffer],[],[], 0.1)          # wait for a character 0.1 seconds
+            ret = buffer.read(1)          # rely on assertion .read(1) will not
             if ret == b'\x1b':
-                next_one = stdin.buffer.read(1)
+                next_one = buffer.read(1)
                 if next_one == b'[':
-                    ret = ret + next_one + stdin.buffer.read(1)
+                    ret = ret + next_one + buffer.read(1)
                     
                     while ret[-1] not in range(0x40,0x7e+1):
-                        ret += stdin.buffer.read(1) 
+                        ret += buffer.read(1) 
                         
                     if ret == b'\x1b[200~':
-                        ret = stdin.buffer.read(1)
+                        ret = buffer.read(1)
                         while not ret.endswith(b'\x1b[201~'):
-                            ret += stdin.buffer.read(1)
+                            ret += buffer.read(1)
                         ret = ret.removesuffix(b'\x1b[201~')
                         yield 'vy:paste'
-#                        yield repr(ret)
-                        yield ret.replace(b'\r', b'\n').decode('utf-8', errors='ignore')
+                        yield ret.replace(b'\r', b'\n').decode('utf-8')
+#                        yield ret.replace(b'\r', b'\n').decode('utf-8', errors='ignore')
                     else:
-                        yield ret.decode('ascii', errors='ignore')
+                        yield ret.decode('utf-8')
+#                        yield ret.decode('ascii', errors='ignore')
                         
                 else:
-                    yield (ret+next_one).decode('ascii',errors='ignore')
+                    yield (ret+next_one).decode('ascii')
+#                    yield (ret+next_one).decode('ascii',errors='ignore')
                 
             else:
-                yield ret.decode('utf-8', errors='ignore')
+                yield ret.decode('utf-8')
+#                yield ret.decode('utf-8', errors='ignore')
             
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
