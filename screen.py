@@ -584,4 +584,11 @@ class Screen(Window):
 
     def reset(self):
         stdout.write('\x1b[0m')
-        
+
+    def enable_mouse_tracking(self):
+        stdout.write('\x1b[?9h')
+#        stdout.write('\x1b[?1001h')
+
+    def disable_mouse_tracking(self):
+        stdout.write('\x1b[?9l')
+#        stdout.write('\x1b[?1001l')

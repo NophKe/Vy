@@ -34,17 +34,20 @@ def loop(editor, capture=True):
     # Capture local variables
     get_char = lambda: _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key)
     
+    
     dictionary = {}
     minibar = editor.screen.minibar
     curbuf = editor.current_buffer
     motion_cmd = editor.actions.motion
     local_actions = curbuf.actions 
     
+    
     dictionary.update(editor.actions.normal)
     dictionary.update(local_actions)
 
     key = REG = CMD = RANGE = MOTION_COUNT = ''
     COUNT = ''
+    curbuf.stop_selection()
     key = get_char()
 
     if key == '"':

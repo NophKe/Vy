@@ -36,12 +36,12 @@ The next commands change mode but do not make any edition to the content
 of any buffer.
 """
 
-
-@_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} {_k.C_C} i_{_k.C_C} v_{_k.C_C}'
                                                    # escape and Ctrl+C should work in any mode
-                  f' i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
-                  ':vi :visual :stopi :stopinsert' # classic
-                  )
+                  #f' i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
+                  #':vi :visual :stopi :stopinsert' # classic
+                  #)
+
+@_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} v_v {_k.C_C} i_{_k.C_C} v_{_k.C_C}')
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Normal» mode.
@@ -180,3 +180,20 @@ def paste_from_os_clipboard(editor: _Editor, *args, **kwrags):
     editor.screen.infobar(' ( pasting from OS clipboard )')
     editor.current_buffer.insert(editor.read_stdin())
     return 'normal'
+
+@_atomic_commands('vy:mouse v_vy:mouse i_vy:mouse')
+def move_to_click_position(editor: _Editor, *args, **kwrags):
+    button = editor.read_stdin()
+    click_col = int(editor.read_stdin())
+    click_lin = int(editor.read_stdin())
+    
+    curwin = editor.screen
+    new_lin = click_lin + curwin.shift_to_lin - 2
+    new_col = max(0, (click_col - 4))
+
+    curbuf = editor.current_buffer
+    lin, col = curbuf.cursor_lin_col
+
+    curbuf.cursor_lin_col = new_lin, new_col
+    editor.screen.minibar(f' (click {button= }, {click_lin= }, {click_col= })',
+                          f' (click {button= }, {new_lin= }, {new_col= })')

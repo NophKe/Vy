@@ -144,6 +144,10 @@ class _Register:
             key = str(key)
         assert isinstance(key, str)
         assert key in self.valid_registers
+        if key == '+':
+            import pyperclip
+            return pyperclip.paste()
+            
         try:
             return self.dico[key]
         except KeyError:
@@ -157,6 +161,9 @@ class _Register:
 
         if key == '_':
             return
+        elif key == '+':
+            import pyperclip
+            pyperclip.copy(value)
         
         elif key in ':.>':
             self.dico[key] = value
@@ -216,9 +223,12 @@ class _Editor:
 
     def _init_actions(self):
         from vy.actions import __dict__ as action_dict
+        from vy.actions.mode_change import normal_mode
         actions = NameSpace(self)
         try:
             for name, action in action_dict.items():
+                if action is normal_mode:
+                    assert action.v_alias
                 if callable(action) and not name.startswith('_'):
                     if action.v_alias:
                         for k in action.v_alias:
@@ -351,7 +361,7 @@ class _Editor:
         if max_lin: # gen_windows() allready got called once
             try:
                 lin, col = curwin.buff._cursor_lin_col
-            except TypeError: #buffer in inconsisant state
+            except ValueError: #buffer in inconsisant state
                 pass
             else:
                 if lin < min_lin:
@@ -425,6 +435,7 @@ class _Editor:
             self.screen.clear_screen()
             self.screen.hide_cursor()
             self.screen.enable_bracketed_paste()
+            self.screen.enable_mouse_tracking()
             print('\x1b[48:5:233m', flush=True)
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop)
@@ -442,6 +453,7 @@ class _Editor:
                 self.screen.original_screen()
                 self.screen.show_cursor()
                 self.screen.disable_bracketed_paste()
+                self.screen.disable_mouse_tracking()
                 self.screen.bottom()
                 self.screen.reset()
                 print('\x1b[0m')

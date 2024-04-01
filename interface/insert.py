@@ -122,6 +122,7 @@ def init(editor: _Editor):
     dictionary = editor.actions.insert
     
 def loop(editor: _Editor):
+    editor.current_buffer.stop_selection()
     global completer_engine
     completer_engine = editor.current_buffer.completer_engine
     completer_engine.selected != -1

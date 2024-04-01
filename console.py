@@ -75,7 +75,7 @@ def getch():
     tcsetattr(stdin, TCSADRAIN, old_mode)
     return rv
         
-def getch_noblock():
+def getch_noblock_base():
     """
     This is the couter-part of the getch() function from the same
     module.  getch_noblock() returns a generator yielding key strokes or
@@ -104,9 +104,23 @@ def getch_noblock():
                         ret = ret.removesuffix(b'\x1b[201~')
                         yield 'vy:paste'
                         yield ret.replace(b'\r', b'\n').decode('utf-8')
-                    else:
-                        yield ret.decode('utf-8')
                         
+                    elif ret == b'\x1b[M':
+                        button = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
+                        coord_x = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
+                        coord_y = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
+                        if button == '64':
+                            yield '\x1b[A'
+                        elif button == '65':
+                            yield '\x1b[B'
+                        else:
+                            yield 'vy:mouse'
+                            yield button
+                            yield coord_x
+                            yield coord_y
+                    else:
+                        yield ret.decode('ascii')
+                
                 else:
                     yield (ret+next_one).decode('ascii')
                 
@@ -115,3 +129,13 @@ def getch_noblock():
             
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
+
+def getch_noblock():
+    file = open("/home/nono/LOG_console.txt", 'a')
+    for key_press in getch_noblock_base():
+        if key_press:
+            file.write(f'{key_press = }\n')
+            file.flush()
+        yield key_press
+
+getch_noblock = getch_noblock_base
