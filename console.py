@@ -125,7 +125,12 @@ def getch_noblock_base():
                     yield (ret+next_one).decode('ascii')
                 
             else:
-                yield ret.decode('utf-8')
+                while True:
+                    try:
+                        yield ret.decode('utf-8')
+                        break
+                    except UnicodeDecodeError:
+                        ret += buffer.read(1)
             
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)

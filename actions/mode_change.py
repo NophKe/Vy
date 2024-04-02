@@ -36,12 +36,13 @@ The next commands change mode but do not make any edition to the content
 of any buffer.
 """
 
-                                                   # escape and Ctrl+C should work in any mode
-                  #f' i_² v_² {_k.F1} i_{_k.F1}'     # uppest left in azerty keyboard
-                  #':vi :visual :stopi :stopinsert' # classic
-                  #)
-
-@_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape} v_v {_k.C_C} i_{_k.C_C} v_{_k.C_C}')
+@_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape}' # escape should work in any mode
+                  f' {_k.C_C} i_{_k.C_C} v_{_k.C_C}'         # also Ctrl+C
+                  f' {_k.F1} i_{_k.F1} v_{_k.F1}'            # also F1 which is next to esc
+                  f' ² i_² v_²'                              # also ² which is next to esc
+                  f' v_v v_V'                                # v and V from visual mode
+                  f' :vi :visual :stopi :stopinsert'         # old vi stuff
+                  )
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Normal» mode.
