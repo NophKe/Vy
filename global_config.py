@@ -19,7 +19,12 @@ ATTENTION:
 
 """
 from pathlib import Path as _path
+
 USER_DIR = _path('~/.vy/').expanduser()
+DEBUG = False
+DONT_USE_PYGMENTS_LIB = False
+DONT_USE_JEDI_LIB = False
+DONT_USE_USER_CONFIG = False
 
 def _source_config():
     global USER_DIR
@@ -37,7 +42,3 @@ def _source_rcfile(editor):
     if rcfile.exists():
         exec(rcfile.read_text(),{'vy':editor},{})
 
-DEBUG = False
-DONT_USE_PYGMENTS_LIB = False
-DONT_USE_JEDI_LIB = False
-DONT_USE_USER_CONFIG = False

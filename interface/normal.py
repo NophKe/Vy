@@ -91,7 +91,7 @@ def loop(editor, capture=True):
 
     elif action.stand_alone:
         cancel_minibar = minibar(f' ( Processing Command: {_escape(key)} {COUNT} times)')
-        rv = action(editor, reg=REG if REG else '"', count=COUNT)
+        rv = action(editor, reg=REG if REG else '+', count=COUNT)
         cancel_minibar()
         return rv
 
@@ -114,7 +114,7 @@ def loop(editor, capture=True):
             try: stop = curbuf.lines_offsets[line_idx + COUNT]
             except IndexError: stop = len(curbuf)
             
-            rv = action(editor, reg=REG if REG else '"', part=slice(start,stop))
+            rv = action(editor, reg=REG if REG else '+', part=slice(start,stop))
             cancel()
             curbuf.cursor_lin_col = origin_position
             return rv
@@ -136,7 +136,7 @@ def loop(editor, capture=True):
 
         cancel = minibar(f'( Processing Command: {_escape(CMD)}{COUNT}{_escape(key)} )')
 
-        rv = action(editor, reg=REG if REG else '"', part=RRANGE)
+        rv = action(editor, reg=REG if REG else '+', part=RRANGE)
         cancel()
         curbuf.cursor_lin_col = origin_position
         return rv

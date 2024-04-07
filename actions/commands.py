@@ -32,7 +32,7 @@ def change(editor, reg='_', part=None, arg=None, count=1):
         return 'insert'
 
 @_full_commands('y v_y')
-def yank(editor, reg='"', part=None, arg=None, count=1):
+def yank(editor, reg='+', part=None, arg=None, count=1):
     """
     Yanks (copies) the text from the cursor position to {movement}
     argument, or inside {movement} if it resolves to as slice of the
@@ -43,7 +43,7 @@ def yank(editor, reg='"', part=None, arg=None, count=1):
     editor.registr[reg] = text
 
 @_full_commands('d v_d')
-def delete(editor, reg='"', part=None, arg=None, count=1):
+def delete(editor, reg='+', part=None, arg=None, count=1):
     """
     Deletes the text from the cursor position to {movement} argument, or
     inside {movement} if it resolves to as slice of the text.  The

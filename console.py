@@ -23,16 +23,45 @@ prevented several call to the import machinery.
 
 from select import select
 from sys import stdin
-from termios import (TCSAFLUSH, TCSANOW, tcgetattr, tcsetattr, VMIN, VTIME,
-                        BRKINT, ICRNL, INPCK, ISTRIP, IXON, OPOST, CSIZE,
-                        PARENB, ECHO, ICANON, IEXTEN, ISIG, CS8)
-IFLAG = 0
-OFLAG = 1
-CFLAG = 2
-LFLAG = 3
+from termios import tcgetattr, tcsetattr
+
+TCSANOW = 0
+TCSADRAIN = 1
+TCSAFLUSH = 2
+
+# CC options
+VTIME = 5
+VMIN = 6
+
+# IFLAG options
+ISIG = 1
+BRKINT = 2
+INPCK = 16
+ISTRIP = 32
+ICRNL = 256
+IXON = 1024
+IEXTEN = 32768
+
+# OFLAG options
+OPOST = 1
+
+# LFLAG options
+ICANON = 2
+ECHO = 8
+
+# CFLAG options
+CSIZE = 48
+PARENB = 256
+CS8 = 48
+
+# FLAGS
+IFLAG = 0  # /* input modes */
+OFLAG = 1  # /* output modes */
+CFLAG = 2  # /* control modes */
+LFLAG = 3  # /* local modes */
 ISPEED = 4
 OSPEED = 5
-CC = 6
+CC = 6     # /* special characters */
 
 def setraw(fd, when=TCSAFLUSH):
     """
@@ -106,7 +135,7 @@ def getch_noblock_base():
                         yield ret.replace(b'\r', b'\n').decode('utf-8')
                         
                     elif ret == b'\x1b[M':
-                        button = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
+                        button  = ord(buffer.read(1)) - 32 # 32 == ord(ascii(' '))
                         coord_x = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
                         coord_y = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
                         if button == '64':
@@ -114,8 +143,12 @@ def getch_noblock_base():
                         elif button == '65':
                             yield '\x1b[B'
                         else:
-                            yield 'vy:mouse'
-                            yield button
+                            if button == 0:
+                                yield f'vy:mouse:left'
+                            elif button == 1:
+                                yield 'vy:mouse:middle'
+                            elif button == 2:
+                                yield 'vy:mouse:right'
                             yield coord_x
                             yield coord_y
                     else:

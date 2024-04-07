@@ -41,7 +41,7 @@ of any buffer.
                   f' {_k.F1} i_{_k.F1} v_{_k.F1}'            # also F1 which is next to esc
                   f' ² i_² v_²'                              # also ² which is next to esc
                   f' v_v v_V'                                # v and V from visual mode
-                  f' :vi :visual :stopi :stopinsert'         # old vi stuff
+                   ' :vi :visual :stopi :stopinsert'         # old vi stuff
                   )
 def normal_mode(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -73,7 +73,7 @@ def do_normal_I(editor: _Editor, reg=None, part=None, arg=None, count=1):
     cb.cursor = cb.find_begining_of_line()
     return 'insert'
 
-@_atomic_commands(f': {_k.C_W}:')
+@_atomic_commands(f': {_k.C_W}: ')
 def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Command» mode.
@@ -88,12 +88,12 @@ def python_mode(editor, reg=None, part=None, arg=None, count=1):
     return 'python'
 
 @_atomic_commands('A')
-def do_normal_A(editor, reg=None, part=None, arg=None, count=1):
+def do_normal_A(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the cursor on the last character on the current line.
     And starts «Insert» mode.
     """
-    editor.actions.normal['$'](editor)
+    editor.current_buffer.move_cursor('$')
     return 'insert'
 
 @_atomic_commands('?')
@@ -115,7 +115,7 @@ def insert_mode_a(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Insert» mode one character after cursor position.
     """
-    editor.actions.normal['l'](editor)
+    editor.current_buffer.move_cursor('l')
     return 'insert'
 
 @_atomic_commands('/')
@@ -177,14 +177,29 @@ def do_insert_C_O(editor, **kwargs):
     loop(editor, False)
 
 @_atomic_commands('vy:paste i_vy:paste')
-def paste_from_os_clipboard(editor: _Editor, *args, **kwrags):
-    editor.screen.infobar(' ( pasting from OS clipboard )')
+def paste_from_os_clipboard_event(editor: _Editor, *args, **kwrags):
     editor.current_buffer.insert(editor.read_stdin())
+    
+@_atomic_commands('v_vy:paste')
+def replace_selected_text_from_os_clipboard_event(editor: _Editor, *args, **kwrags):
+    with editor.current_buffer as cb:
+        cb[cb.selected_offsets] = editor.read_stdin()
     return 'normal'
 
-@_atomic_commands('vy:mouse v_vy:mouse i_vy:mouse')
-def move_to_click_position(editor: _Editor, *args, **kwrags):
-    button = editor.read_stdin()
+@_atomic_commands('vy:mouse:middle i_vy:mouse:middle')
+def paste_from_os_clipboard_lookup(editor: _Editor, *args, **kwrags):
+    is_second_click, _, _ = _is_second_clic(editor)
+    if is_second_click:
+        editor.current_buffer.insert(editor.registr['+'])
+
+@_atomic_commands('v_vy:mouse:middle')
+def replace_selected_text_from_os_clipboard_lookup(editor: _Editor, *args, **kwrags):
+    is_second_click, _, _ = _is_second_clic(editor)
+    if is_second_click:
+        with editor.current_buffer as cb:
+            cb[cb.selected_offsets] = editor.registr['+']
+
+def _is_second_clic(editor):
     click_col = int(editor.read_stdin())
     click_lin = int(editor.read_stdin())
     
@@ -194,7 +209,36 @@ def move_to_click_position(editor: _Editor, *args, **kwrags):
 
     curbuf = editor.current_buffer
     lin, col = curbuf.cursor_lin_col
+    flag = (lin, col) == (new_lin, new_col)
 
-    curbuf.cursor_lin_col = new_lin, new_col
-    editor.screen.minibar(f' (click {button= }, {click_lin= }, {click_col= })',
-                          f' (click {button= }, {new_lin= }, {new_col= })')
+    return flag, new_lin, new_col
+    
+
+@_atomic_commands('vy:mouse:left v_vy:mouse:left i_vy:mouse:left')
+def move_to_click_position_or_start_visual_mode(editor: _Editor, *args, **kwrags):
+    is_second_click, new_lin, new_col = _is_second_clic(editor)
+    current_mode = editor.current_mode
+    if is_second_click and current_mode == 'visual':
+        return 'normal'
+    elif is_second_click:
+        return 'visual'
+
+    editor.current_buffer.cursor_lin_col = new_lin, new_col
+
+@_atomic_commands('vy:mouse:right')
+def start_visual_selection(editor: _Editor, *args, **kwrags):
+    _, new_lin, new_col = _is_second_clic(editor)
+    editor.current_buffer.start_selection()
+    editor.current_buffer.cursor_lin_col = (new_lin, new_col)
+    return 'visual'
+
+@_atomic_commands('i_vy:mouse:right')
+def replace_selection(editor: _Editor, *args, **kwrags):
+    return 'normal'
+    
+@_atomic_commands('v_vy:mouse:right')
+def copy_visual_selection_to_os_clipboard(editor: _Editor, *args, **kwrags):
+    _, new_lin, new_col = _is_second_clic(editor)
+    cb = editor.current_buffer
+    editor.registr['+'] = cb[cb.selected_offsets]
+    return 'normal'

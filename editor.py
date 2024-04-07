@@ -146,7 +146,9 @@ class _Register:
         assert key in self.valid_registers
         if key == '+':
             import pyperclip
-            return pyperclip.paste()
+            rv = pyperclip.paste()
+            self['"'] = rv
+            return rv
             
         try:
             return self.dico[key]
@@ -164,6 +166,7 @@ class _Register:
         elif key == '+':
             import pyperclip
             pyperclip.copy(value)
+            self['"'] = value
         
         elif key in ':.>':
             self.dico[key] = value
@@ -215,20 +218,22 @@ class NameSpace:
         self.motion = ActionDict(instance)
 
 class _Editor:
-    """ This class is the data structure representing the state of the Vym editor.
-    The editor class sould not need to be instanciated more than once.
-    It is design to be self contained: if you want your code to interract with
+    """ The data structure representing the editor's state.
+    The _Editor class should not need to be instanciated more than once.
+    It is design to be self-contained: if you want your code to interract with
     the editor, just pass the «editor» variable to your function.
+    
     """    
 
     def _init_actions(self):
         from vy.actions import __dict__ as action_dict
-        from vy.actions.mode_change import normal_mode
+#        from vy.actions.mode_change import normal_mode
         actions = NameSpace(self)
         try:
             for name, action in action_dict.items():
-                if action is normal_mode:
-                    assert action.v_alias
+#                if action is normal_mode:
+#                    assert action.v_alias
+# 
                 if callable(action) and not name.startswith('_'):
                     if action.v_alias:
                         for k in action.v_alias:
@@ -274,6 +279,10 @@ class _Editor:
         self.current_mode = ''
         self._input_queue = Queue()
         
+    def debug_info(self, text):
+        if DEBUG:
+            self.screen._minibar_txt += text    
+    
     def save_in_jump_list(self):
         curbuf = self.current_buffer
         lin, col = curbuf.cursor_lin_col

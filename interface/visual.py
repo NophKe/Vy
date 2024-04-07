@@ -37,6 +37,7 @@ def loop(editor: _Editor):
             minibar(f' ( Invalid register: {_escape(REG)} )')
             return
         key = get_char()
+    REG = REG or '+'
 
     if key in '123456789': # No zero here
         while key in '0123456789':
@@ -75,6 +76,9 @@ def loop(editor: _Editor):
         return rv
         
     elif func.full:
-        return func(editor, part=editor.current_buffer.selected_offsets) or 'normal'
+        rv = func(editor, 
+                  reg=REG,
+                  part=editor.current_buffer.selected_offsets) 
+        return rv or 'normal'
     else:
         editor.screen.minibar(f'unrecognized key: {_escape(key)}')

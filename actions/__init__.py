@@ -202,7 +202,7 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
     Undo last action in the current buffer. {register} argument
     is ignored.
     ---
-    NOTE: In Vy there is no difference between 'U' and 'u'
+    NOTE: In Vy there is no difference between 'U' and 'u'.
     """
     if arg:
         try:
@@ -286,12 +286,9 @@ def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
     for buf in editor.cache:
         if buf.unsaved:
             next_one = buf
+            editor.edit(next_one)
+            editor.warning( f"buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)")
             break
-    if next_one:
-        editor.edit(next_one)
-        editor.warning(
-            f"buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)"
-        )
     else:
         if editor.current_window is editor.screen:
             do_exit_nice(editor, arg)
@@ -326,9 +323,7 @@ def do_keep_only_current_window(editor, reg=None, part=None, arg=None, count=1):
 
 
 @_atomic_commands(":wq! :x! :xit! :exit!")
-def do_save_current_buffer_and_force_leave_window(
-    editor, reg=None, part=None, arg=None, count=1
-):
+def do_save_current_buffer_and_force_leave_window(editor, reg=None, part=None, arg=None, count=1):
     """
     Saves the current buffer and leaves its window. If it is the only open
     window and no unsaved buffer in cache, leaves the editor.
@@ -658,8 +653,7 @@ def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    to_insert = editor.registr[reg]
-    if to_insert:
+    if (to_insert := editor.registr[reg]):
         with editor.current_buffer as curbuf:
             if "\n" in to_insert:
                 curbuf.move_cursor("$")
@@ -674,8 +668,7 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
     Paste the text from specified register before the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    to_insert = editor.registr[reg]
-    if to_insert:
+    if (to_insert := editor.registr[reg]):
         with editor.current_buffer as curbuf:
             if "\n" in to_insert:
                 curbuf.cursor = curbuf.find_begining_of_line()
@@ -693,10 +686,9 @@ def do_normal_gf(editor: _Editor, reg=None, part=None, arg=None, count=1):
     dots (as in a python package), Vym will search in the parents directories.
     """
     from pathlib import Path
-
-    filename = (
-        editor.current_buffer[editor.current_buffer.inner_WORD()].lstrip().strip()
-    )
+    cur_buf = editor.current_buffer
+    filename = cur_buf[cur_buf.inner_WORD()].lstrip().strip()
+    
     if filename.startswith("/") or filename[1:3] == ":\\":
         if Path(filename).exists():
             return editor.edit(filename)
@@ -759,9 +751,8 @@ def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
     except ImportError:
         editor.warning('must install black (WIP sorry...)')
 
-    editor.current_buffer.string = black.format_str(
-        editor.current_buffer.string, mode=black.Mode()
-    )
+    cb = editor.current_buffer
+    cb.string = black.format_str(cb.string, mode=black.Mode())
 
 @_atomic_commands(f'{_k.C_W}{_k.C_W}')
 def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=1):

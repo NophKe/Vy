@@ -119,7 +119,7 @@ def increment(editor, reg=None, part=None, arg=None, count=1):
     if cur_word.isnumeric():
         editor.current_buffer['iw'] = str(int(cur_word)+1)
 
-@_atomic_commands(f'{k.C_up}')
+@_atomic_commands(f'{k.C_up} i_{k.C_up}')
 def move_line_up(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the current line, one line up
@@ -138,7 +138,7 @@ def move_line_up(editor, reg=None, part=None, arg=None, count=1):
             if curbuf.current_line.strip():
                 curbuf.move_cursor('_')
             
-@_atomic_commands(f'{k.C_down}')
+@_atomic_commands(f'{k.C_down} i_{k.C_down}')
 def move_line_down(editor, reg=None, part=None, arg=None, count=1):
     """
     Moves the current line, one line down.
