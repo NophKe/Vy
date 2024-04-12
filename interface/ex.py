@@ -54,11 +54,9 @@ except ImportError:
     Readline = Completer
 
 def init(editor: _Editor):
-    global readline
-    global console
-    global displayer
     global global_dict
 
+    global readline
     readline = Readline('ex_history', '>>> ', editor)
     
     class Console(InteractiveConsole):
@@ -66,26 +64,24 @@ def init(editor: _Editor):
             text = text.splitlines()
             if text:
                 editor.screen.minibar(*text)
-            
+    global console
     console = Console(locals=global_dict)
-    displayer = lambda arg: editor.screen.minibar(*pformat(arg).splitlines())    
-    
+        
+
+def my_print(*args, **kwargs):
+    to_print = []
+    for arg in args:
+        if isinstance(arg, str):
+            to_print.extend(arg.splitlines())
+        else:
+            to_print.extend(repr(arg).splitlines())
+    return to_print
         
 def populate_namespace(editor):
-    def my_print(*args, **kwargs):
-        to_print = []
-        for arg in args:
-            if isinstance(arg, str):
-                to_print.append(arg)
-            else:
-                to_print.append(repr(arg))
-        return '\n'.join(to_print)
-    
     def my_help(*args, **kwargs):
         editor.stop_async_io()
         help(*args, **kwargs)
         editor.start_async_io()
-        
     global_dict['cb'] = editor.current_buffer
     global_dict['cw'] = editor.current_window
     global_dict['ed'] = editor
@@ -95,10 +91,15 @@ def populate_namespace(editor):
     global_dict['clear'] = global_dict.clear
 
 def loop(editor: _Editor):
+    def my_display_hook(arg):
+        if isinstance(arg, str):
+            return editor.screen.minibar(arg.splitlines())
+        else:
+            return editor.screen.minibar(pformat(arg).splitlines())
+    
     populate_namespace(editor)
-    origin = sys.displayhook
+    sys.displayhook = my_display_hook
     try:
-        sys.displayhook = displayer
         editor.registr['>'] = line = readline()
         more = console.push(line)
         
@@ -112,8 +113,7 @@ def loop(editor: _Editor):
                 line = readline(buffered=screen)
                 more = console.push(line)
                 editor.registr['>'] += line
-#                
     finally:
-        sys.displayhook = origin
+        sys.displayhook = sys.__displayhook__ # back to original
         return 'normal'
 

@@ -73,7 +73,7 @@ def do_normal_I(editor: _Editor, reg=None, part=None, arg=None, count=1):
     cb.cursor = cb.find_begining_of_line()
     return 'insert'
 
-@_atomic_commands(f': {_k.C_W}: ')
+@_atomic_commands(f': {_k.C_W}: v_: v_{_k.C_W}:')
 def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Command» mode.

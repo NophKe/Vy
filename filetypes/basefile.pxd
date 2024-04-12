@@ -16,6 +16,7 @@ cdef class BaseFile:
         public str _string
         int _cursor
 
+        
         public object _lock
         public tuple _cursor_lin_col # 
         public int _number_of_lin    # but screen uses those vars
@@ -27,6 +28,7 @@ cdef class BaseFile:
         public bint set_autoindent
         int _virtual_col
         
+        list _states
         str _init_text
         tuple _selected      
         str _repr

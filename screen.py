@@ -494,6 +494,7 @@ class Screen(Window):
         return rv, ok_flag
 
     def minibar(self, *lines):
+#        assert all(line.isprintable() for line in lines)
         self._minibar_txt = lines
         return lambda: self.minibar('') if self._minibar_txt == lines else None
     

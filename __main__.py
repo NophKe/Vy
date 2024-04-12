@@ -43,17 +43,9 @@ parser = ArgumentParser(prog='Vy',
                         epilog='\n----\n',
                         )
 
-parser.add_argument('--profile', default=False,
-            action="store_true",
-            help='Screen shows selected infos and enter the debugger.')
-
 parser.add_argument('--debug', default=False,
             action="store_true",
             help='Screen shows selected infos and enter the debugger.')
-
-parser.add_argument('--mode', default='normal',
-            choices=('normal', 'command', 'python', 'insert'),
-            help='Mode in which the editor lauches.')
 
 parser.add_argument('--no-user-config', default=False,
             action="store_true",
@@ -120,27 +112,12 @@ def raise_unraisable(unraisable):
     raise_signal(SIGKILL)
 threading.excepthook = raise_unraisable
 
+
 print('Vy is starting.')
+
 from vy.editor import _Editor
 Editor = _Editor(*cmdline.files, command_line=cmdline)
+Editor()
 
-if cmdline.profile:
-    import cProfile, pstats, io
-    from pstats import SortKey
-    pr = cProfile.Profile()
-
-    pr.enable()
-    Editor(mode=cmdline.mode)
-    pr.disable()
-
-    s = io.StringIO()
-    sortby = SortKey.CUMULATIVE
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats()
-    with open('stats.LOG', 'w+') as out_file:
-        print(s.getvalue(), file=out_file)
-    exit()
-
-Editor(mode=cmdline.mode)
 print('Thanks for using Vy in its beta version.\n'
       'Any comment or issue posted on github.com/nophke/vy will be taken into account.')

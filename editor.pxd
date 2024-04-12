@@ -6,7 +6,7 @@
 # generator !!!  how to import ????
 #from vy.filetypes cimport Open_path
 
-from vy.screen cimport _Screen 
+from vy.screen cimport Screen 
 from vy.utils cimport _HistoryList
 
 from cython import final, locals
@@ -53,7 +53,7 @@ cdef class _Editor:
         public object input_thread
         public object print_thread
         public _Register registr
-        public _Screen screen
+        public Screen screen
         public str current_mode
         list _macro_keys
     @locals(rv=str,

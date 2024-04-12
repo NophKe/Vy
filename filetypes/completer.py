@@ -45,11 +45,7 @@ try:
             try:           
                 completion = super().complete(line=line+1, column=column-1)
                 lengh = completion[0].get_completion_prefix_length()
-                try:
-                    return [item.name_with_symbols for item in completion], lengh 
-#                    return [item.name_with_symbols for item in completion if hasattr(item, 'name_with_symbols')], lengh 
-                except:
-                    assert all(hasattr(item) for item in completion)
+                return [item.name_with_symbols for item in completion], lengh 
             except:
                 # Jedi Library uses threads and subprocesses. Its use in a
                 # multi-threaded application may be unstable, this is inherent

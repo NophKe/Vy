@@ -32,13 +32,13 @@ class _Cache:
     Simple wrapper around a dict that lets you index a buffer by its
     internal id, or any relative or absolute version of its path. use:
 
-    >> x = Cache()
-    >> x['/home/Nono/test.txt']
-      TextFile('/home/Nono/test.txt')
-    >> x['/home/Nono/test.txt'] is x['./test.txt']
-      True
-    >> del x['test.txt']
-    >> '../nono/test.txt' in x
+    >>> x = Cache()
+    >>> x['/home/Nono/test.txt']
+    TextFile('/home/Nono/test.txt')
+    >>> x['/home/Nono/test.txt'] is x['./test.txt']
+    True
+    >>> del x['test.txt']
+    >>> '../nono/test.txt' in x
     False
     """
     __slots__ = ("_dic", "_counter")
@@ -75,8 +75,8 @@ class _Cache:
             new_buffer.cache_id = key
             return new_buffer
 
-    #@staticmethod
-    def _make_key(self, key):
+#    @staticmethod
+    def _make_key(self,key):
         if hasattr(key, 'cache_id'):
             return key.cache_id
         elif isinstance(key, int):
@@ -105,9 +105,7 @@ class _Cache:
         yield from self._dic.values()    
 
     def __contains__(self, key):
-        if self._make_key(key) in self._dic:
-            return True
-        return False
+        return self._make_key(key) in self._dic
 
 ########## end of class _Cache ##########
 

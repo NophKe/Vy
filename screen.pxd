@@ -74,6 +74,7 @@ cdef class Window:
     cdef bint _v_split_flag
     cdef int v_split_shift
     cdef list _last_computed
+    cdef public tuple shown_lines
 
     @locals(rv=list,
             max_lin=int,
@@ -85,7 +86,7 @@ cdef class Window:
             true_cursor=int)
     cdef list gen_window(self)
 
-cdef class _Screen(Window):
+cdef class Screen(Window):
     cdef int _number_of_lin
     cdef int _number_of_col
     cdef str _infobar_right
@@ -93,10 +94,7 @@ cdef class _Screen(Window):
     cdef tuple _minibar_txt
     cdef list _minibar_completer
 
-    @locals(rv=list)
-    cpdef tuple get_line_list(self)
-    cpdef void alternative_screen(self) noexcept
-    cpdef void original_screen(self) noexcept
-
-cdef class DebugScreen(_Screen):
-    pass
+#    @locals(rv=list)
+#    cpdef tuple get_line_list(self)
+#    cpdef void alternative_screen(self)
+#    cpdef void original_screen(self)

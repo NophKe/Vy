@@ -791,8 +791,11 @@ class BaseFile:
         return self._repr
     @property
     def footer(self):
-        return '  ( modified )' if self.unsaved else ''
-        
+        state = ('oldest state' if self.string is self._states[0]
+                 else 'saved' if self.string is self._states[-1]
+                 else 'previous record' if self.string in self._states
+                 else 'modified' ) 
+        return ' ( ' + state + ' )' if state else ''
 
 if __name__ == '__main__':
     import doctest
