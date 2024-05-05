@@ -38,17 +38,17 @@ class Interface():
         self.mode_dict = {}
     
     def __call__(self, mode_chain):
-        if ':' in mode_chain:
-            chain = mode_chain.split(':')
-            for mode in chain[:-1]:
-                self.find_mode_and_execute_it(mode)
-            return self.find_mode_and_execute_it(chain[-1])
+        if ':' not in mode_chain:
+            return self.find_mode_and_execute_it(mode_chain)
         
-        return self.find_mode_and_execute_it(mode_chain)
+        chain = mode_chain.split(':')
+        for mode in chain[:-1]:
+            self.find_mode_and_execute_it(mode)
+        return self.find_mode_and_execute_it(chain[-1])
+        
     
     def find_mode_and_execute_it(self, name):
         loop = self.mode_dict.get(name, None)
-
         if loop is None:
             mod_name = f'vy.interface.{name}'
             if mod_name in modules:

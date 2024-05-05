@@ -33,6 +33,9 @@ def move_up(editor: _Editor):
 @add_to_dict('\t')
 def switch_or_select(editor: _Editor):
     lin, col = editor.current_buffer.cursor_lin_col
+    if not editor.current_buffer.current_line[:col-1]:
+        return False
+        
     completer_engine._async.complete_work()
     if completer_engine.completion and completer_engine.selected == -1:
         completer_engine.move_cursor_up()
@@ -125,11 +128,10 @@ def loop(editor: _Editor):
     editor.current_buffer.stop_selection()
     global completer_engine
     completer_engine = editor.current_buffer.completer_engine
-    completer_engine.selected != -1
-
+#    completer_engine.selected != -1
     user_input = monoline_loop(editor) 
     cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
-    completer_engine.selected = -1
+#    completer_engine.selected = -1
     
     try:
         action = dictionary[user_input]

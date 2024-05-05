@@ -2,7 +2,6 @@
 Those are the command-mode commands that can take an argument Depending on how
 the argument will be named, you will get differnet autocompletion.
 """
-from vy.actions.helpers import with_args_commands as _with_args
 from vy.actions.helpers import _command
 from vy.editor import _Editor
 

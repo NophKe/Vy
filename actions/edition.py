@@ -16,29 +16,29 @@ def erase_word_backward(editor: _Editor, *args, **kwargs):
 def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts a newline.  If the current buffer has set_autoindent set,
-    this will insert same indentation as the previous line.
+    this will insert same indentation as the previous line. If on an blank
+    line, it will remove any level of indentation.:
 
     """
     with editor.current_buffer as cur_buf:
         line_content = cur_buf.current_line.lstrip()
+        blank_line = len(cur_buf.current_line) == 1
         if line_content and cur_buf.set_autoindent:
             cur_lin = cur_buf.current_line
             blanks = len(cur_lin) - len(line_content)
             indent = cur_lin[:blanks]
             cur_buf.insert_newline()
             cur_buf.insert(indent)
-        elif line_content:
-            cur_buf.insert_newline()
-        elif cur_buf.set_autoindent:
+        elif not blank_line and cur_buf.set_autoindent:
             cur_buf.cursor = cur_buf.find_begining_of_line()
             cur_buf.current_line = '\n'
-            cur_buf.insert_newline()
         else:
             cur_buf.insert_newline()
     return 'insert'
+    
 
 @_atomic_commands('i_\t')
-def do_insert_expandtabs_or_start_completion(editor, reg=None, part=None, arg=None, count=1):
+def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):
     """
     If 'expand_tabs' is set and the cursor at the start of a line this
     inserts the necessary number of spaces to reach next level of
