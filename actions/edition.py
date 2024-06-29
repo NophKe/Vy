@@ -105,7 +105,10 @@ def do_r(editor, reg=None, part=None, arg=None, count=1):
     """
     Replace the character under the cursor by next keystrike.
     """
-    editor.current_buffer[editor.current_buffer.cursor] = editor.read_stdin()
+    entered_char = editor.read_stdin()
+    if entered_char.isprintable():
+        with editor.current_buffer as curbuf:
+            curbuf[curbuf.cursor] = entered_char
     
 
 @_atomic_commands(f'i_{k.C_Z}')
@@ -156,4 +159,15 @@ def move_line_down(editor, reg=None, part=None, arg=None, count=1):
             curbuf.cursor_lin_col = (cur_lin_idx + 1, 0)
             if curbuf.current_line.strip():
                 curbuf.move_cursor('_')
+
+@_atomic_commands("~")
+def swap_case(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Swaps the case of the character under the cursor and moves the
+    cursor on the next char on the current line if any.
+    """
+    with editor.current_buffer as curbuf:
+        cursor = curbuf.cursor
+        curbuf[cursor] = curbuf[cursor].swapcase()
+        curbuf.cursor += 1
 

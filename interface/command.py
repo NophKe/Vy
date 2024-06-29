@@ -11,41 +11,43 @@ def starts_with_valid_range(string):
             return buffer
     return ''
 
-def init(editor):
-    global readline
-    dictionary = editor.actions.command
+class CommandCompleter(Completer):
+    def get_option(self, args):
+        if ' ' in args:
+            option, value = args.split(' ', maxsplit=1)
+            try:
+                option = getattr(self.editor.current_buffer, 'set_' + option)
+            except AttributeError:
+                return [], 0
+            return self.get_history()
+        elif args.startswith('no'):
+            option = args.removeprefix('no')
+            return [name[4:] for name in dir(self.editor.current_buffer) if name.startswith('set_' + option)], len(args) - 2
+        else:
+            return [name[4:] for name in dir(self.editor.current_buffer) if name.startswith('set_' + args)], len(args)
+            
+    def get_buffer(self, args):
+        rv = []
+        for buff in self.editor.cache:
+            if args in str(buff.path):
+                rv.append(str(buff.path))
+        return rv, len(args)
+        
+    def get_complete(self):
+        from collections import ChainMap
+        local_actions = self.editor.current_buffer.actions
+        cmd_actions = self.editor.actions.command
+        dictionary = ChainMap(local_actions, cmd_actions)
+        user_input = self.buffer.string
 
-    class CommandCompleter(Completer):
-        def get_option(self, args):
-            if ' ' in args:
-                option, value = args.split(' ', maxsplit=1)
-                try:
-                    option = getattr(editor.current_buffer, 'set_' + option)
-                except AttributeError:
-                    return [], 0
-                return self.get_history()
-            elif args.startswith('no'):
-                option = args.removeprefix('no')
-                return [name[4:] for name in dir(editor.current_buffer) if name.startswith('set_' + option)], len(args) - 2
-            else:
-                return [name[4:] for name in dir(editor.current_buffer) if name.startswith('set_' + args)], len(args)
-                
-        def get_buffer(self, args):
-            rv = []
-            for buff in editor.cache:
-                if args in str(buff.path):
-                    rv.append(str(buff.path))
-            return rv, len(args)
-
-        def get_complete(self):
-            user_input = self.buffer.string
-
-            if ' ' in user_input:
-                cmd, arg = user_input.split(' ', maxsplit=1)
-                cmds = cmd.strip()
-                args = arg.strip()
-                if cmds in dictionary:
-                    func =  dictionary[cmds]
+        if ' ' in user_input:
+            cmd, arg = user_input.split(' ', maxsplit=1)
+            cmds = cmd.strip()
+            args = arg.strip()
+            
+            if cmds in dictionary:
+                func =  dictionary[cmds]
+                if func in cmd_actions:
                     if func.with_args and hasattr(func, 'completer'):
                         if func.completer == 'filename':
                             return self.get_filenames(args)
@@ -53,13 +55,19 @@ def init(editor):
                             return self.get_buffer(args)
                         elif func.completer == 'option':
                             return self.get_option(args)
-                    return self.get_history()
-                         
-            elif one_inside_dict_starts_with(dictionary, user_input):
-                rv = [k for k in dictionary if k.startswith(user_input)]
-                return rv, len(user_input)
-            return [], 0
-
+                return self.get_history()
+                     
+        elif one_inside_dict_starts_with(cmd_actions, user_input) or \
+             one_inside_dict_starts_with(local_actions, ':'+user_input):
+            rv = [k for k in local_actions if k.startswith(':'+user_input)]
+            rv.extend([k for k in cmd_actions if k.startswith(user_input)])
+            return rv, len(user_input)
+        return [], 0
+        
+def init(editor):
+    global readline
+    global dictionary
+    dictionary = editor.actions.command
     readline = CommandCompleter('command_history', ':', editor)
 
 def loop(self):
@@ -90,7 +98,8 @@ def loop(self):
 
     cmd = cmd.lstrip(':')
     try:
-        action = self.actions.command[cmd]
+        if not (action := self.current_buffer.actions.get(':'+cmd)):
+            action = self.actions.command[cmd]
     except KeyError:
         self.screen.minibar(f'unrecognized command: {cmd}')
         readline.history.pop()

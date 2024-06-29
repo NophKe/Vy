@@ -33,9 +33,9 @@ def move_up(editor: _Editor):
 @add_to_dict('\t')
 def switch_or_select(editor: _Editor):
     lin, col = editor.current_buffer.cursor_lin_col
-    if not editor.current_buffer.current_line[:col-1]:
+    if not editor.current_buffer.current_line[:col-1].strip():
         return False
-        
+
     completer_engine._async.complete_work()
     if completer_engine.completion and completer_engine.selected == -1:
         completer_engine.move_cursor_up()

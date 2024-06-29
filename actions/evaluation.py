@@ -39,7 +39,7 @@ def execute_python_file(editor: _Editor, reg=None, part=None, arg=None, count=1)
     from __main__ import __dict__ as main_dict
     exec(editor.current_buffer.string, main_dict)
 
-@_atomic_commands(f":eval% {C_X}")
+@_atomic_commands(f":eval% {C_X} i_{C_X}")
 def do_eval_buffer(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Executes the current file as a Python script.

@@ -37,6 +37,7 @@ try:
     if DONT_USE_JEDI_LIB:
         raise ImportError
     from jedi import Script, settings
+    
     settings.add_bracket_after_function = True
     settings.case_insensitive_completion = True
     
@@ -44,13 +45,14 @@ try:
         def complete(self, line, column):
             try:           
                 completion = super().complete(line=line+1, column=column-1)
+                #return completion
                 lengh = completion[0].get_completion_prefix_length()
                 return [item.name_with_symbols for item in completion], lengh 
             except:
                 # Jedi Library uses threads and subprocesses. Its use in a
                 # multi-threaded application may be unstable, this is inherent
                 # to jedi's design, and is well stated in jedi's documentation
-                # so we silent any exception.
+                # so we silent any exception. But I feel very sorry about it...
                 return [], -1
 
 except ImportError:

@@ -574,18 +574,6 @@ def do_normal_D(editor, reg='"', part=None, arg=None, count=1):
         return "normal"
 
 
-@_sa_commands("~")
-def do_normal_tilde(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Makes the character under the cursor upper case, and moves the cursor
-    one character right unless if on the last position of the line.
-    Optionnal "{register} argument is ignored.
-    """
-    with editor.current_buffer as curbuf:
-        curbuf[curbuf.cursor] = curbuf[curbuf.cursor].upper()
-        curbuf.move_cursor("l")
-
-
 @_sa_commands("C")
 def do_normal_C(editor, reg='"', part=None, arg=None, count=1):
     """
@@ -754,7 +742,7 @@ def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
     cb = editor.current_buffer
     cb.string = black.format_str(cb.string, mode=black.Mode())
 
-@_atomic_commands(f'{_k.C_W}{_k.C_W}')
+@_atomic_commands(f'{_k.C_W}{_k.C_W} v_{_k.C_W}{_k.C_W}')
 def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=1):
     found = False
     for window in editor.screen:

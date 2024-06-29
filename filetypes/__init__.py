@@ -15,78 +15,58 @@ settings.
 from pathlib import Path
 from os import access, W_OK
 
-from .folder import Folder
 from .textfile import TextFile
-from .pyfile import PyFile
+from .folder import Folder
+from .pyfile import PyFile, SimplePyFile
 
-known_extensions = {
-    '.py': PyFile,
-    }
+known_extensions = {'.pyx': SimplePyFile,
+                    '.pxd': SimplePyFile,
+                    '.py' : PyFile,
+                    '.txt': TextFile,
+                   }
 
-known_file_names = {}
+def register_extension(*args):
+    def update_ext_dict(cls):
+        for arg in args:
+            known_extensions[arg] = cls
+        return cls
+    return update_ext_dict
 
-known_file_names_tabs = {
-    '.css'      : 2,
-    '.html'     : 2,
-    '.vy.doc'   : 4,
-    'Makefile'  : 8,
-    '.py'       : 4,
-    '.pyx'      : 4,
-    '.pxd'      : 4,
-    }
+@register_extension('Makefile')
+class MakeFile(TextFile):
+    set_wrap = True
+    set_expandtabs = False
+    set_number = True
+    set_comment_string = ('#', '')
 
-known_file_names_autoindent = {
-    '.css'      : True,
-    '.html'     : True,
-    '.vy.doc'   : True,
-    '.py'       : True,
-    '.pyx'      : True,
-    '.pxd'      : True,
-    'Makefile'  : True,
-    '.c'        : True,
-    }
+@register_extension('.html', '.htm', '.xml')
+class HtmlFile(TextFile):
+    set_wrap = True
+    set_autoindent = True
+    set_expandtabs = True
+    set_number = True
+    set_comment_string = ('<!--', '-->')
 
-known_file_names_comment_string = {
-    '.vy.doc'   : ('~', ''),
-    '.py'       : ('#', ''),
-    '.pyx'      : ('#', ''),
-    '.pxd'      : ('#', ''),
-    '.c'        : ('/*', '*/'),
-    '.cpp'      : ('/*', '*/'),
-    '.css'      : ('/*', '*/'),
-    }
-
-known_file_names_wrap = {
-    '.vy.doc'   : False,
-    '.css'      : False,
-    '.html'     : False,
-    'Makefile'  : True,
-    '.txt'      : True,
-    }
-
-known_file_names_expandtabs = {
-    '.css'      : True,
-    '.html'     : True,
-    '.vy.doc'   : False,
-    'Makefile'  : False,
-    '.py'       : True,
-    '.pyx'      : True,
-    '.pxd'      : True,
-    }
+@register_extension('.c', '.cpp', '.h', '.hpp', '.js', '.css')
+class CSyntaxFile(TextFile):
+    set_wrap = True
+    set_autoindent = True
+    set_expandtabs = True
+    set_number = True
+    set_comment_string = ('/*', '*/')
 
 def Open_path(location):
     """
     The Open_path function is responsible for creating new buffers.
-    Depending on the given path argument, it will return a 'Folder' or
-    a 'TextFile' instance.
     ---
     If the given path matches a known file extension, buffer locals
     settings will be applied to it.
     ---
     This function allways returns a new object, use it from any python
-    repl and save the result in a local variable, while editing or
-    writing a Vy-script Editor.edit() and Editor.cache should be
-    prefered as they remember previously visited buffers.
+    repl and save the result in a local variable
+
+    While editing or writing a Vy-script Editor.edit() and Editor.cache
+    should be prefered as they remember previously visited buffers.
     """
     if location is None:
         return TextFile(path=None, init_text='\n')
@@ -111,59 +91,11 @@ def Open_path(location):
         return Folder(path=location)
 
     init_text = init_text or '\n'
-    file_name = location.name.lower()
-    file_other_name = location.name
+    full_file_name = location.name
+    file_name = full_file_name.lower()
 
-#    for extension, klass in known_extensions.items():
-#        if file_name.endswith(extension):
-#            return klass(path=location, init_text=init_text)
-
-    if file_name in known_file_names:
-        return known_file_names[file_name](path=location, init_text=init_text)
-        
-    if '\t' in init_text:
-        expand_tabs = False
+    for extension, klass in known_extensions.items():
+        if file_name.endswith(extension) or extension in file_name:
+            return klass(path=location, init_text=init_text)
     else:
-        for name in known_file_names_expandtabs:
-            if file_name.endswith(name) or file_other_name.endswith(name):
-                expand_tabs = known_file_names_expandtabs[name]
-                break
-        else:
-            expand_tabs = False
-
-    for name in known_file_names_tabs:
-        if file_name.endswith(name) or file_other_name.endswith(name):
-            tab_size = known_file_names_tabs[name]
-            break
-    else:
-        tab_size = 4
-
-    for name in known_file_names_wrap:
-        if file_name.endswith(name) or file_other_name.endswith(name):
-            wrap = known_file_names_wrap[name]
-            break
-    else:
-        wrap = False
-
-    for name in known_file_names_comment_string:
-        if file_name.endswith(name) or file_other_name.endswith(name):
-            comment_string = known_file_names_comment_string[name]
-            break
-    else:
-        comment_string = ('', '')
-    
-    for name in known_file_names_autoindent:
-        if file_name.endswith(name) or file_other_name.endswith(name):
-            autoindent = known_file_names_autoindent[name]
-            break
-    else:
-        autoindent = False
-
-    return TextFile(path=location, 
-                    init_text=init_text, 
-                    set_autoindent=autoindent,
-                    set_tabsize=tab_size,
-                    set_expandtabs=expand_tabs,
-                    set_comment_string=comment_string,
-                    set_wrap=wrap,
-                    )
+        return TextFile(path=location, init_text=init_text)

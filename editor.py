@@ -323,8 +323,8 @@ class _Editor:
         ( you don't have access to the editor variable ) you should raise an 
         exception.
         """
-        if isinstance(msg, Exception):
-            self.exception = msg
+        if isinstance(msg, Exception):  # should be deleted
+            self.exception = msg        # or not ???
         if not self._running:
             print(msg)
             return
@@ -332,7 +332,7 @@ class _Editor:
             self.screen.minibar_completer(
               'this happened during the execution of a macro that is still running',
               f'left to evaluate: {self._macro_keys}')
-        self.screen.minibar(*msg.splitlines(), '\tpress any key to continue')
+        self.screen.minibar(*msg.splitlines(), '    ( press any key to continue )')
         self.read_stdin()
         self.screen.minibar('')
         self.screen.minibar_completer.give_up()

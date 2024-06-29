@@ -5,67 +5,49 @@ from vy.filetypes.textfile import TextFile
 
 def DO_open_file(editor):
     curbuf = editor.current_buffer
-    file = curbuf._values[curbuf.current_line_idx]
-    editor.edit(file)
+    editor.edit(curbuf._values[curbuf.current_line_idx])
     return 'normal'
 
 class Folder(BaseFile):
-    motion_commands = { }
     actions = { k.CR: DO_open_file, }
     unsaved = False
-    modifiable = False
     
     @property
-    def _lenght(self):
-        return len(self._string)
-    @_lenght.setter
-    def _lenght(self, value):
-        pass
-
-    @property
-    def _lexed_lines(self):
-        return self._splited_lines
-    @_lexed_lines.setter
-    def _lexed_lines(self, value):
-        pass
-
-    @property
-    def _string(self):
-        try:
-            return self._text
-        except AttributeError:
+    def string(self):
+        if not self._string:
             cwd = Path().cwd().resolve()
             browsing  = self.path.resolve()
             while not browsing.is_relative_to(cwd):
                 cwd = cwd.parent
-            value =[ browsing.parent.resolve(), browsing ]
-            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir() and not x.name.startswith('.')))
-            value.extend(sorted(x for x in self.path.iterdir() if not x.name.startswith('.') and not x.is_dir()))
-            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir() and x.name.startswith('.')))
-            value.extend(sorted(x for x in self.path.iterdir() if x.name.startswith('.') and not x.is_dir()))
+            value = [browsing.parent.resolve()]
 
-            self._values = [ val.resolve() for val in value ]
-            pretty  = [val for val in value ]
-            self._text = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
+            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and not x.name.startswith('.')))
+            value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and     x.name.startswith('.')))
+            value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and not x.name.startswith('.')))
+            value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and     x.name.startswith('.')))
+
+            self._values = [ val.relative_to(cwd) for val in value ]
+            pretty  = [ val for val in value ]
+            self._string = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
             self._lenght = len(self._string)
-        return self._text
+        return self._string
 
-    @_string.setter
-    def _string(self, value):
+    @string.setter
+    def string(self, value):
         return
 
+    def get_raw_line(self, index):
+        return self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
+
     def get_raw_screen(self, min_lin, max_lin):
-        rv = list()
+        rv = []
         for index in range(min_lin, max_lin):
-            retval = ''
-#            if index == 1 or index == 0: #current or parent dir (., ..)
-#                retval = '\x1b[00;25;35;1m'
-#            if index == self.current_line_idx:
-#                retval += '\x1b[2m'
             try:
-                retval += self.splited_lines[index].removesuffix('\n') + '\x1b[22m' 
+                line = self.get_raw_line(index) 
             except IndexError:
-                retval = None
-            rv.append(retval)
-        lin, col = self.cursor_lin_col
-        return lin, col, rv 
+                line = None
+            finally:
+                rv.append(line)
+        else:
+            lin, col = self.cursor_lin_col
+            return lin, col, rv 

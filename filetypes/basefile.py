@@ -70,27 +70,18 @@ class BaseFile:
     actions = {}
     ending = '\n'   
     
-    def __init__(self,
-                set_number=True, 
-                set_wrap=False, 
-                set_tabsize=4, 
-                set_expandtabs=False, 
-                set_autoindent=False, 
-                cursor=0, 
-                set_comment_string=('',''),
-                init_text='', 
-                path=None):
+    set_tabsize=4
+    set_wrap=False   
+    set_autoindent = False
+    set_expandtabs = False
+    set_number = True
+
+    def __init__(self, cursor=0, init_text='', path=None):
+        # start of private
         self._virtual_col = 0
         self._selected = None
         self._repr = '' #TODO delete me ?
         self._undo_flag = True
-        self.path = path
-        self.set_comment_string = set_comment_string
-        self.set_wrap = set_wrap
-        self.set_number = set_number
-        self.set_tabsize = set_tabsize
-        self.set_expandtabs = set_expandtabs
-        self.set_autoindent = set_autoindent
         self._states = [init_text]
         self._number_of_lin = 0
         self._cursor = 0
@@ -103,8 +94,9 @@ class BaseFile:
         self._async_tasks = Cancel()
         self._lock = RLock()
         self._recursion = 0
-        self.undo_list = _HistoryList()
 
+        self.path = path # must be first
+        self.undo_list = _HistoryList()
         self.string = init_text
         self.cursor = cursor
     
@@ -681,6 +673,12 @@ class BaseFile:
         for off in self._token_list:
             if off > cursor:
                 return off
+                
+    def find_previous_token(self):
+        cursor = self.cursor
+        for idx, off in ienumerate(self._token_list):
+            if off > cursor:
+                return off
     
     def __getitem__(self, key):
         return self.string[key]
@@ -791,9 +789,11 @@ class BaseFile:
         return self._repr
     @property
     def footer(self):
-        state = ('oldest state' if self.string is self._states[0]
-                 else 'saved' if self.string is self._states[-1]
-                 else 'previous record' if self.string in self._states
+        current_state = self.string
+        known_status = self._states
+        state = ('oldest state' if current_state is known_status[0]
+                 else 'saved' if current_state is known_status[-1]
+                 else 'previous record' if current_state in known_status
                  else 'modified' ) 
         return ' ( ' + state + ' )' if state else ''
 

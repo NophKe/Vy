@@ -1,8 +1,10 @@
 from pathlib import Path
+import atexit
+
+from vy import keys as k
 from vy.keys import _escape
 from vy.global_config import USER_DIR
 from vy.utils import DummyLine
-from vy import keys as k
 
 class Completer:
     def __init__(self, file, prompt, editor):
@@ -10,7 +12,7 @@ class Completer:
         if not histfile.exists():
             histfile.touch()
         self.histfile = histfile
-        self.history = [ item for item in histfile.read_text().splitlines() ]
+        self.history = list({item:None for item in histfile.read_text().splitlines()}.keys())
         self.state = ''
         self.prompt = f'\x1b[97;1m{prompt}\x1b[97;22m'
         self.editor = editor
@@ -20,6 +22,7 @@ class Completer:
 #        self._last_comp = self.state, self.buffer.string, self.buffer.cursor
         self.buffered = []
         self.selected = -1
+        atexit.register(lambda: self.histfile.write_text('\n'.join(self.history)))
     
     def __call__(self, buffered=None):
         """
@@ -66,8 +69,12 @@ class Completer:
                     if self.state:
                         self.select_item()
                     else:
-                        self.history.append(buffer.string)
-                        self.histfile.write_text('\n'.join(self.history))
+                        if (content := buffer.string.strip()):
+                            if content not in self.history:
+                                self.history.append(content)
+                            else:
+                                self.history.pop(self.history.index(content))
+                                self.history.append(content)
                         return buffer.string
 
                 elif key.isprintable():
@@ -138,7 +145,8 @@ class Completer:
         return rv, len(arg)
 
     def get_history(self):
-        return [item for item in self.history if item.startswith(self.buffer.string)], len(self.buffer.string)
+        result = [item for item in reversed(self.history) if item.startswith(self.buffer.string)]
+        return result, len(self.buffer.string)
     
     def get_complete(self):
         return [], 0
@@ -164,11 +172,15 @@ class Completer:
             self.state = 'history'
         
     def move_cursor_down(self):
-        if self.selected == len(self.completion) - 1:
-            self.selected = 0
+        if self.state:
+            if self.selected == len(self.completion):
+                self.selected = 0
+            else:
+                self.selected += 1
         else:
-            self.selected += 1
-
+            self.selected = len(self.completion)
+            self.state = 'history'
+            
     def move_left(self):
         if self.buffer.cursor > 0:
             self.buffer.cursor -= 1
@@ -180,4 +192,4 @@ class Completer:
         self.state = ''
 
 def one_inside_dict_starts_with(dic, pattern):
-    return (pattern in dic or any(key.startswith(pattern) for key in dic))
+    return (pattern in dic) or (any(key.startswith(pattern) for key in dic))
