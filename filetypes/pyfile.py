@@ -2,6 +2,8 @@ from vy.filetypes.textfile import TextFile
 from jedi.api.refactoring import ChangedFile
 
 class SimplePyFile(TextFile):
+    actions = {} # new empty dict to avoid poluting the inherited
+                 # one from TextFile base class.
     set_wrap = False   
     set_autoindent = True
     set_expandtabs = True
@@ -15,7 +17,7 @@ except ImportError:
         pass
 else:
     class PyFile(SimplePyFile):
-        def __has_syntax_errors(self, ns={}):
+        def _has_syntax_errors(self, ns={}):
             string = self.string
             if string not in ns:
                 import parso
@@ -33,7 +35,7 @@ else:
 
         @property
         def footer(self):
-            return self.__has_syntax_errors() or '' + super().footer
+            return self._has_syntax_errors() or '' + super().footer
 
 try:
     import jedi
@@ -126,6 +128,17 @@ else:
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         
+    def DO_get_help(editor, arg=None, **kwargs):
+        curbuf = editor.current_buffer
+        lin, col = curbuf.cursor_lin_col
+        engine: Script = curbuf.jedi()
+        result = engine.infer(line=lin+1, column=col-1)
+        if result:
+            doc = result[0].docstring(fast=False)
+            editor.screen.minibar(*doc.splitlines())
+        else:
+            editor.warning(' (no help available)')
+     
     def DO_new(editor, arg=None, **kwargs):
         if arg:
             curbuf = editor.current_buffer
@@ -148,10 +161,34 @@ else:
         PyFile.actions[':inline_current_expression'] = DO_inline_current_expression
         PyFile.actions[':extract_as_new_function'] = DO_extract_as_new_function
         PyFile.actions[':rename_symbol_under_cursor'] = DO_rename_symbol_under_cursor
+        PyFile.actions[':get_help'] = DO_get_help
         PyFile.actions[':new'] = DO_new
+
+        # if we reache this line then jedi install 
+        # is ok. parso is dependency of jedi then ._has_syntax_errors and .footer are
+        # defined. No need to redefine PyFile.footer! 
+        #
+        # But still redefine _has_syntax_errors to make profit of jedi caching system
+        #
         
+#        def _has_syntax_errors(self, ns={}):
+#            string = self.string
+#            if string not in ns:
+#                engine: Script = self.jedi()
+#                errors = engine.get_syntax_errors()          
+#                if errors:
+#                    error_message = errors[0].get_message()
+#                    ns[string] = error_message
+#                    return error_message
+#                ns[string] = ''
+#            return ns[string]
+        #
+        # jedi is not thread-safe... I forgot one more time...
+        # 
+                           
         def jedi(self, ns={}):
             if self.string not in ns:
                 from jedi import Script
                 ns[self.string] = Script(code=self.string,)
             return ns[self.string]
+

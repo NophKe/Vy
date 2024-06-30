@@ -26,7 +26,7 @@ class Folder(BaseFile):
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and     x.name.startswith('.')))
 
-            self._values = [ val.relative_to(cwd) for val in value ]
+            self._values = [ val.resolve() for val in value ]
             pretty  = [ val for val in value ]
             self._string = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
             self._lenght = len(self._string)
