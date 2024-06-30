@@ -49,7 +49,7 @@ else:
     def DO_goto_declaration_under_cursor(editor, *args, **kwargs):
         curbuf = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
-        engine: Script = curbuf.jedi
+        engine: Script = curbuf.jedi()
         result = engine.goto(line=lin+1, column=col-1)
         if not result:
             editor.screen.minibar('no match found!')
@@ -139,21 +139,6 @@ else:
         else:
             editor.warning(' (no help available)')
      
-    def DO_new(editor, arg=None, **kwargs):
-        if arg:
-            curbuf = editor.current_buffer
-            lin, col = curbuf.cursor_lin_col
-            engine: Script = curbuf.jedi()
-            try:
-                result = engine.rename(line=lin+1, column=col-1, new_name=arg)
-            except RefactoringError:
-                editor.warning('nope dont work.')
-            else:
-                changes = result.get_changed_files()[None].get_new_code()
-                editor.current_buffer.string = changes
-        else:
-            editor.warning('(bad syntax, no name provided)  :command {name}')
-     
     class PyFile(PyFile):
         PyFile.actions[':goto_declaration'] = DO_goto_declaration_under_cursor
         PyFile.actions[':get_object_and_class'] = DO_get_object_and_class 
@@ -162,7 +147,6 @@ else:
         PyFile.actions[':extract_as_new_function'] = DO_extract_as_new_function
         PyFile.actions[':rename_symbol_under_cursor'] = DO_rename_symbol_under_cursor
         PyFile.actions[':get_help'] = DO_get_help
-        PyFile.actions[':new'] = DO_new
 
         # if we reache this line then jedi install 
         # is ok. parso is dependency of jedi then ._has_syntax_errors and .footer are
@@ -187,6 +171,7 @@ else:
         # 
                            
         def jedi(self, ns={}):
+            # AGAIN jedi is not thread-safe... THIS should be LOCKED !
             if self.string not in ns:
                 from jedi import Script
                 ns[self.string] = Script(code=self.string,)
