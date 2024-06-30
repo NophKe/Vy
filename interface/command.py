@@ -47,14 +47,13 @@ class CommandCompleter(Completer):
             
             if cmds in dictionary:
                 func =  dictionary[cmds]
-                if func in cmd_actions:
-                    if func.with_args and hasattr(func, 'completer'):
-                        if func.completer == 'filename':
-                            return self.get_filenames(args)
-                        elif func.completer == 'buffer':
-                            return self.get_buffer(args)
-                        elif func.completer == 'option':
-                            return self.get_option(args)
+                if hasattr(func, 'completer'):
+                    if func.completer == 'filename':
+                        return self.get_filenames(args)
+                    elif func.completer == 'buffer':
+                        return self.get_buffer(args)
+                    elif func.completer == 'option':
+                        return self.get_option(args)
                 return self.get_history()
                      
         elif one_inside_dict_starts_with(cmd_actions, user_input) or \
@@ -97,14 +96,14 @@ def loop(self):
         cmd = user_input.strip()
 
     cmd = cmd.lstrip(':')
-    try:
-        if not (action := self.current_buffer.actions.get(':'+cmd)):
+    if not (action := self.current_buffer.actions.get(':'+cmd)):
+        try:
             action = self.actions.command[cmd]
-    except KeyError:
-        self.screen.minibar(f'unrecognized command: {cmd}')
-        readline.history.pop()
-        return 'normal'
-    
+        except KeyError:
+            self.screen.minibar(f'unrecognized command: {cmd}')
+            readline.history.pop()
+            return 'normal'
+        
     cancel = self.screen.minibar(f'( Processing Command: {user_input} )')
     self.registr[':'] = user_input
     
