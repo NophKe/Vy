@@ -57,13 +57,11 @@ else:
         if not result:
             editor.screen.minibar('no match found!')
         elif len(result) == 1:
-            try:
-                res = result[0]    
-                new_lin, new_col = res.get_definition_start_position()
-            except TypeError:
-                assert res.type == 'module'
+            res = result[0]    
+            if res.module_path != curbuf.path:
                 editor.edit(res.module_path)
-            else:
+            if position := res.get_definition_start_position():
+                new_lin, new_col = position
                 curbuf.cursor_lin_col = new_lin-1, new_col+1 
         else:
             editor.screen.minibar('too many matches.')
@@ -90,8 +88,9 @@ else:
             except RefactoringError as err:
                 editor.warning(str(err))
             else:
-                changes = result.get_changed_files()[None].get_new_code()
-                curbuf.string = changes
+                for path, new_version in changes.items():
+                    editor.cache[path].string = new_version.get_new_code()
+                    changes = result.get_changed_files()[None].get_new_code()
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         
@@ -104,8 +103,9 @@ else:
         except RefactoringError as err:
             editor.warning(str(err))
         else:
-            changes = result.get_changed_files()[None].get_new_code()
-            curbuf.string = changes
+            changes = result.get_changed_files()
+            for path, new_version in changes.items():
+                editor.cache[path].string = new_version.get_new_code()
     
     def DO_extract_as_new_function(editor, arg=None, **kwargs):
         if arg:
@@ -117,8 +117,9 @@ else:
             except RefactoringError as err:
                 editor.warning(str(err))
             else:
-                changes = result.get_changed_files()[None].get_new_code()
-                curbuf.string = changes
+                for path, new_version in changes.items():
+                    editor.cache[path].string = new_version.get_new_code()
+                    changes = result.get_changed_files()[None].get_new_code()
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
     
@@ -132,8 +133,10 @@ else:
             except RefactoringError as err:
                 editor.warning(str(err))
             else:
-                changes = result.get_changed_files()[None].get_new_code()
-                curbuf.string = changes
+                changes = result.get_changed_files()
+                for path, new_version in changes.items():
+                    editor.cache[path].string = new_version.get_new_code()
+                editor.screen.minibar(f'{len(changes)} file(s) modified.')
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         

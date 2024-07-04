@@ -51,14 +51,14 @@ try:
     from pygments.util import ClassNotFound
     from pygments.token import (Keyword, Name, Comment, 
                                 String, Error, Number, Operator, 
-                                Generic, Token, Whitespace, Text)
+                                Generic, Token, Whitespace, Text, )
 
     colorscheme = {
       '':                 '',
       Token:              '',
       Whitespace:         '',             Comment:            '/gray/',
       Comment.Preproc:    'cyan',         Keyword:            '*blue*',
-      Keyword.Type:       'cyan',         Operator.Word:      'magenta',
+      Keyword:            'cyan',         Operator.Word:      'magenta',
       Name.Builtin:       'cyan',         Name.Function:      'green',
       Name.Namespace:     '*cyan*',       Name.Class:         '*green*',
       Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
