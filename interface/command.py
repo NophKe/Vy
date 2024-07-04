@@ -1,3 +1,4 @@
+from vy.editor import _Editor
 from vy.interface.helpers import Completer, one_inside_dict_starts_with
 from pathlib import Path
 
@@ -63,13 +64,13 @@ class CommandCompleter(Completer):
             return rv, len(user_input)
         return [], 0
         
-def init(editor):
+def init(editor: _Editor):
     global readline
     global dictionary
     dictionary = editor.actions.command
     readline = CommandCompleter('command_history', ':', editor)
 
-def loop(self):
+def loop(self: _Editor):
     """
     Command mode, main loop.
     """
@@ -94,8 +95,10 @@ def loop(self):
         cmd, ARG = user_input.split(' ', maxsplit=1)
     else:
         cmd = user_input.strip()
-
     cmd = cmd.lstrip(':')
+
+    PART = self.current_buffer.selected_offsets
+
     if not (action := self.current_buffer.actions.get(':'+cmd)):
         try:
             action = self.actions.command[cmd]

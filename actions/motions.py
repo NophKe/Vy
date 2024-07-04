@@ -107,19 +107,6 @@ class _motion:
 
 _motion_commands = _motion()
 
-@_motion_commands('gd')
-def goto_definition(editor, reg=None, part=None, arg=None, count=1):
-    """
-    Moves the cursor to the definition of the variable it is on.
-    """
-    curbuf = editor.current_buffer
-    if curbuf.completer_engine is not None:
-        lin, col = curbuf.cursor_lin_col
-        loc = curbuf.completer_engine.goto(lin+1, col-1)
-        if loc:
-            lin, col = loc[0].get_definition_start_position()
-            curbuf.cursor_lin_col = lin-1, col+1 
-
 @_motion_commands(f'i_{_k.left} {_k.left} h')
 def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -347,6 +334,8 @@ def do_normal_N(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     needle = editor.registr['/']
     curbuf = editor.current_buffer
+    current_offset = curbuf.cursor
+    
     if needle:
         offset = curbuf.string.rfind(needle, 0, curbuf.cursor)
 

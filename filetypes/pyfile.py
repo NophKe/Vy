@@ -1,5 +1,4 @@
 from vy.filetypes.textfile import TextFile
-from jedi.api.refactoring import ChangedFile
 
 class SimplePyFile(TextFile):
     actions = {} # new empty dict to avoid poluting the inherited
@@ -9,6 +8,7 @@ class SimplePyFile(TextFile):
     set_expandtabs = True
     set_number = True
     set_comment_string = ('#', '')
+
 
 try:
     import parso
@@ -20,12 +20,11 @@ else:
         def _has_syntax_errors(self, ns={}):
             string = self.string
             if string not in ns:
-                import parso
                 grammar = parso.load_grammar()
                 try:
                     parsed = grammar.parse(string, error_recovery=False)
                     for err in grammar.iter_errors(parsed):
-                        ns[string] = f'(found error) line {err.start_pos[0] - 1}: {err.message} '
+                        ns[string] = f'(lexical error) line {err.start_pos[0] - 1}: {err.message} '
                         break
                     else:
                         ns[string] = ''
@@ -35,35 +34,45 @@ else:
 
         @property
         def footer(self):
-            return self._has_syntax_errors() or '' + super().footer
+            if syntax_err := self._has_syntax_errors():
+                return syntax_err + super().footer
+            return super().footer
+        
 
 try:
-    import jedi
+    from vy.global_config import DONT_USE_JEDI_LIB
+    if DONT_USE_JEDI_LIB:
+        raise ImportError
+    
+    from jedi import Script
+    from jedi.api.exceptions import RefactoringError
 except ImportError:
     pass
 else:
-#    from vy.editor import _Editor
-    from jedi import Script
-    from jedi.api.exceptions import RefactoringError
-    
     def DO_goto_declaration_under_cursor(editor, *args, **kwargs):
-        curbuf = editor.current_buffer
+        curbuf: PyFile = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
         engine: Script = curbuf.jedi()
-        result = engine.goto(line=lin+1, column=col-1)
+        result = engine.goto(line=lin+1, column=col)
         if not result:
             editor.screen.minibar('no match found!')
         elif len(result) == 1:
-            new_lin, new_col = result[0].get_definition_start_position()
-            editor.current_buffer.cursor_lin_col = new_lin-1, new_col+1 
+            try:
+                res = result[0]    
+                new_lin, new_col = res.get_definition_start_position()
+            except TypeError:
+                assert res.type == 'module'
+                editor.edit(res.module_path)
+            else:
+                curbuf.cursor_lin_col = new_lin-1, new_col+1 
         else:
             editor.screen.minibar('too many matches.')
     
     def DO_get_object_and_class(editor, *args, **kwargs):
-        curbuf = editor.current_buffer
+        curbuf: PyFile = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
         engine: Script = curbuf.jedi()
-        results = engine.help(line=lin+1, column=col-1)
+        results = engine.help(line=lin+1, column=col)
         if not results:
             editor.screen.minibar('no help found!')
         elif len(results) == 1:
@@ -73,66 +82,66 @@ else:
             
     def DO_extract_as_new_variable(editor, arg=None, **kwargs):
         if arg:
-            curbuf = editor.current_buffer
+            curbuf: PyFile = editor.current_buffer
             lin, col = curbuf.cursor_lin_col
             engine: Script = curbuf.jedi()
             try:
-                result = engine.extract_variable(line=lin+1, column=col-1, new_name=arg)
-            except RefactoringError:
-                editor.warning('nope dont work.')
+                result = engine.extract_variable(line=lin+1, column=col, new_name=arg)
+            except RefactoringError as err:
+                editor.warning(str(err))
             else:
                 changes = result.get_changed_files()[None].get_new_code()
-                editor.current_buffer.string = changes
+                curbuf.string = changes
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         
     def DO_inline_current_expression(editor, arg=None, **kwargs):
-        curbuf = editor.current_buffer
+        curbuf: PyFile = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
         engine: Script = curbuf.jedi()
         try:
-            result = engine.inline(line=lin+1, column=col-1)
-        except RefactoringError:
-            editor.warning('nope dont work.')
+            result = engine.inline(line=lin+1, column=col)
+        except RefactoringError as err:
+            editor.warning(str(err))
         else:
             changes = result.get_changed_files()[None].get_new_code()
-            editor.current_buffer.string = changes
+            curbuf.string = changes
     
     def DO_extract_as_new_function(editor, arg=None, **kwargs):
         if arg:
-            curbuf = editor.current_buffer
+            curbuf: PyFile= editor.current_buffer
             lin, col = curbuf.cursor_lin_col
             engine: Script = curbuf.jedi()
             try:
-                result = engine.extract_function(line=lin+1, column=col-1, new_name=arg)
-            except RefactoringError:
-                editor.warning('nope dont work.')
+                result = engine.extract_function(line=lin+1, column=col, new_name=arg)
+            except RefactoringError as err:
+                editor.warning(str(err))
             else:
                 changes = result.get_changed_files()[None].get_new_code()
-                editor.current_buffer.string = changes
+                curbuf.string = changes
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
     
     def DO_rename_symbol_under_cursor(editor, arg=None, **kwargs):
         if arg:
-            curbuf = editor.current_buffer
+            curbuf: PyFile = editor.current_buffer
             lin, col = curbuf.cursor_lin_col
             engine: Script = curbuf.jedi()
             try:
-                result = engine.rename(line=lin+1, column=col-1, new_name=arg)
-            except RefactoringError:
-                editor.warning('nope dont work.')
+                result = engine.rename(line=lin+1, column=col, new_name=arg)
+            except RefactoringError as err:
+                editor.warning(str(err))
             else:
                 changes = result.get_changed_files()[None].get_new_code()
-                editor.current_buffer.string = changes
+                curbuf.string = changes
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         
     def DO_get_help(editor, arg=None, **kwargs):
-        curbuf = editor.current_buffer
+        curbuf: PyFile = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
         engine: Script = curbuf.jedi()
-        result = engine.infer(line=lin+1, column=col-1)
+        result = engine.infer(line=lin+1, column=col)
         if result:
             doc = result[0].docstring(fast=False)
             editor.screen.minibar(*doc.splitlines())
@@ -141,12 +150,14 @@ else:
      
     class PyFile(PyFile):
         PyFile.actions[':goto_declaration'] = DO_goto_declaration_under_cursor
+        PyFile.actions['gd']                = DO_goto_declaration_under_cursor
         PyFile.actions[':get_object_and_class'] = DO_get_object_and_class 
         PyFile.actions[':extract_as_new_variable'] = DO_extract_as_new_variable
         PyFile.actions[':inline_current_expression'] = DO_inline_current_expression
         PyFile.actions[':extract_as_new_function'] = DO_extract_as_new_function
         PyFile.actions[':rename_symbol_under_cursor'] = DO_rename_symbol_under_cursor
         PyFile.actions[':get_help'] = DO_get_help
+        PyFile.actions['K']         = DO_get_help
 
         # if we reache this line then jedi install 
         # is ok. parso is dependency of jedi then ._has_syntax_errors and .footer are
@@ -170,10 +181,53 @@ else:
         # jedi is not thread-safe... I forgot one more time...
         # 
                            
-        def jedi(self, ns={}):
+        def jedi(self, ns={}) -> Script:
             # AGAIN jedi is not thread-safe... THIS should be LOCKED !
             if self.string not in ns:
-                from jedi import Script
-                ns[self.string] = Script(code=self.string,)
+                ns[self.string] = Script(code=self.string, path=self.path)
             return ns[self.string]
+            
+        def _token_chain(self):
+            engine: Script = self.jedi()
+            lin,col = self.cursor_lin_col
+            if self.current_line[col] != '\n':
+                result = engine.infer(line=lin+1, column=col)
+                if result:
+                    assert len(result) == 1
+                    token = result[0]
+                return token
+        
+        @property
+        def footer(self):
+            parsing_and_saving = super().footer
+            # if in those exact states, there is no syntax error
+            if ' ( oldest state )' == parsing_and_saving:
+                return 'You are a jedi.'
+            if ' ( saved )' == parsing_and_saving:
+                return 'May the Force be with you.'
+            return parsing_and_saving
+
+
+try:
+    from black import format_str, Mode
+except ImportError:
+    pass
+else:
+    default_mode = Mode(line_length=120)
+    
+    def DO_reformat_whole_file(editor, reg=None, part=None, arg=None, count=1):
+        cb = editor.current_buffer
+        cb.string = format_str(cb.string, mode=default_mode)
+        
+    def DO_reformat_selection(editor, reg=None, part=None, arg=None, count=1):
+        cb = editor.current_buffer
+        lines = cb.splited_lines.copy()
+        selection = editor.current_buffer.selected_lines
+        selected_str = ''.join(lines[chosen] for chosen in selection)
+        new_value = format_str(selected_str, mode=default_mode)
+        cb[cb.selected_lines_off] = new_value
+    
+    class PyFile(PyFile):
+        PyFile.actions[':reformat_whole_file'] = DO_reformat_whole_file
+        PyFile.actions[':reformat_selection'] = DO_reformat_selection
 

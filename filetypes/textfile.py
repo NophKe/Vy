@@ -40,7 +40,8 @@ class TextFile(BaseFile):
                 continue
 
             line = ''
-            for off, tok, val in lexer(self.string):
+            string = self._string or self.string
+            for off, tok, val in lexer(string):
                 if cancel_request:
                     break
                 self._token_list.append(off)

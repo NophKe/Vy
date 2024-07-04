@@ -104,13 +104,10 @@ def monoline_loop(editor: _Editor):
 
         if key_press in editor.actions.insert:
             return key_press
-            
         
         elif key_press.isprintable():
             editor.current_buffer.undo_list.skip_next()
             editor.current_buffer.insert(key_press)
-#            completer_engine._async.restart_work()
-#            completer_engine.selected = -1
             last_insert += key_press
             continue
         break
@@ -128,10 +125,8 @@ def loop(editor: _Editor):
     editor.current_buffer.stop_selection()
     global completer_engine
     completer_engine = editor.current_buffer.completer_engine
-#    completer_engine.selected != -1
     user_input = monoline_loop(editor) 
     cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
-#    completer_engine.selected = -1
     
     try:
         action = dictionary[user_input]
@@ -143,7 +138,6 @@ def loop(editor: _Editor):
         cancel_minibar()
     
     minibar_completer.give_up()
-    completer_engine.selected = -1
 
     return mode
 

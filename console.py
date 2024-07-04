@@ -31,11 +31,11 @@ from termios import tcgetattr, tcsetattr
 
 ### tcsetattr() and tcsetattr() scheduling policy
 #
-TCSANOW = 0    # to change immediately
+TCSANOW = 0  # to change immediately
 TCSADRAIN = 1  # to change after transmitting all queued output
 TCSAFLUSH = 2  #  after TCSADRAIN and discarding all queued input.
 
-## 
+##
 #
 ISIG = 1
 BRKINT = 2
@@ -54,7 +54,7 @@ OPOST = 1
 
 # LFLAG options
 ICANON = 2
-ECHO = 8    
+ECHO = 8
 
 # CFLAG options
 CSIZE = 48
@@ -66,9 +66,10 @@ IFLAG = 0  # /* input modes */
 OFLAG = 1  # /* output modes */
 CFLAG = 2  # /* control modes */
 LFLAG = 3  # /* local modes */
-ISPEED = 4 #                 input speed ?
-OSPEED = 5 #                 output speed ?
-CC = 6     # /* special characters */
+ISPEED = 4  #                 input speed ?
+OSPEED = 5  #                 output speed ?
+CC = 6  # /* special characters */
+
 
 def setraw(fd, when=TCSAFLUSH):
     """
@@ -84,6 +85,7 @@ def setraw(fd, when=TCSAFLUSH):
     mode[CC][VTIME] = 0
     tcsetattr(fd, when, mode)
 
+
 def setnonblocking(fd, when=TCSANOW):
     """
     Put terminal into a non-blocking mode.
@@ -92,6 +94,7 @@ def setnonblocking(fd, when=TCSANOW):
     mode[CC][VMIN] = 0
     mode[CC][VTIME] = 0
     tcsetattr(fd, when, mode)
+
 
 def getch():
     """
@@ -103,15 +106,16 @@ def getch():
     old_mode = tcgetattr(stdin)
     setraw(stdin)
     rv = stdin.read(1)
-    if rv == '\x1b':
+    if rv == "\x1b":
         setnonblocking(stdin)
         esc_seq = stdin.read()
         if esc_seq:
             rv += esc_seq
     tcsetattr(stdin, TCSADRAIN, old_mode)
     return rv
-        
-def getch_noblock_base():
+
+
+def getch_noblock():
     """
     This is the couter-part of the getch() function from the same
     module.  getch_noblock() returns a generator yielding key strokes or
@@ -120,70 +124,69 @@ def getch_noblock_base():
     old_mode = tcgetattr(stdin)
     buffer = stdin.buffer
     try:
-        setraw(stdin)           # First,
-        setnonblocking(stdin)   # Second, 
+        setraw(stdin)  # First,
+        setnonblocking(stdin)  # Second,
         while True:
-            select([buffer],[],[], 0.1)
+            select([buffer], [], [], 0.1)
             ret = buffer.read(1)
-            if ret != b'\x1b':
+            if ret != b"\x1b":
                 while True:
                     try:
-                        yield ret.decode('utf-8')
+                        yield ret.decode("utf-8")
                         break
                     except UnicodeDecodeError:
                         ret += buffer.read(1)
-            
+
             else:
                 next_one = buffer.read(1)
-                if next_one != b'[':
-                    yield (ret+next_one).decode('ascii')
+                if next_one != b"[":
+                    yield (ret + next_one).decode("ascii")
                 else:
                     ret = ret + next_one + buffer.read(1)
-                    
-                    while ret[-1] not in range(0x40,0x7e+1):
-                        ret += buffer.read(1) 
-                        
-                    if ret == b'\x1b[200~':
+
+                    while ret[-1] not in range(0x40, 0x7E + 1):
+                        ret += buffer.read(1)
+
+                    if ret == b"\x1b[200~":
                         ret = buffer.read(1)
-                        while not ret.endswith(b'\x1b[201~'):
+                        while not ret.endswith(b"\x1b[201~"):
                             ret += buffer.read(1)
-                        ret = ret.removesuffix(b'\x1b[201~')
-                        yield 'vy:paste'
-                        yield ret.replace(b'\r', b'\n').decode('utf-8')
-                        
-                    elif ret == b'\x1b[M':
-                        button  = ord(buffer.read(1)) - 32 # 32 == ord(ascii(' '))
-                        coord_x = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
-                        coord_y = str(ord(buffer.read(1)) - 32) # 32 == ord(ascii(' '))
+                        ret = ret.removesuffix(b"\x1b[201~")
+                        yield "vy:paste"
+                        yield ret.replace(b"\r", b"\n").decode("utf-8")
+
+                    elif ret == b"\x1b[M":
+                        button = ord(buffer.read(1)) - 32  # 32 == ord(ascii(' '))
+                        coord_x = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
+                        coord_y = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
                         if button == 64:
-                            yield '\x1b[A'
+                            yield "\x1b[A"
                         elif button == 65:
-                            yield '\x1b[B'
+                            yield "\x1b[B"
                         else:
                             if button == 0:
-                                yield f'vy:mouse:left'
+                                yield f"vy:mouse:left"
                             elif button == 1:
-                                yield 'vy:mouse:middle'
+                                yield "vy:mouse:middle"
                             elif button == 2:
-                                yield 'vy:mouse:right'
+                                yield "vy:mouse:right"
                             else:
-                                yield f'vy:mouse:{button=}'
-                                continue # discard coordonates
+                                yield f"vy:mouse:{button=}"
+                                continue  # discard coordonates
                             yield coord_x
                             yield coord_y
                     else:
-                        yield ret.decode('ascii')
-                
-            
+                        yield ret.decode("ascii")
+
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
 
-def getch_noblock():
-    file = open("/home/nono/LOG_console.txt", 'a')
+
+def getch_noblock_debug():
+    file = open("/home/nono/LOG_console.txt", "a")
     for key_press in getch_noblock_base():
         if key_press:
-            file.write(f'pressed: {key_press}\n')
+            file.write(f"pressed: {key_press}\n")
             file.flush()
         yield key_press
 
-#getch_noblock = getch_noblock_base

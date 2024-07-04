@@ -13,7 +13,7 @@ def erase_word_backward(editor: _Editor, *args, **kwargs):
         curbuf.cursor = start_of_deletion
 
 @_atomic_commands('\n {k.C_J} {k.C_M} \r i_\n i_\r i_{k.C_J} i_{k.C_M}')
-def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
+def do_insert_newline(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts a newline.  If the current buffer has set_autoindent set,
     this will insert same indentation as the previous line. If on an blank
@@ -35,7 +35,6 @@ def do_insert_newline(editor, reg=None, part=None, arg=None, count=1):
         else:
             cur_buf.insert_newline()
     return 'insert'
-    
 
 @_atomic_commands('i_\t')
 def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):

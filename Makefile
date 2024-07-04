@@ -16,7 +16,11 @@ clean:
 	rm -f filetypes/*.c
 	rm -f filetypes/*.html
 	rm -f filetypes/*.o
-	rm -f filetypes/*.so
+	####
+	rm -f actions/*.c
+	rm -f actions/*.html
+	rm -f actions/*.o
+	rm -f actions/*.so
 	####
 	rm -f interface/*.c
 	rm -f interface/*.html
@@ -24,6 +28,7 @@ clean:
 	rm -f interface/*.so
 	####
 	rm -Rf filetypes/__pycache__/
+	rm -Rf actions/__pycache__/
 	rm -Rf interface/__pycache__/
 	rm -Rf ./__pycache__/
 

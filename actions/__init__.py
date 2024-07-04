@@ -732,16 +732,6 @@ def open_parent_folder(editor: _Editor, *args, **kwargs):
     editor.edit(editor.current_buffer.path.parent)
 
 
-@_sa_commands(":format%")
-def reformat_lines(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    try:
-        import black
-    except ImportError:
-        editor.warning('must install black (WIP sorry...)')
-
-    cb = editor.current_buffer
-    cb.string = black.format_str(cb.string, mode=black.Mode())
-
 @_atomic_commands(f'{_k.C_W}{_k.C_W} v_{_k.C_W}{_k.C_W}')
 def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=1):
     found = False

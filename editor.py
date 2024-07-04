@@ -289,7 +289,7 @@ class _Editor:
         except IndexError:
             self.jump_list.append((curbuf, lin, col))
         else:
-            if last_buf is curbuf and (last_lin == lin or last_col == col):
+            if last_buf is curbuf and (last_lin == lin): #or last_col == col): 
                 return
             self.jump_list.append((curbuf, lin, col))
     

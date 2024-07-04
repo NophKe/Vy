@@ -1,10 +1,12 @@
 """
 This module is a mess that handles screen rendering.
 """
+
 from os import get_terminal_size
 from sys import stdout
 
 from vy.global_config import DEBUG
+
 
 def expand_quick(max_col, text):
     if not text:
@@ -41,6 +43,7 @@ def expand_quick(max_col, text):
 
     retval.append(line + (' ' * (max_col - on_col)))
     return retval
+
 
 def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col, num_len, visual):
     number = f'{on_lin:{num_len}}: '
@@ -194,16 +197,13 @@ class CompletionBanner:
         self.pretty_completion = []
         self.make_func = lambda: ([], -1)
         self.selected = -1
+        self.pretty_completion = []
 
     def __call__(self, make_func):
         self.make_func = make_func 
 
     def give_up(self):
-        self.make_func = lambda: ([], 0)
-        self.view_start = 0
-        self.selected = -1
-        self.completion = []
-        self.pretty_completion = []
+        self.__init__()
 
     def __iter__(self):
         self.completion, self.selected = self.make_func()
@@ -286,7 +286,7 @@ class Window():
         new_shift = cursor_line - halfscreen
         self.shift_to_lin = min(maxline, max(0, new_shift))
         return self
-            
+
     def merge_from_left_panel(self):
         if self._v_split_flag:
             self.buff = self.left_panel.buff
@@ -306,7 +306,7 @@ class Window():
 
     def move_v_split_left(self, count=1):
         new_shift = self.v_split_shift - count
-        if new_shift > -self.vertical_split + (self.vertical_split/5):
+        if new_shift > -self.vertical_split + (self.vertical_split / 5):
             self.v_split_shift -= count
 
     def move_v_split_right(self, count=1):
@@ -321,7 +321,7 @@ class Window():
     @property
     def number_of_col(self):
         if self is self.parent.left_panel:
-            return self.parent.vertical_split - 1    
+            return self.parent.vertical_split - 1
         elif self is self.parent.right_panel:
             return self.parent.number_of_col - self.parent.vertical_split
 
@@ -340,8 +340,8 @@ class Window():
     def vsplit(self, right_focus=False):
         assert not self._v_split_flag
         self._v_split_flag = True
-        self.left_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
-        self.right_panel = Window( self, self.shift_to_col, self.shift_to_lin, self.buff)
+        self.left_panel = Window(self, self.shift_to_col, self.shift_to_lin, self.buff)
+        self.right_panel = Window(self, self.shift_to_col, self.shift_to_lin, self.buff)
         self.right_panel.set_focus() if right_focus else self.left_panel.set_focus()
 
         return self._focused
@@ -353,85 +353,86 @@ class Window():
                                             self.right_panel.gen_window())]
         header = self.gen_header()
         footer = self.gen_footer()
-        
+
         number_of_lines = self.number_of_lin - len(footer) - len(header)
         min_lin = self.shift_to_lin
         max_lin = number_of_lines + self.shift_to_lin
         self.shown_lines = (min_lin, max_lin)
-        
+
         header.extend(self.gen_body(min_lin, max_lin))
         header.extend(footer)
-        return header 
-        
+        return header
+
     def gen_header(self):
         if self.parent.focused is self:
             head_line = '\x1b[1;7m' + self.buff.header + '\x1b[22;27m'
         else:
             head_line = '\x1b[02m' + self.buff.header + '\x1b[22;27m'
         return expand_quick(self.number_of_col, head_line)
-        
+
     def gen_footer(self):
         return expand_quick(self.number_of_col, self.buff.footer)
-        
-    def gen_body(self,min_lin, max_lin):
+
+    def gen_body(self, min_lin, max_lin):
         max_col = self.number_of_col
         wrap = self.buff.set_wrap
-        if (number := self.buff.set_number):
+        if number := self.buff.set_number:
             num_len = len(str(max_lin))
             expand = expandtabs_numbered
         else:
             expand = expandtabs
             num_len = None
         tab_size = self.buff.set_tabsize
-        
+
         default = f"~{' ':{max_col- 1}}"
         true_cursor = 0
 
         try:
-            (start_lin, start_col),(stop_lin, stop_col) = self.buff.selected_lin_col
+            (start_lin, start_col), (stop_lin, stop_col) = self.buff.selected_lin_col
         except TypeError:
             start_col = stop_col = 0
             start_lin = stop_lin = -1
-        
-        cursor_lin, cursor_col, raw_line_list \
-                = self.buff.get_raw_screen(min_lin, max_lin)
+
+        cursor_lin, cursor_col, raw_line_list = self.buff.get_raw_screen(min_lin, max_lin)
 
         line_list = list()
         for on_lin, pretty_line in enumerate(raw_line_list, start=min_lin):
             if pretty_line is None:
                 line_list.append(default)
                 continue
-            
+
             if on_lin == cursor_lin and true_cursor == 0:
                 true_cursor = len(line_list)
-       
+
             if start_lin <= on_lin <= stop_lin:
                 if start_lin != on_lin:
                     start_v_col = -1
-                else: 
+                else:
                     start_v_col = start_col
                 if stop_lin != on_lin:
                     stop_v_col = -1
-                else: 
+                else:
                     stop_v_col = stop_col
             else:
                 start_v_col = stop_v_col = 0
-            
-            to_print = expand(tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_v_col, stop_v_col))
+
+            to_print = expand(
+                tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_v_col, stop_v_col)
+            )
             if wrap:
                 line_list.extend(to_print)
             else:
                 line_list.append(to_print[0])
 
         if wrap:
-                shown_lines = max_lin - min_lin
-                # TODO some wher in this lies the bug
-                while len(line_list) != shown_lines:
-                    if true_cursor >= max_lin:
-                        line_list.pop()
-                        true_cursor -= 1
-                    else:
-                        line_list.pop(0)
+            shown_lines = max_lin - min_lin
+            # TODO some wher in this lies the bug
+            while len(line_list) != shown_lines:
+                if true_cursor >= max_lin:
+                    line_list.pop()
+                    true_cursor -= 1
+                else:
+                    line_list.pop(0)
 
         return line_list
 
@@ -440,14 +441,15 @@ class Window():
         self.shift_to_col = shift_to_col
         self.shift_to_lin = shift_to_lin
         self.buff = buff
-        
+
         self.left_panel = None
         self.right_panel = None
         self._v_split_flag = False
         self.v_split_shift = 0
-        self._focused = self 
-        self.shown_lines = (0,0)
-        
+        self._focused = self
+        self.shown_lines = (0, 0)
+
+
 class Screen(Window):
     def __init__(self, buff):
         super().__init__(self, 0, 0, buff)
@@ -459,8 +461,8 @@ class Screen(Window):
 
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        self._number_of_lin = lines - len(self.minibar_banner) - 1 # 1 for infobar
-        self.shown_lines = (0,0)
+        self._number_of_lin = lines - len(self.minibar_banner) - 1  # 1 for infobar
+        self.shown_lines = (0, 0)
 
     def vsplit(self):
         if self.focused != self:

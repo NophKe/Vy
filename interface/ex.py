@@ -93,9 +93,10 @@ def populate_namespace(editor):
 def loop(editor: _Editor):
     def my_display_hook(arg):
         if isinstance(arg, str):
-            return editor.screen.minibar(arg.splitlines())
+            return editor.screen.minibar(*arg.splitlines())
         else:
             return editor.screen.minibar(pformat(arg).splitlines())
+        editor.screen.minibar(repr(arg))
     
     populate_namespace(editor)
     sys.displayhook = my_display_hook

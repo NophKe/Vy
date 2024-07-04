@@ -63,7 +63,7 @@ def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
         except (IsADirectoryError, FileExistsError, PermissionError) as exc:
             editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
 
-@_with_args(':reg :registers :di :display')
+@_with_args(':reg :registers :di :display :show_register_content')
 def show_registers(editor, reg=None, part=None, arg=None, count=1):
     """
     Shows the content of registers.
@@ -78,7 +78,7 @@ def show_registers(editor, reg=None, part=None, arg=None, count=1):
         editor.warning(str(editor.registr))
     return 'normal'
 
-@_with_buffer(":bd :bdel :bdelete")
+@_with_buffer(":bd :bdel :bdelete :forget_this_buffer_dont_save")
 def do_remove_cached_buffer(editor, reg=None, part=None, arg=None, count=1):
     """
     Deletes a buffer from the cache.
