@@ -51,3 +51,7 @@ class Folder(BaseFile):
         else:
             lin, col = self.cursor_lin_col
             return lin, col, rv 
+
+    @property    
+    def footer(self):
+        return ''

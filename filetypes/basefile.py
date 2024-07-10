@@ -62,16 +62,25 @@ NOTE: the word «offset» will be used to speak about characters and their
 from vy.utils import _HistoryList, DummyLine, Cancel
 from threading import RLock
 from sys import intern
+from re import split as _split
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
+def make_word_set(string):
+    """
+    >>> raise Error
+    """
+    return set(_split(r'[{}\. :,()\[\]]|$|\t', string))
+
 class BaseFile:
+    ANY_BUFFER_WORD_SET = set()
+
     modifiable = True
     actions = {}
     ending = '\n'   
     
     set_tabsize=4
-    set_wrap=False   
+    set_wrap=True
     set_autoindent = False
     set_expandtabs = False
     set_number = True
@@ -99,20 +108,40 @@ class BaseFile:
         self.undo_list = _HistoryList()
         self.string = init_text
         self.cursor = cursor
+        self.word_set = set()
+
+        for line in self.splited_lines:
+            for w in make_word_set(line):
+                if w not in self.word_set:
+                    self.ANY_BUFFER_WORD_SET.add(w)
+                    self.word_set.add(w)
+
     
+    def auto_complete(self, ns={}):
+        word = self.string[self.find_previous_delim()+1:self.cursor]
+        prefix_len = len(word)
+        if prefix_len:
+            rv = [item for item in self.word_set if item.startswith(word)]
+            if not rv or (len(rv) == 1 and rv[0] == word):
+                rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
+            return rv, prefix_len
+        return [], 0
+
     def __enter__(self):
-        self._recursion +=  1
-        if self._recursion == 1:
-            self._async_tasks.cancel_work()
-            self._lock.acquire()
+        with self._lock:
+            self._recursion +=  1
+            if self._recursion == 1:
+                self._async_tasks.cancel_work()
+                self._lock.acquire()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._recursion -=  1
-        if self._recursion == 0:
-            self.set_undo_point()
-            self._lock.release()
-            self._async_tasks.allow_work()
+        with self._lock:
+            self._recursion -=  1
+            if self._recursion == 0:
+                self.set_undo_point()
+                self._async_tasks.allow_work()
+                self._lock.release()
 
     @property
     def string(self):
@@ -227,7 +256,8 @@ class BaseFile:
         """
         with self._lock:
             if not self._splited_lines:
-                self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
+                #self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
+                self._splited_lines = [line for line in self.string.splitlines(True)]
             return self._splited_lines
 
     @property

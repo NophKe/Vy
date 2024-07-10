@@ -88,9 +88,9 @@ else:
             except RefactoringError as err:
                 editor.warning(str(err))
             else:
+                changes = result.get_changed_files()
                 for path, new_version in changes.items():
                     editor.cache[path].string = new_version.get_new_code()
-                    changes = result.get_changed_files()[None].get_new_code()
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
         
@@ -117,9 +117,9 @@ else:
             except RefactoringError as err:
                 editor.warning(str(err))
             else:
+                changes = result.get_changed_files()
                 for path, new_version in changes.items():
                     editor.cache[path].string = new_version.get_new_code()
-                    changes = result.get_changed_files()[None].get_new_code()
         else:
             editor.warning('(bad syntax, no name provided)  :command {name}')
     
@@ -169,17 +169,17 @@ else:
         # But still redefine _has_syntax_errors to make profit of jedi caching system
         #
         
-#        def _has_syntax_errors(self, ns={}):
-#            string = self.string
-#            if string not in ns:
-#                engine: Script = self.jedi()
-#                errors = engine.get_syntax_errors()          
-#                if errors:
-#                    error_message = errors[0].get_message()
-#                    ns[string] = error_message
-#                    return error_message
-#                ns[string] = ''
-#            return ns[string]
+        def _has_syntax_errors(self, ns={}):
+            string = self.string
+            if string not in ns:
+                engine: Script = self.jedi()
+                errors = engine.get_syntax_errors()          
+                if errors:
+                    error_message = errors[0].get_message()
+                    ns[string] = error_message
+                    return error_message
+                ns[string] = ''
+            return ns[string]
         #
         # jedi is not thread-safe... I forgot one more time...
         # 
@@ -210,13 +210,22 @@ else:
                 return 'May the Force be with you.'
             return parsing_and_saving
 
+        def auto_complete(curbuf):
+            if curbuf.string[curbuf.cursor] != '\n':
+                lin, col = curbuf.cursor_lin_col
+                engine: Script = curbuf.jedi()
+                results = engine.complete(line=lin+1, column=col)
+                if results:
+                    lengh = results[0].get_completion_prefix_length()
+                    return [item.name_with_symbols for item in results], lengh 
+            return super().auto_complete()
 
 try:
     from black import format_str, Mode
 except ImportError:
     pass
 else:
-    default_mode = Mode(line_length=120)
+    default_mode = Mode(line_length=120, string_normalization=False)
     
     def DO_reformat_whole_file(editor, reg=None, part=None, arg=None, count=1):
         cb = editor.current_buffer
