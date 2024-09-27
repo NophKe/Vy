@@ -1,7 +1,6 @@
-from .. import keys as k
+from vy import keys as k
 from pathlib import Path
-from .basefile import BaseFile
-from vy.filetypes.textfile import TextFile
+from vy.filetypes.basefile import BaseFile
 
 def DO_open_file(editor):
     curbuf = editor.current_buffer
@@ -27,7 +26,8 @@ class Folder(BaseFile):
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and     x.name.startswith('.')))
 
             self._values = [ val.resolve() for val in value ]
-            pretty  = [ val for val in value ]
+#            pretty  = [ val for val in value ]
+            pretty  = [ val.relative_to(cwd,walk_up=True) for val in value ]
             self._string = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
             self._lenght = len(self._string)
         return self._string
@@ -54,4 +54,4 @@ class Folder(BaseFile):
 
     @property    
     def footer(self):
-        return ''
+        return str(self.path.resolve())

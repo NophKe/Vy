@@ -1,3 +1,4 @@
+from vy.utils import eval_effified_str
 from vy.editor import _Editor
 from vy.interface.helpers import Completer, one_inside_dict_starts_with
 from pathlib import Path
@@ -111,6 +112,7 @@ def loop(self: _Editor):
     self.registr[':'] = user_input
     
     if ARG:
+        ARG = eval_effified_str(ARG)
         rv = action(self, arg=ARG, part=PART, reg=REG)
     else:
         rv = action(self, part=PART, reg=REG)

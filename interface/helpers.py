@@ -16,7 +16,6 @@ class Completer:
         self.state = ''
         self.prompt = f'\x1b[97;1m{prompt}\x1b[97;22m'
         self.editor = editor
-        self.reader = editor.read_stdin
         self.screen = editor.screen
         self.buffer = DummyLine()
 #        self._last_comp = self.state, self.buffer.string, self.buffer.cursor
@@ -33,7 +32,6 @@ class Completer:
         self.buffer.cursor = 0
         buffer = self.buffer
         screen = self.screen
-        reader = self.reader
         
         if buffered:
             self.buffered = buffered
@@ -41,7 +39,7 @@ class Completer:
         try:
             while True:
                 self.update_minibar()
-                key = reader()
+                key = self.editor.read_stdin()
                 if key in (k.backspace, k.linux_backpace):
                     buffer.backspace()
                     self.state = ''

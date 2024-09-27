@@ -4,31 +4,55 @@ Vy
 What is Vy?
 -----------
 
-First, Vy is an experiment.
+Lets just say that I wanted to write a little "Ed" clone (the classical
+unix "ed", line oriented text editor), but I felt frustrated when I
+discovered there was no getch() function in the Python standard library.
+And this brought me into some diving in the implementation the linux
+console.
 
-When I first discovered Python, the first that came to my mind was:
+getch() and the stdin problem
+-----------------
 
-« Woow. What smooth looking api's we can make of it... »
+For obvious unicode and encodings related issues, in python the unicode
+string rules them all... This means one should never rely on
+sys.stdin.read(1) to read an only one byte char, as this will need to
+read bytes until the whole sequence matches a valid code-point.  Do you
+know how many bytes are hidden in this ? 
 
-Aside the few serious uses I made of this language, I developped in my
-spare time a little Ed clone (the classical unix "ed", line oriented
-text editor).
+Moreover some characters like that stupid up-arrow on your keyboard...
+are historically mapped to an escape sequence consisting of multiple
+bytes.  When '\x1b' is received by stdin is it the esc key or is there
+more data inthe buffer?
 
-Later, I got frustrated when I discovered there was no getch() function in
-the Python standard library....  This go brought some diving in the
-implementation of the linux console.
+1. There is nothing! The user pressed the esc key.
+2. There is! '\x5b\x44' this means the user pressed the up-arrow.
 
-For obvious unicode and encodings related issues, one should never rely
-on sys.stdin.read(1) to read an only one character.  Moreover some
-characters like <CURSOR-UP> are historically mapped to an escape
-sequence consisting of multiple bytes.
+Yes, I know... Easy!
+
+What would happen a little delay takes place before '\x5b\x44' arrives?
+
+There is nothing! The user pressed the esc key.
+New data incomming... '\x5b\x44'... looks like this is valid ascii/utf-8 string.
+This means the user pressed the characters '[A'.
+
+Use blocking/ non-blocking strategies, use tty rates and tricks and get it right!
+
+Of course... Easy!
+
+Mouse events?  Mapped to escape sequences too!  And you need to read a
+few more bytes to know the location on the creen where the event took place.
+
+ and are read from stdin.
+
+stdin 
 
 Vy is a **light** python implementation of the Vi text editor.  It has
 no external dependency outside standard lib.  But it can use the
 Pygments library (if present) for syntax highlighting, and Jedi (if
-present) for things like auto-completion, or python introspection
-related operations.  It aims to stay less than 10_000 lines (including
-doc) and run on any modern python+linux machine.
+present) for things like auto-completion, python introspection, renaming
+variable across a python package <3... related operations.  Vy aims to
+stay less than 10_000 lines (including doc) and run on any modern
+python+linux machine.
 
 At the time of this writing, it it working enough so that I would prefer
 it to the traditionnal vi, and the ability to have the python repl

@@ -105,11 +105,11 @@ def ex_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Fed up of hitting the 'Q' key in vim?  Try the new EX mode !! Use
     the minibar as a python repl.  The Editor can be accessed by the
-    'Editor' variable.
+    'ed' variable.
     ---
     This will evaluate the given expression in the __main__ namespace.
     Any assignment will will be kept.  For more information see 
-    ':help! interface.ex'.
+    ':help vy.interface.ex'.
     """
     return 'ex'
 
@@ -163,3 +163,4 @@ def reload_actions(editor :_Editor, *args, **kwargs):
     _reload(commands)
     _reload(actions)
     editor._init_actions()
+

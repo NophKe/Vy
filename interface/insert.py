@@ -1,8 +1,48 @@
+from vy.utils import async_update
 from vy.keys import _escape
 from vy.editor import _Editor
 from vy.interface.helpers import one_inside_dict_starts_with
+from vy.utils import Cancel
 from vy import keys as k
 
+class Completer:
+    def __init__(self, buffer):
+        self.buff = buffer
+        self.selected = -1
+        self.completion = []
+        self.prefix_len = 0
+        self._last = []
+        
+    def update(self):
+        completion, prefix_len = self.buff.auto_complete()
+        if self._last != (completion, prefix_len):
+            self._last = (completion, prefix_len)
+            self.completion = completion
+            self.prefix_len = prefix_len
+            self.selected = -1
+        minibar_completer.set_value(completion, self.selected)
+        
+    @property
+    def is_active(self):
+        return self.completion and self.selected != -1
+               
+    def move_cursor_up(self):
+        if self.selected > 0:
+            self.selected -= 1
+        else:
+            self.selected = len(self.completion) - 1
+
+    def move_cursor_down(self):
+        if self.selected == len(self.completion) - 1:
+            self.selected = 0
+        else:
+            self.selected += 1
+
+    def select_item(self):
+        if self.is_active:
+            return self.completion[self.selected], self.prefix_len
+        return '', 0
+        
 completion_dict = {}
 def add_to_dict(*keys):
     def inner(func):
@@ -36,7 +76,6 @@ def switch_or_select(editor: _Editor):
     if not editor.current_buffer.current_line[:col-1].strip():
         return False
 
-    completer_engine._async.complete_work()
     if completer_engine.completion and completer_engine.selected == -1:
         completer_engine.move_cursor_up()
         
@@ -95,10 +134,25 @@ def give_up(editor: _Editor):
 
 def monoline_loop(editor: _Editor):
     last_insert = ''
-    minibar_completer(editor.current_buffer.get_completions)
     while True:
-        key_press = editor.read_stdin()
-        if key_press in completion_dict:
+        
+        if not editor._input_queue.qsize():
+            try:
+                completer_engine.update()
+                all_done = True
+            except:
+                all_done = False
+            finally:
+                key_press = editor.read_stdin()
+#            key_press, all_done = async_update(editor.read_stdin, completer_engine.update)
+        else:
+            key_press = editor.read_stdin()
+            all_done = False
+
+#        key_press = editor.read_stdin()
+#        key_press, all_done = async_update(editor.read_stdin, completer_engine.update)
+#        key_press, all_done = editor.read_stdin(), False
+        if (key_press in completion_dict) and all_done:
             if completion_dict[key_press](editor):
                 continue
 
@@ -106,7 +160,6 @@ def monoline_loop(editor: _Editor):
             return key_press
         
         elif key_press.isprintable():
-            editor.current_buffer.undo_list.skip_next()
             editor.current_buffer.insert(key_press)
             last_insert += key_press
             continue
@@ -124,8 +177,9 @@ def init(editor: _Editor):
 def loop(editor: _Editor):
     editor.current_buffer.stop_selection()
     global completer_engine
-    completer_engine = editor.current_buffer.completer_engine
+    completer_engine = Completer(editor.current_buffer)
     user_input = monoline_loop(editor) 
+    
     cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
     
     try:

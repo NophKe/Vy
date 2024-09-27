@@ -5,12 +5,11 @@ This module is a mess that handles screen rendering.
 from os import get_terminal_size
 from sys import stdout
 
-from vy.global_config import DEBUG
-
+from vy.global_config import DEBUG  
 
 def expand_quick(max_col, text):
     if not text:
-        return []
+        return [ ' ' * max_col ]
     line = ''
     line = '\x1b[97;22m'
     on_col = 0
@@ -198,16 +197,21 @@ class CompletionBanner:
         self.make_func = lambda: ([], -1)
         self.selected = -1
         self.pretty_completion = []
+        self.completion = []
+    
+    def set_value(self, completion, selected):
+        self.completion = completion
+        self.selected = selected
 
     def __call__(self, make_func):
-        self.make_func = make_func 
+        self.set_value(*make_func())
 
     def give_up(self):
         self.__init__()
 
     def __iter__(self):
-        self.completion, self.selected = self.make_func()
-        if self.completion and self.selected != -1:
+#        self.completion, self.selected = self.make_func()
+        if self.completion: # and self.selected != -1:
             self.pretty_completion = [
                 f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
                        for index, k in enumerate(self.completion)]
@@ -333,9 +337,7 @@ class Window():
     def vertical_split(self):
         if self._v_split_flag is False:
             return False
-        if self.number_of_col % 2 == 0:
-            return int((self.number_of_col / 2) + self.v_split_shift)
-        return int(((self.number_of_col + 1) / 2) + self.v_split_shift)
+        return ((self.number_of_col + 1) // 2) + self.v_split_shift
 
     def vsplit(self, right_focus=False):
         assert not self._v_split_flag
@@ -402,7 +404,7 @@ class Window():
                 continue
 
             if on_lin == cursor_lin and true_cursor == 0:
-                true_cursor = len(line_list)
+                true_cursor = min_lin + len(line_list)
 
             if start_lin <= on_lin <= stop_lin:
                 if start_lin != on_lin:
@@ -417,7 +419,8 @@ class Window():
                 start_v_col = stop_v_col = 0
 
             to_print = expand(
-                tab_size, max_col, pretty_line, on_lin, cursor_lin, cursor_col, num_len, (start_v_col, stop_v_col)
+                tab_size, max_col, pretty_line, on_lin, cursor_lin,
+                cursor_col, num_len, (start_v_col, stop_v_col)
             )
             if wrap:
                 line_list.extend(to_print)
@@ -425,14 +428,23 @@ class Window():
                 line_list.append(to_print[0])
 
         if wrap:
-            shown_lines = max_lin - min_lin
+            shown_lines =  max_lin - min_lin
             # TODO some wher in this lies the bug
             while len(line_list) != shown_lines:
-                if true_cursor >= max_lin:
-                    line_list.pop()
-                    true_cursor -= 1
-                else:
-                    line_list.pop(0)
+                try:
+                    if true_cursor >= max_lin:
+                        line_list.pop(0)
+                        true_cursor -= 1
+                    else:
+                        line_list.pop()
+                except IndexError:
+                    raise RuntimeError
+                    assert true_cursor, f'{true_cursor = }'
+                    assert line_list, f'{line_list = }'
+                    assert shown_lines, f'{shown_lines = }'
+                    assert cursor_col, f'{cursor_col = }'
+                    assert cursor_lin, f'{cursor_lin = }'
+                    raise
 
         return line_list
 
@@ -461,7 +473,7 @@ class Screen(Window):
 
         columns, lines = get_terminal_size()
         self._number_of_col = columns
-        self._number_of_lin = lines - len(self.minibar_banner) - 1  # 1 for infobar
+        self._number_of_lin = lines - len(self.minibar_banner)  # 1 for infobar
         self.shown_lines = (0, 0)
 
     def vsplit(self):
@@ -497,7 +509,10 @@ class Screen(Window):
 
     def minibar(self, *lines):
 #        assert all(line.isprintable() for line in lines)
-        self._minibar_txt = lines
+        if lines:
+            self._minibar_txt = lines
+        else:
+            self._minibar_txt = ('',)
         return lambda: self.minibar('') if self._minibar_txt == lines else None
     
     @property
@@ -529,6 +544,25 @@ class Screen(Window):
             left = left.ljust(middle, ' ')
         left =  '\x1b[7;1m' + left + '\x1b[27;22m'
         return f"{left}{right}"
+    
+    def recenter(self):
+        curwin = self.focused
+        curbuf = self.focused.buff
+        
+        
+        min_lin, max_lin = curwin.shown_lines
+        if max_lin: # gen_windows() allready got called once
+            try:
+                lin, col = curbuf._cursor_lin_col
+            except ValueError: #buffer in inconsisant state
+                pass
+            else:
+                if lin not in range(min_lin, max_lin):
+                    if lin < min_lin:
+                        curwin.shift_to_lin = lin
+                    elif lin >= max_lin:
+                        page_size = max_lin - min_lin - 1
+                        curwin.shift_to_lin = lin - page_size 
 
     def hide_cursor(self):
         stdout.write('\x1b[?25l')

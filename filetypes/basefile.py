@@ -7,7 +7,7 @@ traditionnal concepts of vim buffers, like motions.
 
 >>> file = BaseFile(init_text='Hello World\n 42\n' , cursor=0)
 
->>> file.move_cursor('w')           # moves to next word ( regex \b )
+>>> file.move_cursor('w')            # moves to next word ( regex \b )
 >>> assert file.cursor == 6
 >>> # assert file[:11] == file[':$']  # vim style buffer slice ( regex ^.*$ ) 
 
@@ -16,8 +16,8 @@ object). If you need to modify the buffer, you can acquire its internal
 lock by using it as a context manager.
 
 >>> with file:
-...     assert file.number_of_lin == len(file.splited_lines) \
-...     == len(file.lines_offsets)
+...        assert file.number_of_lin == len(file.splited_lines) \
+...        == len(file.lines_offsets)
 
 To modify the content of the buffer: use one of its three setters 
 properties. (string,  current_line and cursor). Any modifications of one
@@ -79,8 +79,8 @@ class BaseFile:
     actions = {}
     ending = '\n'   
     
-    set_tabsize=4
-    set_wrap=True
+    set_tabsize = 4
+    set_wrap = True
     set_autoindent = False
     set_expandtabs = False
     set_number = True
@@ -93,53 +93,65 @@ class BaseFile:
         self._undo_flag = True
         self._states = [init_text]
         self._number_of_lin = 0
-        self._cursor = 0
         self._cursor_lin_col = ()
-        self._string = ''
-        self._lenght = 0
         self._current_line = ''
         self._lines_offsets = list()
-        self._splited_lines = list()
         self._async_tasks = Cancel()
         self._lock = RLock()
         self._recursion = 0
 
         self.path = path # must be first
-        self.undo_list = _HistoryList()
-        self.string = init_text
-        self.cursor = cursor
+        self.undo_list = _HistoryList(initial=(init_text, cursor), name='undo list')
         self.word_set = set()
 
-        for line in self.splited_lines:
+        # give the buffer its initial content
+        self._lenght = len(init_text)
+        self._cursor = cursor
+        self._string = init_text
+        _splited_lines = init_text.splitlines(True)
+        self._splited_lines = _splited_lines
+
+        # trigger properties computation
+        self.cursor_lin_col
+        self.number_of_lin
+
+        for line in _splited_lines:
             for w in make_word_set(line):
                 if w not in self.word_set:
                     self.ANY_BUFFER_WORD_SET.add(w)
                     self.word_set.add(w)
-
     
     def auto_complete(self, ns={}):
-        word = self.string[self.find_previous_delim()+1:self.cursor]
-        prefix_len = len(word)
-        if prefix_len:
-            rv = [item for item in self.word_set if item.startswith(word)]
-            if not rv or (len(rv) == 1 and rv[0] == word):
-                rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
-            return rv, prefix_len
-        return [], 0
+        with self._lock:
+            try:
+                rv, prefix_len = ns[self.string][self.cursor_lin_col]
+            except KeyError:
+                word = self.string[self.find_previous_delim():self.cursor+1].strip()
+                prefix_len = len(word)
+                if prefix_len:
+                    rv = [item for item in self.word_set if item.startswith(word)]
+                    if not rv or (len(rv) == 1 and rv[0] == word):
+                        rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
+                else:
+                    rv = []
+                if self.string not in ns:
+                    ns[self.string] = {}
+            finally:
+                return rv, prefix_len
 
     def __enter__(self):
-        with self._lock:
-            self._recursion +=  1
+            self._lock.acquire()
+            self._recursion += 1
             if self._recursion == 1:
                 self._async_tasks.cancel_work()
-                self._lock.acquire()
-        return self
+            else:
+                self._lock.release()
+            return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        with self._lock:
-            self._recursion -=  1
+            self._recursion -=    1
             if self._recursion == 0:
-                self.set_undo_point()
+                self._test_all_assertions()
                 self._async_tasks.allow_work()
                 self._lock.release()
 
@@ -256,6 +268,7 @@ class BaseFile:
         """
         with self._lock:
             if not self._splited_lines:
+#                assert self._string
                 #self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
                 self._splited_lines = [line for line in self.string.splitlines(True)]
             return self._splited_lines
@@ -270,13 +283,19 @@ class BaseFile:
                 self._number_of_lin = len(self.splited_lines)
             return self._number_of_lin
 
+
+    def generate_properties(self):
+        from itertools import accumulate
+#        self._lines_offsets = list(accumulate(map(len, splited_lines), sum))
+        return list(accumulate(map(len, self.splited_lines), initial=0))
+                
     def suppr(self):
         r"""
         Like the key strike, deletes the character under the cursor.
 
         >>> x = BaseFile(init_text='0123\n5678', cursor=0)
         >>> for _ in range(12):
-        ...     x.suppr()
+        ...        x.suppr()
         >>> x.string
         '\n'
         """
@@ -292,6 +311,7 @@ class BaseFile:
         col -= 1
         if cur_lin[col]  == '\n':
             self.join_line_with_next()
+#            self._string_suppr()
             return
         self._current_line  = f'{cur_lin[:col]}{cur_lin[col + 1:]}'
         self._splited_lines[lin] = self._current_line
@@ -331,12 +351,12 @@ class BaseFile:
         cur = self.cursor
         self._string = f'{string[:cur]}{value}{string[cur:]}'
         self._cursor += len(value)
-        self._number_of_lin = 0
+        self._number_of_lin = self._string.count('\n')
         self._lines_offsets.clear()
         self._lenght = len(self._string)
         self._current_line = ''
         self._cursor_lin_col = ()
-        self._splited_lines = []
+        self._splited_lines.clear()
 
     def _list_insert(self, value):
         lin, col = self.cursor_lin_col
@@ -414,8 +434,7 @@ class BaseFile:
                 self._splited_lines.pop(next_line_idx)
                 self._lines_offsets.clear()
                 self._lenght -=1
-                if self._number_of_lin:
-                    self._number_of_lin -= 1
+                self._number_of_lin -= 1
                 self._string = ''
 
     def insert_newline(self):
@@ -475,8 +494,7 @@ class BaseFile:
 
     @cursor.setter
     def cursor(self, value):
-        assert 0 <= value <= self._lenght
-#        assert 0 <= value < self._lenght
+        assert 0 <= value < self._lenght
         with self._lock:
             self._current_line = ''
             self._cursor_lin_col = ()
@@ -489,7 +507,7 @@ class BaseFile:
             return
         with self:
             self._current_line = ''
-            self._number_of_lin = 0
+            self._number_of_lin = value.count('\n')
             self._splited_lines.clear()
             self._lines_offsets.clear()
             if not value.endswith(self.ending):
@@ -500,22 +518,53 @@ class BaseFile:
             self._cursor_lin_col = ()
 
     def set_undo_point(self):
+        try:
+            last_saved = self.undo_list.last_record()[0]
+        except IndexError:
+            last_saved = ''
+            
         with self._lock:
-            self.undo_list.append((self.splited_lines.copy(), self.cursor_lin_col, hash(self.string)))
+            value = self.string
+            position = self._cursor_lin_col or self._cursor
+            if last_saved != value:	
+                self.undo_list.append((value, position))
 
     def undo(self):
         with self:
-            self.undo_list.skip_next()          # first
-            txt, pos, _ = self.undo_list.pop()  # second
-            self.string = ''.join(txt)
-            self.cursor_lin_col = pos
+            self.undo_list.skip_next()            # first
+            txt, pos = self.undo_list.pop()    # second
+            if isinstance(txt, str):
+                self.string = txt
+            elif isinstance(txt, list):
+                self._splited_lines = txt
+            else:
+                raise TypeError
+                
+            if isinstance(pos, tuple):
+                self.cursor_lin_col = pos
+            elif isinstance(pos, int):
+                self.cursor = pos
+            else:
+                raise TypeError
             
     def redo(self):
         with self:
-            self.undo_list.skip_next()          # must skip even if push or pop
-            txt, pos, _ = self.undo_list.push() # raises
-            self.string = ''.join(txt)
-            self.cursor_lin_col = pos
+            self.undo_list.skip_next()            # must skip even if push or pop
+            txt, pos = self.undo_list.push() # raises
+            if isinstance(txt, str):
+                self.string = txt
+            elif isinstance(txt, list):
+                self._splited_lines = txt
+            else:
+                raise TypeError
+                
+            if isinstance(pos, tuple):
+                self.cursor_lin_col = pos
+            elif isinstance(pos, int):
+                self.cursor = pos
+            else:
+                raise TypeError
+            
         
     def find_end_of_line(self):
         r"""
@@ -533,9 +582,9 @@ class BaseFile:
         r"""
         This should correspond to normal mode 'e' motion.
         #>>> x=BaseFile(init_text="foo,bar;baz.foo,bar/baz!foo%bar")
-        #>>> # breaks      ||  ||  ||  ||  ||  ||  ||  |             
-        #>>> # breaks      2|  6| 10| 14| 18| 22| 26| 30             
-        #>>> # breaks       3   7  11  15  19  23  27                
+        #>>> # breaks       ||  ||  ||  ||  ||  ||  ||  |             
+        #>>> # breaks       2|  6| 10| 14| 18| 22| 26| 30             
+        #>>> # breaks        3    7  11  15  19  23  27                 
         """
         global DELIMS
         places = set()
@@ -742,6 +791,7 @@ class BaseFile:
 # Saving mechanism
     def save(self):
         assert self.path is not None
+        self._repr = None
         self.path.write_text(self.string)
         self._states.append(self.string)
 
@@ -767,9 +817,10 @@ class BaseFile:
 
     @property
     def unsaved(self):
-        if self.path is None or not self.path.exists():
-            return self.string and self.string != '\n'
-        return self._states[-1] != self.string != '\n'
+        if self.path and self.path.exists():
+            if (last_saved := self._states[-1]):
+                return last_saved != self.string != '\n'
+        return self.string != '\n'
 
     def find_normal_l(self):
         try:
@@ -807,26 +858,38 @@ class BaseFile:
         elif target == ')' : return self.find_next_token()
         else: raise RuntimeError('vy internal error: not a valid motion')
 
+    def __str__(self):
+        return ('writeable ' if self.modifiable else 'read-only ') + self.__class__.__name__ 
+        
     @property
     def header(self):
         if not self._repr:
-            self._repr = ( ('writeable ' if self.modifiable else 'read-only ')
-                          + self.__class__.__name__ 
+            self._repr = (str(self) 
                           + ': '
-                          + ( str(self.path.relative_to(self.path.cwd())) if self.path and self.path.is_relative_to(self.path.cwd())
-                              else str(self.path.resolve()) if self.path 
-                              else '( undound to file system )' ) )
+                          + ( str(self.path.relative_to(self.path.cwd(), walk_up=True)) if self.path 
+                              else '( undound to file system )' )
+                          )
         return self._repr
+    
     @property
     def footer(self):
-        current_state = self.string
+        current_state = self._string
         known_status = self._states
-        state = ('oldest state' if current_state is known_status[0]
-                 else 'saved' if current_state is known_status[-1]
-                 else 'previous record' if current_state in known_status
-                 else 'modified' ) 
-        return ' ( ' + state + ' )' if state else ''
+        return ('( original state )' if current_state == known_status[0]
+                else '( saved )' if current_state == known_status[-1]
+                else '( edited )') + str(self.undo_list)
 
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+    
+    def _test_all_assertions(self):
+        assert (_string := self._string) or (_string := ''.join(self._splited_lines))
+        assert (_splited_lines := self._splited_lines) or (_splited_lines := _string.splitlines(True))
+        assert (_number_of_lin := self._number_of_lin)
+        
+        assert ''.join(_splited_lines) == _string
+        assert self._lenght == len(self) == len(_string)
+        
+        assert _number_of_lin == len(_splited_lines) == len(self.lines_offsets)
+        assert self._cursor == self.lines_offsets[self.current_line_idx] + self.cursor_lin_col[1] - 1
+
+#        assert self.lines_offsets == self.generate_properties()
+        

@@ -47,6 +47,10 @@ parser.add_argument('--debug', default=False,
             action="store_true",
             help='Screen shows selected infos and enter the debugger.')
 
+parser.add_argument('--new-config', default=False,
+            action="store_true",
+            help='restart configuration, global settings and persitance files from scratch.')
+            
 parser.add_argument('--no-user-config', default=False,
             action="store_true",
             help='Do not read user config folder.')
@@ -81,11 +85,23 @@ global_config.DEBUG = cmdline.debug
 
 ########    SIGNAL HANDLING    #######################################
 
-from signal import signal, raise_signal, SIGKILL
+from signal import signal, raise_signal, SIGKILL, SIGUSR1
+from pdb import post_mortem
 import faulthandler
 import threading
 import sys
 import traceback
+import subprocess
+
+#faulthandler.enable()
+
+def dump_traceback(*args):
+    subprocess.call('reset')
+    faulthandler.dump_traceback(all_threads=True)
+    raise_signal(SIGKILL)
+
+signal(SIGUSR1, dump_traceback)
+
 
 def enter_debugger():
     try: Editor.stop_async_io()
@@ -105,21 +121,36 @@ def raise_unraisable(unraisable):
         try:
             Editor.stop_async_io()
         except BaseException as exc:
+            print('the editor was either not in async_io mode or switching')     
+            print('back to synchronous mode failed')
             print(exc)
 
     from traceback import print_tb
+    print()
+    faulthandler.dump_traceback(all_threads=True)
+    print()
     print(  'The following *unhandled* exception was encountered:\n'
            f'  >  {str(unraisable.exc_type)} indicating:\n'
            f'  >  {unraisable.exc_value}\n')
     print_tb(unraisable.exc_traceback)
-    print()
-    faulthandler.dump_traceback(all_threads=True)
-    print()
+    type_, value_, trace_ = sys.exc_info()
+    try:
+        input('Press [CTRL+C] to close immediatly\n'
+              'or    [CTRL+D] to start debugger\n\r\t')
+    except EOFError:
+        try:
+            post_mortem(trace_)
+            raise_signal(SIGKILL)
+        except:
+            raise_signal(SIGKILL)
+            pass
+    finally:
+        print('cannot recover from async threads failures')
+        raise_signal(SIGKILL)
     raise_signal(SIGKILL)
 threading.excepthook = raise_unraisable
 
 
-print('Vy is starting.')
 
 from vy.editor import _Editor
 Editor = _Editor(*cmdline.files, command_line=cmdline)

@@ -111,6 +111,7 @@ behaviour differs from what you may be used to in Vim, this will be
 stated as clearly as possible.  Lasts sections will be about the help
 system and the internals of the different commands implementations.
 """
+
 #
 #  When the documentation get generated, Vy will aggregate:
 #    - The module's docstring
@@ -122,7 +123,6 @@ system and the internals of the different commands implementations.
 #
 #  *All* docstrings and all doc_* variables must start and end by newline
 #
-
 from vy.editor import _Editor
 from vy import keys as _k
 from vy.actions.helpers import sa_commands as _sa_commands
@@ -140,9 +140,32 @@ from vy.actions.linewise import *
 
 @_atomic_commands(f"{_k.C_L} :redraw :redraw!")
 def restart_screen(editor, *args, **kwargs):
+    """
+    This restart the editor screen, by restarting async input/output
+    threads handled by the editor.
+    """
     editor.stop_async_io()
     editor.start_async_io()
 
+
+@_atomic_commands(':time')
+def show_time(editor, *args, **kwargs):
+    """
+    Give actual time.
+    """
+    from time import asctime
+    editor.screen.minibar(str(asctime()))
+
+@_atomic_commands(f':suspend {_k.C_Z}')
+def suspend_to_shell(editor :_Editor, *args, **kwargs):
+    """
+    Suspend execution.  Use [Ctrl+Z] or fg from your shell to get back.
+    """
+    from signal import raise_signal, SIGTSTP
+    editor.stop_async_io()
+    raise_signal(SIGTSTP)
+    editor.start_async_io()
+    show_time(editor) 
 
 @_sa_commands(f"{_k.C_O}")
 def go_back_in_jump_list(editor, count=1, *args, **kwargs):
@@ -242,6 +265,7 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
 @_atomic_commands(":pwd :pw :pwd-verbose")
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
+
     editor.screen.minibar(str(Path.cwd()))
 
 
@@ -250,7 +274,7 @@ def show_buffers(editor, reg=None, part=None, arg=None, count=1):
     """
     Shows the list of «cached» buffers.
     """
-    editor.warning(repr(editor.cache))
+    editor.warning(str(editor.cache))
     return "normal"
 
 
@@ -287,7 +311,7 @@ def do_edit_next_unsaved_buffer(editor, reg=None, part=None, arg=None, count=1):
         if buf.unsaved:
             next_one = buf
             editor.edit(next_one)
-            editor.warning( f"buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)")
+            editor.warning(f"buffer: {repr(editor.current_buffer)} save (:w) or leave! (:q!)")
             break
     else:
         if editor.current_window is editor.screen:
@@ -334,9 +358,7 @@ def do_save_current_buffer_and_force_leave_window(editor, reg=None, part=None, a
 
 
 @_atomic_commands(":wq :x :xit :exit ZZ")
-def do_save_current_buffer_and_try_leave_window(
-    editor, reg=None, part=None, arg=None, count=1
-):
+def do_save_current_buffer_and_try_leave_window(editor, reg=None, part=None, arg=None, count=1):
     """
     Saves the current buffer and leaves its window. If it is the only open
     window and no unsaved buffer in cache, leaves the editor.
@@ -429,6 +451,7 @@ def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
     """
     raise SystemExit
 
+
 @_atomic_commands("zz")
 def do_zz(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -479,9 +502,7 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     """
     curwin = editor.current_window
     curbuf = editor.current_buffer
-    curwin.shift_to_lin = max(
-        curwin.number_of_lin, (curwin.shift_to_lin + curwin.number_of_lin)
-    )
+    curwin.shift_to_lin = max(curwin.number_of_lin, (curwin.shift_to_lin + curwin.number_of_lin))
     current_line_idx, cursor_col = curbuf.cursor_lin_col
     if curwin.shift_to_lin > current_line_idx:
         curbuf.cursor_lin_col = curwin.shift_to_lin, cursor_col
@@ -510,12 +531,12 @@ def scroll_one_line_up(editor, reg=None, part=None, arg=None, count=1):
     """
     curwin = editor.current_window
     curbuf = editor.current_buffer
+    current_line_idx, col = curbuf.cursor_lin_col
+
+    if curwin.shift_to_lin + curwin.number_of_lin + 1 < current_line_idx:
+        curbuf.cursor_lin_col = current_line_idx - 1, col
     if curwin.shift_to_lin > 0:
         curwin.shift_to_lin -= 1
-    current_line_idx, col = curbuf.cursor_lin_col
-    # TODO Here is a race condition screen get recenterd to soon...
-    if curwin.shift_to_lin + curwin.number_of_lin < current_line_idx:
-        curbuf.cursor_lin_col = current_line_idx - 1, col
 
 
 @_atomic_commands(f"z{_k.C_M}")
@@ -641,7 +662,7 @@ def do_paste_after(editor, reg='"', part=None, arg=None, count=1):
     Paste the text from specified register after the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    if (to_insert := editor.registr[reg]):
+    if to_insert := editor.registr[reg]:
         with editor.current_buffer as curbuf:
             if "\n" in to_insert:
                 curbuf.move_cursor("$")
@@ -656,7 +677,7 @@ def do_paste_before(editor, reg='"', part=None, arg=None, count=1):
     Paste the text from specified register before the cursor.
     By default, if no register is specified the default "" register is used.
     """
-    if (to_insert := editor.registr[reg]):
+    if to_insert := editor.registr[reg]:
         with editor.current_buffer as curbuf:
             if "\n" in to_insert:
                 curbuf.cursor = curbuf.find_begining_of_line()
@@ -674,9 +695,10 @@ def do_normal_gf(editor: _Editor, reg=None, part=None, arg=None, count=1):
     dots (as in a python package), Vym will search in the parents directories.
     """
     from pathlib import Path
+
     cur_buf = editor.current_buffer
     filename = cur_buf[cur_buf.inner_WORD()].lstrip().strip()
-    
+
     if filename.startswith("/") or filename[1:3] == ":\\":
         if Path(filename).exists():
             return editor.edit(filename)
@@ -686,8 +708,7 @@ def do_normal_gf(editor: _Editor, reg=None, part=None, arg=None, count=1):
         cur_buf.path.parent / filename,
         cur_buf.path.parent / (filename + ".py"),
         cur_buf.path.parent / (filename.removeprefix(".").replace(".", "/") + ".py"),
-        cur_buf.path.parent.parent.parent
-        / (filename.removeprefix("..").replace(".", "/") + ".py"),
+        cur_buf.path.parent.parent.parent / (filename.removeprefix("..").replace(".", "/") + ".py"),
         cur_buf.path.parent / (filename.removeprefix(".").replace(".", "/") + ".py"),
     ]:
         if guess.exists():
@@ -701,6 +722,7 @@ def reload_last_saved(editor: _Editor, *args, **kwargs):
     last_record = editor.current_buffer.path.read_text()
     editor.current_buffer.string = last_record
     editor.current_buffer.cursor = 0
+
 
 @_sa_commands("q")
 def record_macro(editor, reg=None, part=None, arg=None, count=1):
@@ -744,4 +766,3 @@ def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=
             continue
     else:
         next(iter(editor.screen)).set_focus()
-    

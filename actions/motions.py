@@ -306,25 +306,28 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     Moves the cursor to next occurrence of last searched text.
     """
     needle = editor.registr['/']
-    if needle:
+    if not needle:
+        editor.screen.minibar(' ( No previous search. )')
+    else:
         curbuf = editor.current_buffer
+        find = curbuf.string.find
         current_offset = curbuf.cursor
-        offset = curbuf.string.find(needle, current_offset) 
         
+        offset = find(needle, current_offset) 
         if offset == current_offset:
-            offset = curbuf.string.find(needle, current_offset + 1)
+            offset = find(needle, current_offset + 1)
 
         if offset == -1:
             editor.screen.minibar(f'String: «{needle}» not found, retrying from first line.')
-            offset = curbuf.string.find(needle)
+            offset = find(needle)
     
         if offset == -1:
             editor.screen.minibar(f'String: «{needle}» not found!')
         else:
-            curbuf.cursor = offset    
-        editor.actions.normal('zz')
-    else:
-        editor.screen.minibar(' ( No previous search. )')
+            with curbuf._lock:
+                curbuf.cursor = offset    
+                editor.actions.normal('zz')
+                editor.screen.recenter()
         
     
 @_motion_commands("N")
@@ -350,6 +353,7 @@ def do_normal_N(editor: _Editor, reg=None, part=None, arg=None, count=1):
             editor.screen.minibar('String not found!')
             return 'normal'
     
+        curbuf.cursor = offset    
         editor.actions.normal('zz')
     else:
         editor.minibar(' ( No previous search. )')

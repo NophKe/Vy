@@ -26,6 +26,7 @@ from vy.filetypes import Open_path
 from vy.console import getch_noblock
 from vy.global_config import DEBUG, USER_DIR, DONT_USE_USER_CONFIG
 from vy.utils import _HistoryList
+from vy.clipboard import get_os_clipboard, set_os_clipboard
 
 class _Cache:
     """
@@ -67,8 +68,9 @@ class _Cache:
             buff.cache_id = self._counter
             self._counter +=1
             return buff
+        
         try:
-            return self._dic[(key := self._make_key(key))]
+            return self._dic[(key :=self._make_key(key))]
         except KeyError:
             new_buffer = Open_path(key)
             self._dic[key] = new_buffer
@@ -98,7 +100,7 @@ class _Cache:
     def __str__(self):
         rv = ''
         for buff in self._dic.values():
-            rv += f'{buff.path.relative_to(Path().cwd()) if buff.path else buff.cache_id}\t:\t{repr(buff)}\n'
+            rv += f'{buff.path.relative_to(Path().cwd()) if buff.path else buff.cache_id}\t:\t{str(buff)}\n'
         return rv
 
     def __iter__(self):
@@ -143,8 +145,7 @@ class _Register:
         assert isinstance(key, str)
         assert key in self.valid_registers
         if key == '+':
-            import pyperclip
-            rv = pyperclip.paste()
+            rv = get_os_clipboard()
             self['"'] = rv
             return rv
             
@@ -162,8 +163,7 @@ class _Register:
         if key == '_':
             return
         elif key == '+':
-            import pyperclip
-            pyperclip.copy(value)
+            set_os_clipboard(value)
             self['"'] = value
         
         elif key in ':.>':
@@ -289,9 +289,10 @@ class _Editor:
         except IndexError:
             self.jump_list.append((curbuf, lin, col))
         else:
-            if last_buf is curbuf and (last_lin == lin): #or last_col == col): 
-                return
-            self.jump_list.append((curbuf, lin, col))
+            if (last_buf is curbuf) and (last_lin == lin) or (last_col == col): 
+                pass
+            else:
+                self.jump_list.append((curbuf, lin, col))
     
     def read_stdin(self):
         if self._macro_keys:
@@ -362,22 +363,9 @@ class _Editor:
     def current_buffer(self): 
         return self.screen.focused.buff
 
-    def recenter_screen(self):
-        curwin = self.screen.focused
-        min_lin, max_lin = curwin.shown_lines
-        if max_lin: # gen_windows() allready got called once
-            try:
-                lin, col = curwin.buff._cursor_lin_col
-            except ValueError: #buffer in inconsisant state
-                pass
-            else:
-                if lin < min_lin:
-                    curwin.shift_to_lin = lin
-                elif lin >= max_lin:
-                    page_size = max_lin - min_lin - 1
-                    curwin.shift_to_lin = lin - page_size 
-
     def print_loop(self):
+        from vy.utils import async_update
+        
         old_screen = list()
         infobar = self.screen.infobar
         missed = 0
@@ -388,18 +376,17 @@ class _Editor:
         filtered = ''
         new_screen = list()
         old_screen = list()
+        
 
         while self._async_io_flag:
             sleep(0.04)             # do not try more than  25fps
-            if ((now := time()) - start) > 1: # and force redraw every 2 seconds
-                old_screen = []
+            if ((now := time()) - start) > 5: # and force redraw every 2 seconds
+                old_screen.clear()
                 start = now
 
             if ok_flag and not left_keys(): # > 1:
-                self.recenter_screen()
+                self.screen.recenter()
                 self.screen.infobar(f' {self.current_mode.upper()} ', '')
-                pass
-#                self.screen.infobar(f' {self.current_mode.upper()} ', repr(self.current_buffer))
             else:
                 sleep(0.04)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
@@ -476,6 +463,7 @@ class _Editor:
             return self.edit(buff)
 
         import gc
+        gc.collect()
         gc.freeze()
 
         if buff:
@@ -488,6 +476,7 @@ class _Editor:
         try:
             self.start_async_io()
             self._running = True
+            self.screen.minibar('Welcome to Vy.   (type :h to get help)')
             self.current_mode = mode
 
             while True:
@@ -495,6 +484,7 @@ class _Editor:
                     self.current_mode = self.interface(self.current_mode) \
                                         or self.current_mode
                     self.save_in_jump_list()
+                    self.current_buffer.set_undo_point()
 #                    self.recenter_screen()
                     continue
                 except SystemExit:

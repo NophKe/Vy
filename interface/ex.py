@@ -75,7 +75,7 @@ def my_print(*args, **kwargs):
             to_print.extend(arg.splitlines())
         else:
             to_print.extend(repr(arg).splitlines())
-    return to_print
+    return '\n'.join(to_print)
         
 def populate_namespace(editor):
     def my_help(*args, **kwargs):
@@ -95,8 +95,8 @@ def loop(editor: _Editor):
         if isinstance(arg, str):
             return editor.screen.minibar(*arg.splitlines())
         else:
-            return editor.screen.minibar(pformat(arg).splitlines())
-        editor.screen.minibar(repr(arg))
+            return editor.screen.minibar(*pformat(arg).splitlines())
+#        editor.screen.minibar(repr(arg))
     
     populate_namespace(editor)
     sys.displayhook = my_display_hook
@@ -105,16 +105,14 @@ def loop(editor: _Editor):
         more = console.push(line)
         
         if more and line:        
-            while more or line:
-                if console.buffer:
-                    prompt = '... ' if more else '>>> '
-                    screen = [prompt + val.removesuffix('\n') for val in console.buffer]
-                else:
-                    screen = []
+            screen = ['>>> ' + line.removesuffix('\n')]
+            while more:
                 line = readline(buffered=screen)
-                more = console.push(line)
+                screen.append('... ' + line.removesuffix('\n'))
                 editor.registr['>'] += line
+                more = console.push(line)
     finally:
         sys.displayhook = sys.__displayhook__ # back to original
+#        return 'ex'
         return 'normal'
 

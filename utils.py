@@ -1,7 +1,8 @@
 from threading import Event as _Event
 from threading import Thread
-from threading import Lock
-from queue import Queue
+from threading import current_thread
+from threading import Lock, RLock
+from queue import Queue, Empty
 
 class Event(_Event):
     def __bool__(self):
@@ -87,7 +88,7 @@ class DummyLine:
 
     @cursor.setter
     def cursor(self, value):
-        assert len(self) >= value >= 0
+        # assert len(self) >= value >= 0
         self._cursor = value
 
     def __len__(self):
@@ -101,10 +102,14 @@ class TextLine(DummyLine):
     ending = '\n'
 
 class _HistoryList:
-    def __init__(self):
+    _no_value = object()
+    def __init__(self,initial=_no_value, name='undo list'):
         self.data = list()
         self.pointer = 0
         self.skip = False
+        self.name = name
+        if initial is not self._no_value:
+            self.append(initial)
     
     def append(self, value):
         if self.skip:
@@ -126,7 +131,7 @@ class _HistoryList:
         return self.data[self.pointer-1]
     
     def skip_next(self):
-        assert not self.skip        
+        # assert not self.skip          
         self.skip = True        
         
     def last_record(self):
@@ -138,59 +143,12 @@ class _HistoryList:
         raise IndexError
 
     def __str__(self):
-        return '\n'.join( repr(value) + ' <-- pointer' if idx == self.pointer 
-                          else repr(value) for idx, value in enumerate(self.data) )
-
-class Cancel:
-    def __init__(self):
-        self.lock = Lock()
-        self.must_stop = Event()
-        self.task_done = Event()
-        self.restart = Queue(1)
-        self.working = False
-        self.cancelled = False
-
-    def notify_working(self):
-        while self.must_stop.wait(0):
-            pass
-        with self.lock:
-            self.working = True
-            
-    def notify_task_done(self):
-        self.task_done.set()
-        self.notify_stopped()
+        return f'( {self.name}: #{self.pointer} /{len(self.data)} )'
         
-    def notify_stopped(self):
-        self.must_stop.wait()
-        self.restart.put(None)
-        self.restart.join()
-
-    def cancel_work(self):
-        if not self.cancelled:
-            self.lock.acquire()
-            self.must_stop.set()
-            if self.working:
-                self.restart.get()
-            self.task_done.clear()
-            self.cancelled = True
-
-    def complete_work(self):
-        self.task_done.wait()
-
-    def restart_work(self):
-        self.cancel_work()
-        self.allow_work()
-
-    def allow_work(self):
-        self.cancelled = False
-        self.must_stop.clear()
-        if self.working:
-            self.restart.task_done()
-            self.working = False
-        self.lock.release()
+    def __len__(self):
+        return len(self.data)
 
 from _thread import allocate_lock
-from threading import current_thread
 
 class RwLock:
     def __init__(self):
@@ -218,67 +176,112 @@ class RwLock:
         assert not self.members
         self.write_lock.release()
 
-class AtomicCounter:
-    def __init__(self, start=0):
-        self.lock = allocate_lock()
-        self.value = start
-        
-    def increment(self):
-        with self.lock:
-            self.value += 1
+    def upgrade_to_writing(self):
+        ...
 
-    def decrement(self):
-        with self.lock:
-            self.value -= 1
+def eval_effified_str(string):
+    # better not work on it now
+    return string
+    # Is ther really a solution without any edge corner ?
+    return eval('f"{' + string + '}"')
+    if string[0] == string[-1] == '"':
+        return string
+    if string[0] == string[-1] == "'":
+        return string
+    return eval('f"{' + string + '}"')
 
-    def __bool__(self):
-        return self.value != 0
+from concurrent.futures import ThreadPoolExecutor, FIRST_COMPLETED, wait
+pool = ThreadPoolExecutor()
 
-class Canceller:
+def async_update(blocking_call, update):
+        future_key_press = pool.submit(blocking_call)         
+        new_update = pool.submit(update)
+        wait((future_key_press, new_update), return_when=FIRST_COMPLETED)
+        if not future_key_press.running():
+            new_update.cancel()
+#             Thread(target=new_update.result).start()
+            return future_key_press.result(), False
+        return future_key_press.result(), True
+
+class Cancel:
     def __init__(self):
-        self.lock = RwLock()
-        self.must_stop = AtomicCounter()
-        self.waiters = []
-        self.owner = None
+        self.lock = Lock()
+        self.must_stop = Event()
+        self.task_done = Event()
+        self.task_restarted = Event()
+        self.task_started = False
+        self.state = 'stop init'
+        
+    def __str__(self):
+        return '\n'.join((f'{self.lock}',
+                f'{self.state = }',
+                f'{current_thread() = }',
+                f'{self.must_stop.is_set()=}',
+                f'{self.task_done.is_set()=}',
+                f'{self.task_restarted.is_set()=}',
+                f'{self.task_started= }\n'))
+            
 
     def notify_working(self):
-        self.lock.lock_reading()
+        while not self.lock.acquire(blocking=False):
+            assert not self.task_started
+            assert not self.task_restarted
+#        self.lock.acquire()
+        self.state = 'worker got the lock'
+        self.task_started = True
+        self.lock.release()
+            
+    def notify_task_done(self):
+        self.state = 'worker notified done'
+        self.task_done.set()
+        self.notify_stopped()
         
     def notify_stopped(self):
-        wait_event = allocate_lock()
-        wait_event.acquire()
-        self.waiters.append(wait_event)
-        self.lock.unlock_reading()
-        wait_event.acquire()
-        wait_event.release()
+        self.state = 'worker notified stop'
+        assert self.task_started, str(self)
+        assert not self.task_restarted.is_set(), str(self)
+        
+        self.must_stop.wait()
+        
+        self.state = 'worker stopped waiting'
+        assert self.must_stop.is_set(), str(self)
+        assert self.task_started, str(self)
+        assert not self.task_restarted.is_set(), str(self)
+        
+        self.task_restarted.set()
 
     def cancel_work(self):
-        if self.owner != current_thread:
-            self.lock.lock_writing()            
-            self.owner = current_thread()
-        self.must_stop.increment()
+        self.lock.acquire()
+        
+        self.state = 'master request cancel'
+        assert not self.must_stop.is_set(), str(self)
+        assert not self.task_restarted.is_set(), str(self)
+        
+        if self.task_started:
+            self.must_stop.set()
+            self.task_restarted.wait()
+        
+            assert self.task_restarted.is_set(), str(self)
+            
+            self.task_restarted.clear()
+            self.task_done.clear()
+            self.must_stop.clear()
+            self.task_started = False
+            
+    def complete_work(self):
+        self.state = 'master request task to be done'
+        self.task_done.wait()
 
     def restart_work(self):
         self.cancel_work()
         self.allow_work()
 
     def allow_work(self):
-        self.must_stop.decrement()
-        if not self.must_stop:
-            for waiter in self.waiters:
-                waiter.release()
-            self.waiters.clear()
-        self.lock.unlock_writing()
-
-#Cancel = Canceller
-
-
-class AsyncTask:
-    def __init__(self, buffer):
-        self.buffer = buffer
-        self.thread_handle
-    def worker(self, *args, **kwargs):
-        pass
-    def start():
-        pass
+        self.state = 'master allows worker'
+        assert self.lock.locked(), str(self)
+        assert not self.must_stop.is_set(), str(self)
+        assert not self.task_done.is_set(), str(self)
+        assert not self.task_restarted.is_set(), str(self)
+        assert not self.task_started, str(self)
         
+        self.lock.release()

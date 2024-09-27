@@ -13,7 +13,8 @@ def loop(editor):
     if user_input:
         editor.registr['/'] = user_input
     
-    editor.actions.normal('n')
-    editor.actions.normal('zz')
+    with editor.current_buffer:
+        editor.actions.normal('n')
+        editor.actions.normal('zz')
     return 'normal'
     

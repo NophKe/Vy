@@ -22,7 +22,7 @@ prevented several call to the import machinery.
 """
 
 from select import select
-from sys import stdin
+from sys import __stdin__ as stdin
 from termios import tcgetattr, tcsetattr
 
 #### All Flags above could have been imported
@@ -31,9 +31,10 @@ from termios import tcgetattr, tcsetattr
 
 ### tcsetattr() and tcsetattr() scheduling policy
 #
-TCSANOW = 0  # to change immediately
-TCSADRAIN = 1  # to change after transmitting all queued output
-TCSAFLUSH = 2  #  after TCSADRAIN and discarding all queued input.
+               # Changes must take effect
+TCSANOW = 0    # - immediately
+TCSADRAIN = 1  # - after transmitting all queued output
+TCSAFLUSH = 2  # - after TCSADRAIN and discarding all queued input.
 
 ##
 #
@@ -115,7 +116,7 @@ def getch():
     return rv
 
 
-def getch_noblock():
+def getch_noblock_base():
     """
     This is the couter-part of the getch() function from the same
     module.  getch_noblock() returns a generator yielding key strokes or
@@ -190,3 +191,4 @@ def getch_noblock_debug():
             file.flush()
         yield key_press
 
+getch_noblock = getch_noblock_base

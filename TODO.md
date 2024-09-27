@@ -1,7 +1,6 @@
 Future / Ideas / Enhancements
 -----------------------------
 
-- Integrate with OS clipboard
 - Make it a standalone app embedding python
 
 Known Bugs
@@ -14,4 +13,3 @@ Benchmarking / testing
 ----------------------
 
 - add more testing
-- test Editor classs instanciation

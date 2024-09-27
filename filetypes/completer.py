@@ -12,7 +12,7 @@ class Completer:
         self._last = (0,0)
         self.last_version = None
         
-        Thread(target=self.generate, args=(),daemon=True).start()
+#        Thread(target=self.generate, args=(),daemon=True).start()
         
     @property
     def is_active(self):
@@ -25,6 +25,7 @@ class Completer:
             if self.last_version is not version:
                 self.last_version = version
             
+#            raise RuntimeError
             result, prefix = self.buff.auto_complete()
             if result:
                 self.completion, self.prefix_len = result, prefix

@@ -66,9 +66,10 @@ class CommandCompleter:
             readline.add_history(item)
 
 local_completer = CommandCompleter('python_history')
+base_env = {'exit': lambda: exec('raise SystemExit')}
 
 def loop(editor, source=None):
-    source = source or {}
+    source = source or base_env.copy()
     editor.stop_async_io()
     try:
         console = InteractiveConsole(locals=source)
