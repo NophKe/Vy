@@ -4,6 +4,9 @@ from vy.utils cimport _HistoryList, Cancel
 from threading import Event, Lock
 from queue import Queue
 
+cdef set make_word_set(str string) noexcept
+cdef set ANY_BUFFER_WORD_SET
+
 cdef class BaseFile:
     cpdef void insert(self,  text) noexcept
     cpdef void backspace(self) noexcept
@@ -21,11 +24,11 @@ cdef class BaseFile:
         public tuple _cursor_lin_col # 
         public int _number_of_lin    # but screen uses those vars
         public list _splited_lines   # to only "visit" ephemeral values
-        public bint set_number       # TODO should go private
-        public bint set_wrap
-        public int set_tabsize
-        public bint set_expandtabs
-        public bint set_autoindent
+#        public bint set_number       # TODO should go private
+#        public bint set_wrap
+#        public int set_tabsize
+#        public bint set_expandtabs
+#        public bint set_autoindent
         int _virtual_col
         
         list _states

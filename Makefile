@@ -15,7 +15,7 @@ clean:
 	####
 	rm -f filetypes/*.c
 	rm -f filetypes/*.html
-	rm -f filetypes/*.o
+	rm -f filetypes/*.so
 	####
 	rm -f actions/*.c
 	rm -f actions/*.html
@@ -32,7 +32,7 @@ clean:
 	rm -Rf interface/__pycache__/
 	rm -Rf ./__pycache__/
 
-CC  = gcc --shared -s -I/usr/include/python3.11 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
+CC  = gcc --shared -s -I/usr/include/python3.12 -march=native -mtune=native -O3 -pipe -fPIC -Wall -L/usr/lib
 
 gcc-config:
 	echo ${CC}

@@ -12,7 +12,8 @@ cdef class Cancel:
         public object must_start
         public object must_stop
         public object task_done
-        object restart 
+        public object task_restarted
+        public object task_started
         bint working
         bint cancelled
 
@@ -38,6 +39,7 @@ cdef class _HistoryList:
         list data
         int pointer
         bint skip
+        str name
     cpdef append(self, value) noexcept
     cdef pop(self)
     cpdef push(self)
