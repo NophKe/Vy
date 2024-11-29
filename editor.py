@@ -143,8 +143,11 @@ class _Register:
         assert isinstance(key, str)
         assert key in self.valid_registers
         if key == '+':
-            import pyperclip
-            rv = pyperclip.paste()
+            try:
+                import pyperclip
+                rv = pyperclip.paste()
+            except:
+                pass
             self['"'] = rv
             return rv
             
@@ -162,8 +165,11 @@ class _Register:
         if key == '_':
             return
         elif key == '+':
-            import pyperclip
-            pyperclip.copy(value)
+            try:
+                import pyperclip
+                pyperclip.copy(value)
+            except:
+                pass
             self['"'] = value
         
         elif key in ':.>':

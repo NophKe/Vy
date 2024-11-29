@@ -91,7 +91,6 @@ def give_up(editor: _Editor):
     editor.screen.minibar(' ( Auto-completion aborted )')
     minibar_completer.give_up()
     completer_engine.selected = -1
-    return True    
 
 def monoline_loop(editor: _Editor):
     last_insert = ''
