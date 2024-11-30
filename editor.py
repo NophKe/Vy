@@ -24,9 +24,9 @@ from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import getch_noblock
-from vy.global_config import DEBUG, USER_DIR, DONT_USE_USER_CONFIG
+from vy.global_config import DEBUG
 from vy.utils import _HistoryList
-from vy.clipboard import get_os_clipboard, set_os_clipboard
+from vy.clipboard import _Register
 
 class _Cache:
     """
@@ -110,93 +110,6 @@ class _Cache:
         return self._make_key(key) in self._dic
 
 ########## end of class _Cache ##########
-
-class _Register:
-    __slots__ = ("persistance", "dico")
-    valid_registers  = ( 'abcdefghijklmnopqrstuvwxyz'
-                         'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                         '>+-*/.:%#"=!0123456789')
-    def __init__(self):
-        self.dico = dict()
-        self.persistance = USER_DIR / 'registers'
-        try:
-            content = self.persistance.read_text().splitlines()
-        except FileNotFoundError:
-            content = ["''"] * len(self.valid_registers)
-            self.persistance.touch()
-            self.persistance.write_text('\n'.join(content))
-        
-        for register, value in zip(self.valid_registers, content):
-            if value := eval(value):
-                self.dico[register] = value
-    
-    def save(self):
-        self.persistance.write_text('\n'.join(repr(self.dico.get(reg, '')) for reg in self.valid_registers))
-
-    def __str__(self):
-        rv = str()
-        for k,v in self.dico.items():
-            rv += k +'\t:\t' + v.replace('\n', '\\n') + '\n'
-        return rv
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            key = str(key)
-        assert isinstance(key, str)
-        assert key in self.valid_registers
-        if key == '+':
-            self['"'] = (rv := get_os_clipboard())
-            return rv
-            
-        try:
-            return self.dico[key]
-        except KeyError:
-            return ''
-
-    def __setitem__(self, key, value):
-        if isinstance(key, int):
-            key = str(key)
-        assert isinstance(key, str)
-        assert key in self.valid_registers
-
-        if key == '_':
-            return
-        elif key == '+':
-            set_os_clipboard(value)
-            self['"'] = value
-        
-        elif key in ':.>':
-            self.dico[key] = value
-
-        elif key == '"':
-            for k in range(9,0,-1):
-                self[str(k)] = self[str(k-1)]
-            self["0"] = self['"']
-            self.dico['"'] = value
-        
-        elif key.isupper():
-            key = key.lower()
-            if key in self.dico:
-                self.dico[key] += value
-            else:
-                self.dico[key] = value
-            self['"'] = self.dico[key]
-            
-        elif key.islower():
-            self.dico[key] = value
-            self['"'] = self.dico[key]
-        
-        elif key.isnumeric() or key == '/':
-            self.dico[key] = value
-        
-        elif key == '=':
-            self.dico[key] = eval(value)
-        
-        elif key == '!':
-            self.dico[key] = exec(value)
-
-        else:
-            raise RuntimeError
 
 class ActionDict(dict):
     __slots__ = 'instance'

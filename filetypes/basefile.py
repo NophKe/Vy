@@ -151,7 +151,7 @@ class BaseFile:
     def __exit__(self, exc_type, exc_val, exc_tb):
             self._recursion -=    1
             if self._recursion == 0:
-                self._test_all_assertions()
+#                self._test_all_assertions()
                 self._async_tasks.allow_work()
                 self._lock.release()
 

@@ -37,9 +37,9 @@ of any buffer.
 """
 
 @_atomic_commands(f'{_k.escape} i_{_k.escape} v_{_k.escape}' # escape should work in any mode
-                  f' {_k.C_C} i_{_k.C_C} v_{_k.C_C}'         # also Ctrl+C
-                  f' {_k.F1} i_{_k.F1} v_{_k.F1}'            # also F1 which is next to esc
+                  f' {_k.C_C} i_{_k.C_C} v_{_k.C_C}'         # also Ctrl+C in a`ny mode                  f' {_k.F1} i_{_k.F1} v_{_k.F1}'            # also F1 which is next to esc
                   f' ² i_² v_²'                              # also ² which is next to esc
+                  f' i_{_k.insert}'                          # insert key in insert mode
                   f' v_v v_V'                                # v and V from visual mode
                    ' :vi :visual :stopi :stopinsert'         # old vi stuff
                   )
