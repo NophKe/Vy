@@ -1,10 +1,8 @@
 from vy.global_config import DEBUG
 from threading import Thread
 from vy.filetypes.basefile import BaseFile
+from time import sleep
 
-class Thread(Thread):
-    def __repr__(self):
-        return 'Lexer Thread' + super().__repr__()
 
 class TextFile(BaseFile):
     """
@@ -17,8 +15,8 @@ class TextFile(BaseFile):
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
         self._lexed_cache = {}
-        self._lexed_lines = list()
-        self._lexing_state = '(lexer not started'
+        self._token_list = []
+        self._lexed_lines = []
         Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True).start()
 
     def _lex_away(self):
@@ -30,30 +28,22 @@ class TextFile(BaseFile):
         cancel_request = self._async_tasks.must_stop.is_set
 
         while True:
-            times_we_tried = 0
-            while not self._lock.acquire(blocking=False):
-                times_we_tried += 1
-                self._lexing_state = f'(lexer tried to start {times_we_tried} times)'
-                from time import sleep
+            if not self._lock.acquire(blocking=False):
                 sleep(0)
-                pass
-            else:
-                self._lexing_state = 'string locking'
-                cancel_handler.notify_working()
-                string = self._string or ''.join(self._splited_lines)
-                assert string, self._test_all_assertions()
-                self._lock.release()
+                continue
+            
+            cancel_handler.notify_working()
+            string = self._string or ''.join(self._splited_lines)
+            self._lock.release()
                 
             line = ''
 
             if cancel_request():
-                self._lexing_state = 'needs to stop 1'
                 cancel_handler.notify_stopped()
                 continue
 
             for off, tok, val in lexer(string):
                 if cancel_request():
-                    self._lexing_state = 'needs to stop 2'
                     break
                 tok = get_prefix(tok)
                 if '\n' in val:
@@ -70,24 +60,15 @@ class TextFile(BaseFile):
                 if line and line != tok: #No eof
                     local_lexed.append(line)
 
-            if 'stop' not in self._lexing_state:
-                self._lexing_state = 'cache it all'
                 for raw, lexed in zip(string.splitlines(True), local_lexed):
                     if cancel_request():
-                        self._lexing_state = 'needs to stop 3'
                         break
                     local_dict[raw] = lexed
                 
-            if 'stop' not in self._lexing_state:
-                self._lexing_state = '(lexing done)'
             cancel_handler.notify_stopped()
             self._lexed_lines.clear()
+            self._token_list.clear()
     
-    if DEBUG:
-        @property
-        def footer(self):
-            return self._lexing_state + super().footer
-
     def get_raw_screen(self, min_lin, max_lin):
         # This method does not take the internal lock allowing
         # the screen to asynchronously visit the buffer content.

@@ -65,7 +65,7 @@ def Open_path(location):
     This function allways returns a new object, use it from any python
     repl and save the result in a local variable
 
-    While editing or writing a Vy-script Editor.edit() and Editor.cache
+    While editing or writing a Vy action Editor.edit() and Editor.cache
     should be prefered as they remember previously visited buffers.
     """
     if location is None:

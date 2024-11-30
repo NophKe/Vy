@@ -220,12 +220,16 @@ def increase_window_width_left(editor, reg=None, part=None, arg=None, count=2):
 
 
 @_sa_commands("U u :u :un :undo")
-def undo(editor, reg=None, part=None, arg=None, count=1):
+def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
-    Undo last action in the current buffer. {register} argument
-    is ignored.
+    If the cursor is not on the line where the last undo point was made,
+    go there.  Otherwise, it undoes the last action upon the current buffer.
+    
+    {register} argument is ignored.
     ---
     NOTE: In Vy there is no difference between 'U' and 'u'.
+    ---
+    NOTE: Not Vim's behaviour.
     """
     if arg:
         try:
@@ -234,15 +238,30 @@ def undo(editor, reg=None, part=None, arg=None, count=1):
             editor.screen.minibar(f"Wrong count argument, must be an integer: {arg}")
             return
     recenter = editor.actions.normal['zz']
+    
     try:
-        with editor.current_buffer as curbuf:
-            for _ in range(count):
-                curbuf.undo()
-                recenter(editor)
+        if count != 1:            
+            with editor.current_buffer as curbuf:
+                for _ in range(count):
+                    curbuf.undo()
+                    recenter(editor)
+        else:
+            lst = editor.current_buffer.undo_list
+            old_pos = lst.last_record()[1]
+            old_lin, old_col = old_pos
+            
+            if old_lin != editor.current_buffer.current_line_idx:
+                editor.current_buffer.cursor_lin_col = old_lin, 0
+                editor.current_buffer.move_cursor('_')
+            else:
+                editor.current_buffer.undo()
+                editor._skip_next_undo = True
+                
     except IndexError:
         editor.screen.minibar(" ( older record ) ")
+        
 
-
+    
 @_sa_commands(f"{_k.C_R} :red :redo")
 def redo(editor, reg=None, part=None, arg=None, count=1):
     """

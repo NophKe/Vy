@@ -101,7 +101,7 @@ class BaseFile:
         self._recursion = 0
 
         self.path = path # must be first
-        self.undo_list = _HistoryList(initial=(init_text, cursor), name='undo list')
+        self.undo_list = _HistoryList(initial=(init_text, (0,0)), name='undo list')
         self.word_set = set()
 
         # give the buffer its initial content
@@ -507,13 +507,14 @@ class BaseFile:
             return
         with self:
             self._current_line = ''
-            self._number_of_lin = value.count('\n')
             self._splited_lines.clear()
             self._lines_offsets.clear()
+            
             if not value.endswith(self.ending):
-                self._string = value + self.ending
-            else:
-                self._string = value
+                value += self.ending
+                
+            self._string = value
+            self._number_of_lin = value.count('\n')
             self._lenght = len(self._string)
             self._cursor_lin_col = ()
 
@@ -525,8 +526,8 @@ class BaseFile:
             
         with self._lock:
             value = self.string
-            position = self._cursor_lin_col or self._cursor
             if last_saved != value:	
+                position = self.cursor_lin_col
                 self.undo_list.append((value, position))
 
     def undo(self):
@@ -755,7 +756,7 @@ class BaseFile:
                 
     def find_previous_token(self):
         cursor = self.cursor
-        for idx, off in ienumerate(self._token_list):
+        for idx, off in enumerate(self._token_list):
             if off > cursor:
                 return off
     
@@ -772,7 +773,9 @@ class BaseFile:
                 stop = key.stop or len(self)
             else:
                 raise TypeError(f'{key = } {type(key) = } expected int or slice.')
-            self.string = self.string[:start] + self.string[stop:]
+            
+            _string = self.string
+            self.string = _string[:start] + _string[stop:]
 
     def __setitem__(self, key, value):
         with self:

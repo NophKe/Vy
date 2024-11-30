@@ -1,12 +1,5 @@
-from threading import Event as _Event
-from threading import Thread
-from threading import current_thread
-from threading import Lock, RLock
-from queue import Queue, Empty
-
-class Event(_Event):
-    def __bool__(self):
-        return self._flag
+from threading import Event, Thread, Lock
+from time import sleep
 
 class DummyLine:
     r"""
@@ -148,37 +141,6 @@ class _HistoryList:
     def __len__(self):
         return len(self.data)
 
-from _thread import allocate_lock
-
-class RwLock:
-    def __init__(self):
-        self.read_lock = allocate_lock()
-        self.write_lock = allocate_lock()
-        self.members = 0
-
-    def lock_reading(self):
-        with self.read_lock:
-            if self.members == 0:
-                self.write_lock.acquire()
-            self.members += 1
-    
-    def unlock_reading(self):
-        with self.read_lock:
-            self.members -= 1
-            if self.members == 0:
-                self.write_lock.release()
-
-    def lock_writing(self):
-        self.write_lock.acquire()
-        assert not self.members
-
-    def unlock_writing(self):
-        assert not self.members
-        self.write_lock.release()
-
-    def upgrade_to_writing(self):
-        ...
-
 def eval_effified_str(string):
     # better not work on it now
     return string
@@ -210,66 +172,33 @@ class Cancel:
         self.task_done = Event()
         self.task_restarted = Event()
         self.task_started = False
-        self.state = 'stop init'
-        
-    def __str__(self):
-        return '\n'.join((f'{self.lock}',
-                f'{self.state = }',
-                f'{current_thread() = }',
-                f'{self.must_stop.is_set()=}',
-                f'{self.task_done.is_set()=}',
-                f'{self.task_restarted.is_set()=}',
-                f'{self.task_started= }\n'))
-            
 
     def notify_working(self):
         while not self.lock.acquire(blocking=False):
-            assert not self.task_started
-            assert not self.task_restarted
-#        self.lock.acquire()
-        self.state = 'worker got the lock'
+            sleep(0)
         self.task_started = True
         self.lock.release()
             
     def notify_task_done(self):
-        self.state = 'worker notified done'
         self.task_done.set()
         self.notify_stopped()
         
     def notify_stopped(self):
-        self.state = 'worker notified stop'
-        assert self.task_started, str(self)
-        assert not self.task_restarted.is_set(), str(self)
-        
         self.must_stop.wait()
-        
-        self.state = 'worker stopped waiting'
-        assert self.must_stop.is_set(), str(self)
-        assert self.task_started, str(self)
-        assert not self.task_restarted.is_set(), str(self)
-        
         self.task_restarted.set()
 
     def cancel_work(self):
         self.lock.acquire()
-        
-        self.state = 'master request cancel'
-        assert not self.must_stop.is_set(), str(self)
-        assert not self.task_restarted.is_set(), str(self)
-        
         if self.task_started:
             self.must_stop.set()
             self.task_restarted.wait()
         
-            assert self.task_restarted.is_set(), str(self)
-            
             self.task_restarted.clear()
             self.task_done.clear()
             self.must_stop.clear()
             self.task_started = False
             
     def complete_work(self):
-        self.state = 'master request task to be done'
         self.task_done.wait()
 
     def restart_work(self):
@@ -277,11 +206,4 @@ class Cancel:
         self.allow_work()
 
     def allow_work(self):
-        self.state = 'master allows worker'
-        assert self.lock.locked(), str(self)
-        assert not self.must_stop.is_set(), str(self)
-        assert not self.task_done.is_set(), str(self)
-        assert not self.task_restarted.is_set(), str(self)
-        assert not self.task_started, str(self)
-        
         self.lock.release()

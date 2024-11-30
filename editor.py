@@ -145,8 +145,7 @@ class _Register:
         assert isinstance(key, str)
         assert key in self.valid_registers
         if key == '+':
-            rv = get_os_clipboard()
-            self['"'] = rv
+            self['"'] = (rv := get_os_clipboard())
             return rv
             
         try:
@@ -276,11 +275,14 @@ class _Editor:
         self.record_macro = ''
         self.current_mode = ''
         self._input_queue = Queue()
+        self._skip_next_undo = False
         
-    def debug_info(self, text):
-        if DEBUG:
-            self.screen._minibar_txt += text    
-    
+    def save_undo_record(self):
+        if self._skip_next_undo:
+            self._skip_next_undo = False
+        else:
+            self.current_buffer.set_undo_point()
+        
     def save_in_jump_list(self):
         curbuf = self.current_buffer
         lin, col = curbuf.cursor_lin_col
@@ -289,7 +291,7 @@ class _Editor:
         except IndexError:
             self.jump_list.append((curbuf, lin, col))
         else:
-            if (last_buf is curbuf) and (last_lin == lin) or (last_col == col): 
+            if (last_buf is curbuf) and ((last_lin == lin) or (last_col == col)): 
                 pass
             else:
                 self.jump_list.append((curbuf, lin, col))
@@ -462,9 +464,13 @@ class _Editor:
         if self._running:
             return self.edit(buff)
 
-        import gc
-        gc.collect()
-        gc.freeze()
+        try:
+            import gc
+            gc.collect()
+            gc.freeze()
+        except:
+            # we're probably not on cpython, just
+            pass 
 
         if buff:
             self.edit(buff)
@@ -484,7 +490,7 @@ class _Editor:
                     self.current_mode = self.interface(self.current_mode) \
                                         or self.current_mode
                     self.save_in_jump_list()
-                    self.current_buffer.set_undo_point()
+                    self.save_undo_record()
 #                    self.recenter_screen()
                     continue
                 except SystemExit:

@@ -15,12 +15,9 @@ class SimplePyFile(TextFile):
 try:
     import parso
 except ImportError:
-
     class PyFile(SimplePyFile):
         pass
-
 else:
-
     class PyFile(SimplePyFile):
         def _has_syntax_errors(self):
             if self._async_tasks.must_stop.is_set():
@@ -57,12 +54,11 @@ try:
 
     settings.add_bracket_after_function = True
     settings.case_insensitive_completion = True
-    settings.fast_parser = False
+#    settings.fast_parser = False
 
 except ImportError:
     pass
 else:
-
     def DO_goto_declaration_under_cursor(editor, *args, **kwargs):
         curbuf: PyFile = editor.current_buffer
         lin, col = curbuf.cursor_lin_col
