@@ -126,12 +126,11 @@ except _NotWorking:
             return subprocess.getoutput('termux-clipboard-get')
             
         def set_os_clipboard(new_value):
-            try:
-                worker = subprocess.Popen('termux-clipboard-set', text=True)
-                out, err = worker.communicate(value)
-            except:
-                raise _NotWorking
-                
+            worker = subprocess.Popen('termux-clipboard-set', 
+                                        text=True,
+                                        stdin=subprocess.PIPE)
+            out, err = worker.communicate(new_value)
+            
         set_os_clipboard(get_os_clipboard())
     except:
         def get_os_clipboard():
