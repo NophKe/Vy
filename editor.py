@@ -13,7 +13,6 @@ the classes defined in this module directly.
 
 from pathlib import Path
 from bdb import BdbQuit
-from pdb import post_mortem
 from itertools import repeat, chain
 from time import sleep, time
 from threading import Thread
@@ -411,25 +410,34 @@ class _Editor:
                 except BdbQuit:
                     pass
                 except BaseException as exc:
-                    import sys
                     from traceback import print_tb
-                    type_, value_, trace_ = sys.exc_info()
                     self.stop_async_io()
-#                    self.screen.alternative_screen() # bad idea ?
-                    print(  'The following *unhandled* exception was encountered:\n'
-                           f'  >  {repr(exc)} indicating:\n'
-                           f'  >  {str(exc)}\n')
-                    print_tb(trace_)
-                    print('\nThe program may be corrupted, save all and restart quickly.')
+                    
+                    self.screen.underline()
+                    print('The following *unhandled* exception was encountered:')
+                    self.screen.reset()
+                    self.screen.bold()
+                    
+                    print(f'  >  {repr(exc)} indicating:')
+                    print(f'  >  {str(exc)}')
+                    self.screen.reset()
+                    
+                    print()
+                    print_tb(exc.__traceback__)
+                    self.screen.reset(); print()
+                    
+                    print('The program may be corrupted, save all and restart quickly.')
                     try:
-                        input(('Press [ENTER] to try resuming\n'
-                               'or    [CTRL+C] to close immediatly\n'
-                               'or    [CTRL+D] to start debugger\n\r\t'))
+                        input(('Press [ENTER] to try resuming \n'
+                               'or    [CTRL+C] to close immediatly \n'
+                               'or    [CTRL+D] to start debugger \n\r\t'))
                     except EOFError:
+                        from pdb import post_mortem
                         self.screen.original_screen()
-                        post_mortem(trace_)
+                        post_mortem(exc.__traceback__)
                     except KeyboardInterrupt:
                         return 1
+                        
                 self.current_mode = 'normal'
                 self.start_async_io()
                 continue
