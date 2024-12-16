@@ -1,20 +1,9 @@
 #!/usr/bin/python3 -m
 """
-This file is the main entry point for the Vy Editor and is not supposed 
-to be executed outside the Vy package. This module is in charge of basic
-initialization.
-
-This software is meant to be used on any modern linux platform and will
 try to perform a few sanity checks about your configuration, then parse
+This file is the main entrybe used on any modern linux platform and will
 the command line arguments and update the vy.global_config module 
-accordingly.
-
-It will then create the vy._Editor instance and will start the main loop
-and begin user interaction.
-
-To see all available option on command line, use:
-
- python -m vy --help
+accordingly.To see all
 
 """
 
@@ -151,10 +140,32 @@ def raise_unraisable(unraisable):
 threading.excepthook = raise_unraisable
 
 
-
-from vy.editor import _Editor
-Editor = _Editor(*cmdline.files, command_line=cmdline)
-Editor()
-
-print('Thanks for using Vy in its beta version.\n'
-      'Any comment or issue posted on github.com/nophke/vy will be taken into account.')
+if global_config.DEBUG:
+    from importlib import import_module, reload
+    EditorModule = import_module('vy.editor')
+    EditorFactory = EditorModule._Editor
+    _current_instance = EditorFactory(*cmdline.files, command_line=cmdline)
+    tracked = 0
+    
+    while True: 
+        try:
+            _current_instance()
+        except SystemExit:
+            old = _current_instance
+            from vy.debug_tools import reload as _intern_reload
+            from time import sleep
+            sleep(1)
+            print('\n***reload***\n')
+            sleep(1)
+            _intern_reload(old)
+            EditorModule = reload(EditorModule)
+            EditorFactory = EditorModule._Editor
+            new = _current_instance = EditorFactory(*cmdline.files, command_line=cmdline)
+    
+from vy.editor import _Editor        
+try:
+    _Editor(*cmdline.files, command_line=cmdline)()
+except SystemExit:
+    print('Thanks for using Vy in its beta version.\n'
+          'Any comment or issue posted on github.com/nophke/vy will be taken into account.')
+    

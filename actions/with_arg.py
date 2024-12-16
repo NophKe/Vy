@@ -283,14 +283,19 @@ def grep_in_directory(editor: _Editor, arg=None, *args, **kwargs):
     """
     Scan for occurences of a pattern in files within the current directory.
     """
-    from subprocess import run
+    from subprocess import run, TimeoutExpired
     if not arg:
         editor.warning(grep_in_directory.__doc__)
         return 'normal'
     
-    command = f"grep -T -n -r {arg} ."
-    completed = run(command, capture_output=True, shell=True, text=True)
+    command = f"grep -T -n -r {arg}"
+    try:
+        completed = run(command, capture_output=True, shell=True, text=True, timeout=4)
+    except TimeoutExpired:
+        editor.warning('this command got cancelled for beeing too long')
+        
     if completed.returncode:
        editor.screen.infobar(f"error while evaluating '{command}'")
     else:
         editor.warning(completed.stdout)
+        

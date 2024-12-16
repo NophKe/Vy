@@ -15,6 +15,7 @@ def last_ex(ed):
 	if (last_ex_cmd := ed.registr['>']) and '\n' not in last_ex_cmd:
 		from vy.global_config import USER_DIR
 		(USER_DIR / "debugging_values").write_text(last_ex_cmd)
+		ed.edit(USER_DIR / "debugging_values")
 		
 def test_screen(ed):
     for x in range(20):
@@ -22,6 +23,12 @@ def test_screen(ed):
         print(x)
         import time
         time.sleep(0.5)
+
+def exit(ed):
+    raise SystemExit
+
+def quit(ed):
+    raise BaseException 
 
 def no_screen(ed):
 	ed.screen.clear_screen()
@@ -33,33 +40,6 @@ def exc(ed):
 	raise MemoryError('got it?')
 
 def reload(ed):
-	for buff in ed.cache:
-		try: 	buff.save()
-		except: pass
-	from vy import debug_tools
-	_reload(debug_tools)
-	
-	reload_actions(ed)
-	reload_filetypes(ed)
-	reload_interface(ed)
-	reload_screen(ed)
-	reload_cache(ed)
-	
-	reload_editor(ed)
-	ed.screen.minibar('( reloaded ! )')
-	
-def reload_editor(ed):
-	from vy import editor
-	pass
-
-def reload_screen(ed):
-	from vy import screen
-	ed.stop_async_io()
-	screen = _reload(screen)
-	ed.screen = screen.Screen(ed.current_buffer)
-	ed.start_async_io()
-
-def reload_actions(ed):
 	from vy import actions
 	from vy.actions import helpers
 	from vy.actions import motions
@@ -76,28 +56,4 @@ def reload_actions(ed):
 	_reload(mode_change)
 	_reload(commands)
 	_reload(actions)
-	ed._init_actions()
-	ed.actions.normal['zz'](ed)
-	
-def reload_interface(ed):
-	from vy import interface
-	interface = _reload(interface)
-	ed.interface = interface.Interface(ed)
-
-def reload_filetypes(ed):
-	from vy.filetypes import basefile
-	from vy.filetypes import folder
-	from vy.filetypes import textfile
-	from vy import filetypes
-	_reload(filetypes)
-	_reload(basefile)
-	_reload(folder)
-	_reload(textfile)
-
-def reload_cache(ed):
-	from vy import editor
-	new = _reload(editor)
-	ed.cache = new._Cache()
-	for k, v in ed.cache._dic:
-		ed.cache[k]
 

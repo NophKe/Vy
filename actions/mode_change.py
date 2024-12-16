@@ -128,7 +128,6 @@ The next commands do modify the content of the current buffer before
 switching mode.
 """
 
-
 @_atomic_commands('o')
 def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
     """
@@ -144,6 +143,7 @@ def do_normal_o(editor, reg=None, part=None, arg=None, count=1):
             editor.actions.motion['$'](editor)
         editor.actions.insert['\n'](editor)
     return 'insert'
+
 
 @_atomic_commands(f'{_k.backspace} {_k.linux_backpace}')
 def insert_mode_backspace(editor: _Editor, reg=None, part=None, arg=None, count=1):
@@ -242,3 +242,7 @@ def copy_visual_selection_to_os_clipboard(editor: _Editor, *args, **kwrags):
     cb = editor.current_buffer
     editor.registr['+'] = cb[cb.selected_offsets]
     return 'normal'
+
+@_atomic_commands(':__exit')
+def exit_dirty(ed, *args, **kwargs):
+    raise BaseException('user requested an immediate exit')

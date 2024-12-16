@@ -8,9 +8,15 @@ def erase_word_backward(editor: _Editor, *args, **kwargs):
     Erase one word backward.
     """
     with editor.current_buffer as curbuf:
-        start_of_deletion = curbuf.find_previous_delim()
-        del curbuf[start_of_deletion:curbuf.cursor]       
-        curbuf.cursor = start_of_deletion
+        cur_lin = curbuf.current_line
+        if cur_lin[:-1] and cur_lin[:-1].strip():
+            start_of_deletion = curbuf.find_previous_delim()
+            del curbuf[start_of_deletion:curbuf.cursor]       
+            curbuf.cursor = start_of_deletion
+        elif cur_lin == '\n':
+            curbuf.join_line_with_next()
+        else:
+            curbuf.current_line = '\n'
 
 @_atomic_commands('\n {k.C_J} {k.C_M} \r i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor: _Editor, reg=None, part=None, arg=None, count=1):

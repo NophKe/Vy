@@ -293,8 +293,11 @@ class _Editor:
         
 
         while self._async_io_flag:
-            sleep(0.04)             # do not try more than  25fps
-            if ((now := time()) - start) > 5: # and force redraw every 2 seconds
+            sleep(0.04)             # do not try too much
+            if not self._async_io_flag:
+                break
+                
+            if ((now := time()) - start) > 5: # and force redraw sometimes
                 old_screen.clear()
                 start = now
 
@@ -302,7 +305,7 @@ class _Editor:
                 self.screen.recenter()
                 self.screen.infobar(f' {self.current_mode.upper()} ', '')
             else:
-                sleep(0.04)
+                sleep(0.1)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
                 f'Failed: {missed} time(s), '
                 f'waiting keystrokes: {left_keys()}')
@@ -405,11 +408,9 @@ class _Editor:
                     self.save_undo_record()
 #                    self.recenter_screen()
                     continue
-                except SystemExit:
-                    return
                 except BdbQuit:
                     pass
-                except BaseException as exc:
+                except Exception as exc:
                     from traceback import print_tb
                     self.stop_async_io()
                     
