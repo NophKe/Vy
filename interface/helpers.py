@@ -6,6 +6,63 @@ from vy.keys import _escape
 from vy.global_config import USER_DIR
 from vy.utils import DummyLine
 
+        
+completion_dict = {}
+def add_to_dict(*keys):
+    def inner(func):
+        global completion_dict
+        for k_ in keys:
+            completion_dict[k_] = func
+        return func
+    return inner
+
+@add_to_dict(k.C_A, k.beginning)
+def go_to_beginning_of_line(self):
+    self.buffer.cursor = 0
+    
+@add_to_dict(k.backspace, k.linux_backpace)
+def do_backspace(self):
+    self.buffer.backspace()
+    self.state = ''
+    
+@add_to_dict(k.end, k.C_E)
+def goto_end_of_line(self):
+    self.buffer.cursor = len(self.buffer.string)
+
+@add_to_dict(k.C_V)
+def insert_literal_char(self):
+    buffer.insert(self.editor.read_stdin())
+
+@add_to_dict(k.suppr, k.C_D)
+def do_suppr(self):
+    self.buffer.suppr()
+    self.state = ''
+    
+@add_to_dict(k.right, k.C_B)
+def goto_left(self):
+    self.move_right()
+    
+@add_to_dict(k.left, k.C_F)
+def goto_left(self):
+    self.move_left()
+    
+@add_to_dict('\t')
+def goto_start_completion(self):
+    self.start_complete()
+    
+@add_to_dict(k.up)
+def goto_up(self):
+    self.move_cursor_up()
+    
+@add_to_dict(k.down)
+def goto_up(self):
+    self.move_cursor_down()
+
+@add_to_dict(k.C_K)
+def kill_from_cursor_to_end(self):
+    string = self.buffer.string
+    self.buffer.string = string[:self.buffer.cursor]
+    
 class Completer:
     def __init__(self, file, prompt, editor):
         histfile = USER_DIR / file
@@ -40,24 +97,10 @@ class Completer:
             while True:
                 self.update_minibar()
                 key = self.editor.read_stdin()
-                if key in (k.backspace, k.linux_backpace):
-                    buffer.backspace()
-                    self.state = ''
-                elif key == k.C_V:
-                    buffer.insert(reader())
-                elif key == k.suppr:
-                    buffer.suppr()
-                    self.state = ''
-                elif key == k.left:
-                    self.move_left()
-                elif key == k.right:
-                    self.move_right()
-                elif key == '\t':
-                    self.start_complete()
-                elif key == k.up:
-                    self.move_cursor_up()
-                elif key == k.down:
-                    self.move_cursor_down()
+                if key in completion_dict:
+                    if completion_dict[key](self):
+                        return buffer.string
+                    
                 elif key == k.C_C or key == '\x1b':
                     if self.state:
                         self.state = ''

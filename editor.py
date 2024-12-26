@@ -133,6 +133,11 @@ class _Editor:
     the editor, just pass the «editor» variable to your function.
     
     """    
+    class MustGiveUp(Exception):
+        pass
+
+    class NewInfo(Exception):
+        pass
 
     def _init_actions(self):
         from vy.actions import __dict__ as action_dict
@@ -252,7 +257,7 @@ class _Editor:
         self.screen.minibar('')
         self.screen.minibar_completer.give_up()
 
-    def edit(self, location):
+    def edit(self, location, position=0):
         """
         Changes the current buffer to edit location and set the interface accordingly.
         """
@@ -268,6 +273,7 @@ class _Editor:
                 self.current_window.change_buffer(buffer)
             else:
                 self.screen = Screen(buffer)
+            buffer.cursor = position
     
     @property
     def current_window(self):
@@ -376,6 +382,8 @@ class _Editor:
         Calling the editor launches the command loop interraction.
         If the editor is allready running it is equivalent to Editor.edit()
         """
+        print(f'{buff=} {mode=}')
+#        raise
         if self._running:
             return self.edit(buff)
 
@@ -408,8 +416,19 @@ class _Editor:
                     self.save_undo_record()
 #                    self.recenter_screen()
                     continue
+                
+                except self.MustGiveUp as exc:
+                    self.warning(str(exc))
+                    # don't save undo list, or position, or anything   
+                    continue
+
+                except self.NewInfo as exc:
+                    self.screen.minibar(str(exc))
+                    continue
+                
                 except BdbQuit:
                     pass
+                    
                 except Exception as exc:
                     from traceback import print_tb
                     self.stop_async_io()
@@ -436,8 +455,9 @@ class _Editor:
                         from pdb import post_mortem
                         self.screen.original_screen()
                         post_mortem(exc.__traceback__)
-                    except KeyboardInterrupt:
-                        return 1
+                        
+                    except KeyboardInterrupt as exc:
+                        raise exc from None
                         
                 self.current_mode = 'normal'
                 self.start_async_io()

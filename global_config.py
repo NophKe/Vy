@@ -25,6 +25,7 @@ DEBUG = False
 DONT_USE_PYGMENTS_LIB = False
 DONT_USE_JEDI_LIB = False
 DONT_USE_USER_CONFIG = False
+MINI = False
 
 def _source_config():
     global USER_DIR

@@ -184,12 +184,10 @@ def loop(editor: _Editor):
     try:
         action = dictionary[user_input]
     except KeyError:
-        minibar(f' ( Invalid command: {_escape(user_input)} )')
-        mode = 'insert'
-    else:
-        mode = action(editor)
-        cancel_minibar()
+        raise editor.MustGiveUp(f' ( Invalid command: {_escape(user_input)} )')
     
+    mode = action(editor)
+    cancel_minibar()
     minibar_completer.give_up()
 
     return mode

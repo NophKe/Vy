@@ -10,6 +10,7 @@ def DO_open_file(editor):
 class Folder(BaseFile):
     actions = { k.CR: DO_open_file, }
     unsaved = False
+    modifiable = False
     
     @property
     def string(self):

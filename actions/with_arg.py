@@ -238,13 +238,10 @@ def do_set(editor, reg=None, part=None, arg=None, count=1):
     Sets an option. Valid options are all buffer attributes starting
     with 'set_*'.
     """
-
     if not arg:
-        editor.warning(do_set.__doc__)
-        return
+        raise editor.MustGiveUp(do_set.__doc__)
 
     toggle = object()
-
     arg = arg.strip().lower()
     if ' ' in arg:
         arg, value = arg.split(' ', maxsplit=1)
@@ -292,10 +289,10 @@ def grep_in_directory(editor: _Editor, arg=None, *args, **kwargs):
     try:
         completed = run(command, capture_output=True, shell=True, text=True, timeout=4)
     except TimeoutExpired:
-        editor.warning('this command got cancelled for beeing too long')
+        raise editor.MustGiveUp('this command got cancelled for beeing too long')
         
     if completed.returncode:
-       editor.screen.infobar(f"error while evaluating '{command}'")
-    else:
-        editor.warning(completed.stdout)
+       raise editor.MustGiveUp(f"error while evaluating '{command}'")
+    
+    editor.warning(completed.stdout)
         

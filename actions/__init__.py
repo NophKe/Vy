@@ -156,6 +156,20 @@ def show_time(editor, *args, **kwargs):
     from time import asctime
     editor.screen.minibar(str(asctime()))
 
+@_atomic_commands(f':file :fi :f {_k.C_G}')
+def show_file_and_position(editor, *args, **kwargs):
+    """
+    Show file and position informations.
+    """
+    buff = editor.current_buffer
+    x, y = buff.cursor_lin_col
+    if buff.path:
+        val = str(buff.path)
+    else:
+        val = '( unbound to filesystem )'
+    val += f', on line {x} on collumn {y}' 
+    editor.screen.minibar(val)
+    
 @_atomic_commands(f':suspend {_k.C_Z}')
 def suspend_to_shell(editor :_Editor, *args, **kwargs):
     """
@@ -227,16 +241,14 @@ def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
     
     {register} argument is ignored.
     ---
-    NOTE: In Vy there is no difference between 'U' and 'u'.
-    ---
-    NOTE: Not Vim's behaviour.
+    NOTE: There is no difference between 'U' and 'u' (Not Vim's behaviour).
     """
     if arg:
         try:
             count = int(arg)
         except ValueError:
-            editor.screen.minibar(f"Wrong count argument, must be an integer: {arg}")
-            return
+            #editor.screen.minibar(f"Wrong count argument, must be an integer: {arg}")
+            raise editor.MustGiveUp(f"Wrong count argument, must be an integer: {arg}")
     recenter = editor.actions.normal['zz']
     
     try:
@@ -271,8 +283,7 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
         try:
             count = int(arg)
         except ValueError:
-            editor.screen.minibar(f"Wrong count argument: {arg}")
-            return
+            raise editor.MustGiveUp(f"Wrong count argument: {arg}")
     try:
         with editor.current_buffer as curbuf:
             for _ in range(count):
@@ -284,7 +295,6 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
 @_atomic_commands(":pwd :pw :pwd-verbose")
 def print_working_directory(editor, reg=None, part=None, arg=None, count=1):
     from pathlib import Path
-
     editor.screen.minibar(str(Path.cwd()))
 
 
@@ -413,9 +423,8 @@ def do_leave_current_window(editor, reg=None, part=None, arg=None, count=1):
     curwin = editor.current_window
     if curwin is editor.screen:
         if curwin.buff.unsaved:
-            editor.warning("save this buffer (:w) or force (:q!)")
-        else:
-            do_exit_nice(editor)
+            raise editor.MustGiveUp("save this buffer (:w) or force (:q!)")
+        do_exit_nice(editor)
     elif curwin.parent.left_panel is curwin:
         curwin.parent.merge_from_right_panel()
     else:
@@ -440,9 +449,8 @@ def do_exit_nice(editor, reg=None, part=None, arg=None, count=1):
     current window to next unsaved buffer.
     """
     if not any([buffer.unsaved for buffer in editor.cache]):
-        do_exit_hard(editor)
-    else:
-        do_edit_next_unsaved_buffer(editor)
+        raise SystemExit
+    do_edit_next_unsaved_buffer(editor)
 
 
 @_atomic_commands(":wqa! :wqall! :xa! :xall!")
@@ -451,7 +459,7 @@ def do_save_all_and_leave_all(editor, arg=None, reg=None, part=None, count=1):
     Saves all unsaved buffers, no matter if this succeeds, closes the editor.
     """
     do_save_all(editor)
-    do_exit_hard(editor)
+    raise SystemExit
 
 
 @_atomic_commands(":wqa :wqall :xa :xall")
@@ -667,11 +675,11 @@ def do_help(editor, reg=None, part=None, arg=":help", count=1):
         else:
             arg_dest = editor.actions.normal[arg]
     except KeyError:
-        editor.warning(f"{arg} not found in help.")
-    else:
-        editor.stop_async_io()
-        pydoc.help(arg_dest)
-        editor.start_async_io()
+        raise editor.MustGiveUp(f"{arg} not found in help.")
+    
+    editor.stop_async_io()
+    pydoc.help(arg_dest)
+    editor.start_async_io()
     return "normal"
 
 
@@ -761,11 +769,11 @@ def execute_macro(editor, reg=None, part=None, arg=None, count=1):
     try:
         macro = editor.macros[macro_name]
     except KeyError:
-        editor.screen.minibar(f" ( not a valid macro ) ")
-    else:
-        editor.screen.minibar(f"executing: «{editor.record_macro}»")
-        editor.macros['@'] = editor.macros[macro_name]
-        editor._macro_keys = macro.copy()
+        raise editor.MustGiveUp(f" ( not a valid macro ) ")
+    
+    editor.screen.minibar(f"executing: «{editor.record_macro}»")
+    editor.macros['@'] = editor.macros[macro_name]
+    editor._macro_keys = macro.copy()
 
 
 @_sa_commands(":open_parent_folder")

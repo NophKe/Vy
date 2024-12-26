@@ -1,7 +1,6 @@
 from vy.filetypes.textfile import TextFile
 from functools import lru_cache
 
-
 class SimplePyFile(TextFile):
     actions = {}  # new empty dict to avoid poluting the inherited
     # one from TextFile base class.
@@ -73,7 +72,7 @@ else:
             if position := res.get_definition_start_position():
                 new_lin, new_col = position
                 curbuf.cursor_lin_col = new_lin - 1, new_col + 1
-                editor.recenter_screen()
+                editor.actions.normal('zz')
         else:
             editor.screen.minibar('too many matches.')
 
@@ -90,20 +89,22 @@ else:
             editor.screen.minibar('ambiguous symbol or multiple results')
 
     def DO_extract_as_new_variable(editor, arg=None, **kwargs):
-        if arg:
-            curbuf: PyFile = editor.current_buffer
-            lin, col = curbuf.cursor_lin_col
-            engine: Script = curbuf.jedi()
-            try:
-                result = engine.extract_variable(line=lin + 1, column=col, new_name=arg)
-            except RefactoringError as err:
-                editor.warning(str(err))
-            else:
-                changes = result.get_changed_files()
-                for path, new_version in changes.items():
-                    editor.cache[path].string = new_version.get_new_code()
-        else:
-            editor.warning('(bad syntax, no name provided)    :command {name}')
+        if not arg:
+            raise editor.MustGiveUp('(bad syntax, no name provided)    :command {name}')
+        
+        curbuf: PyFile = editor.current_buffer
+        lin, col = curbuf.cursor_lin_col
+        engine: Script = curbuf.jedi()
+        
+        try:
+            result = engine.extract_variable(line=lin + 1, column=col, new_name=arg)
+        except RefactoringError as err:
+            raise editor.MustGiveUp(str(err))
+        
+        changes = result.get_changed_files()
+        for path, new_version in changes.items():
+            editor.cache[path].string = new_version.get_new_code()
+        editor.screen.minibar(f'{len(changes)} files modified')
 
     def DO_inline_current_expression(editor, arg=None, **kwargs):
         curbuf: PyFile = editor.current_buffer
@@ -112,11 +113,12 @@ else:
         try:
             result = engine.inline(line=lin + 1, column=col)
         except RefactoringError as err:
-            editor.warning(str(err))
-        else:
-            changes = result.get_changed_files()
-            for path, new_version in changes.items():
-                editor.cache[path].string = new_version.get_new_code()
+            raise editor.MustGiveUp(str(err))
+        
+        changes = result.get_changed_files()
+        for path, new_version in changes.items():
+            editor.cache[path].string = new_version.get_new_code()
+        editor.screen.minibar(f'{len(changes)} files modified')
 
     def DO_extract_as_new_function(editor, arg=None, **kwargs):
         if arg:
@@ -194,13 +196,13 @@ else:
             return ns[string]
 
         def jedi(self, ns={}) -> Script:
-            return Script(code=self.string, path=self.path)
+            #    return Script(code=self.string, path=self.path)
 
-        # jedi is not thread-safe... I forgot one more time...
-        # AGAIN jedi is not thread-safe... THIS should be LOCKED !
-        #             if self.string not in ns:
-        #                 ns[self.string] = Script(code=self.string, path=self.path)
-        #             return ns[self.string]
+            # jedi is not thread-safe... I forgot one more time...
+            # AGAIN jedi is not thread-safe... THIS should be LOCKED !
+             if self.string not in ns:
+                 ns[self.string] = Script(code=self.string, path=self.path)
+             return ns[self.string]
 
         def _token_chain(self):
             engine: Script = self.jedi()

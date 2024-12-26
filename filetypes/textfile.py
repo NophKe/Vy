@@ -3,6 +3,25 @@ from threading import Thread
 from vy.filetypes.basefile import BaseFile
 from time import sleep
 
+from re import split as _split
+
+DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
+
+def make_word_set(string):
+    """
+    >>> raise Error
+    """
+    accu = set()
+    entry = ''
+    for letter in string:
+        if letter not in DELIMS:
+            entry += letter
+        else:
+            if entry:
+                accu.add(entry)
+                entry = ''
+    return accu
+#    return set(_split(r'[{}\. :,()\[\]]|$|\t', string))
 
 class TextFile(BaseFile):
     """
@@ -49,13 +68,13 @@ class TextFile(BaseFile):
                 if '\n' in val:
                     for token_line in val.splitlines(True):
                         if token_line.endswith('\n'):
-                            line += tok + token_line[:-1] + ' \x1b[97;22m'
+                            line += tok + token_line[:-1] + ' \x1b[97;22;24m'
                             local_lexed.append(line)
                             line = ''                            
                         else:
-                            line += tok + token_line + '\x1b[97;22m'
+                            line += tok + token_line + '\x1b[97;22;24m'
                 else:
-                    line += tok + val + '\x1b[97;22m'
+                    line += tok + val + '\x1b[97;22;24m'
             else:
                 if line and line != tok: #No eof
                     local_lexed.append(line)
@@ -64,7 +83,16 @@ class TextFile(BaseFile):
                     if cancel_request():
                         break
                     local_dict[raw] = lexed
-                
+                else:
+                    for line in self._splited_lines:
+                        if cancel_request():
+                            break
+                        for w in make_word_set(line):
+                            if w not in self.word_set:
+                                self.ANY_BUFFER_WORD_SET.add(w)
+                                self.word_set.add(w)
+  
+                            
             cancel_handler.notify_stopped()
             self._lexed_lines.clear()
             self._token_list.clear()

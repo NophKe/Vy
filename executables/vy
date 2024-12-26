@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python -u -O -P -m vy $@

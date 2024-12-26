@@ -7,15 +7,26 @@ def erase_word_backward(editor: _Editor, *args, **kwargs):
     """
     Erase one word backward.
     """
+    from vy.filetypes.textfile import TextFile
     with editor.current_buffer as curbuf:
-        cur_lin = curbuf.current_line
-        if cur_lin[:-1] and cur_lin[:-1].strip():
+        curbuf : TextFile
+           
+        if curbuf.current_line.strip():
             start_of_deletion = curbuf.find_previous_delim()
             del curbuf[start_of_deletion:curbuf.cursor]       
             curbuf.cursor = start_of_deletion
-        elif cur_lin == '\n':
+                   
+        elif not curbuf[curbuf.cursor].strip():
+            start_of_deletion = curbuf.cursor
+            while not curbuf.string[start_of_deletion].strip():
+                start_of_deletion -=1
+            del curbuf[start_of_deletion:curbuf.cursor]       
+            curbuf.cursor = start_of_deletion
+                
+        elif curbuf.current_line == '\n':
             curbuf.join_line_with_next()
         else:
+            curbuf.cursor = curbuf.find_begining_of_line()
             curbuf.current_line = '\n'
 
 @_atomic_commands('\n {k.C_J} {k.C_M} \r i_\n i_\r i_{k.C_J} i_{k.C_M}')
@@ -73,11 +84,13 @@ def insert_from_register(editor, **kwargs):
     """
     txt = str(editor.registr) + '\n\tSelect register to paste from'
     cancel = editor.screen.minibar(*(txt.splitlines()))
+    target_register = editor.read_stdin()
     try:
-        editor.current_buffer.insert(editor.registr[editor.read_stdin()])
-    except AssertionError: # Key is not a valid register
-        editor.screen.minibar('( Nothing inserted. )')
+        register_content = editor.registr[target_register]
+    except AssertionError: # 
+        raise editor.MustGiveUp(f'( Nothing inserted. ) {target_register} is not a valid register.')
     else:
+        editor.current_buffer.insert(register_content)
         cancel()
 
 @_atomic_commands(f'i_{k.suppr} x')

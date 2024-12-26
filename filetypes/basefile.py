@@ -140,15 +140,17 @@ class BaseFile:
                 return rv, prefix_len
 
     def __enter__(self):
+        if self.modifiable:
             self._lock.acquire()
             self._recursion += 1
             if self._recursion == 1:
                 self._async_tasks.cancel_work()
             else:
                 self._lock.release()
-            return self
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.modifiable:
             self._recursion -=    1
             if self._recursion == 0:
 #                self._test_all_assertions()
@@ -867,11 +869,7 @@ class BaseFile:
     @property
     def header(self):
         if not self._repr:
-            self._repr = (str(self) 
-                          + ': '
-                          + ( str(self.path.relative_to(self.path.cwd(), walk_up=True)) if self.path 
-                              else '( undound to file system )' )
-                          )
+            self._repr = f'{self}: {(self.path.relative_to(self.path.cwd(), walk_up=True) if self.path else "( undound to file system )")}'
         return self._repr
     
     @property

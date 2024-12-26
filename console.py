@@ -25,13 +25,16 @@ from select import select
 from sys import __stdin__ as stdin
 from termios import tcgetattr, tcsetattr
 
+from queue import Queue
+INPUT_Q = Queue()
+
 #### All Flags above could have been imported
 ##   from the termios module, but here is an oportunity to document
-##   what those actualy do on a modern linux machine
+##   what those actualy do on a modern linux machine... (if they
+##   really do anything... )
 
 ### tcsetattr() and tcsetattr() scheduling policy
-#
-               # Changes must take effect
+## Changes must take effect
 TCSANOW = 0    # - immediately
 TCSADRAIN = 1  # - after transmitting all queued output
 TCSAFLUSH = 2  # - after TCSADRAIN and discarding all queued input.
@@ -116,7 +119,7 @@ def getch():
     return rv
 
 
-def getch_noblock_base():
+def getch_noblock():
     """
     This is the couter-part of the getch() function from the same
     module.  getch_noblock() returns a generator yielding key strokes or
@@ -182,13 +185,28 @@ def getch_noblock_base():
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
 
+def starts_async_input():
+    for key_press in getch_noblock():
+        if self._async_io_flag:
+            if key_press:
+                self._input_queue.put(key_press)
+        else:
+            break
 
-def getch_noblock_debug():
-    file = open("/home/nono/LOG_console.txt", "a")
-    for key_press in getch_noblock_base():
+def test():
+    print('press space to leave!')
+    nothing = 0
+    for key_press in getch_noblock():
         if key_press:
-            file.write(f"pressed: {key_press}\n")
-            file.flush()
-        yield key_press
+            if key_press == ' ':
+                raise SystemExit
+            nothing = 0
+            print(f"\npressed: {key_press}\r\n", flush=True)
+        else:
+            nothing += 1
+            print(f'nothing pressed {nothing} times', end='\r', flush=True)
+            yield key_press
 
-getch_noblock = getch_noblock_base
+if __name__== '__main__':
+    for k in test():
+        pass

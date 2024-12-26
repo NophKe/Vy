@@ -11,7 +11,7 @@ def guess_lexer_base(path_str, code_str):
 def py_lexer(string):
     important_lines = ('class ', 'def ', 'return ', 'raise ', 'yield ', 'assert ', 'pass')
     control_lines = ('if ', 'else ', 'elif ', 'else:', 'with ')
-    statements = ('try ', 'try:', 'except ', 'except:', 'from ', 'import ')
+    statements = ('try ', 'try:', 'except ', 'except:', 'from ', 'import ', 'finally:')
     loops = ('for ', 'while ')
                        
     for line in string.splitlines(True):
@@ -77,7 +77,6 @@ except ImportError:
       'Comment':  '/gray/',
       'Operator': 'green',
       'Statement': 'cyan',
-      'Loop': '_green_', # TODO Find the bug
       'Loop': '*green*',
     }
     DONT_USE_PYGMENTS_LIB = True    

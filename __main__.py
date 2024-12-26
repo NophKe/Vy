@@ -34,11 +34,16 @@ parser = ArgumentParser(prog='Vy',
 
 parser.add_argument('--debug', default=False,
             action="store_true",
-            help='Screen shows selected infos and enter the debugger.')
+            help=('Use this to edit vy source file. :wq (and similar) now reloads the editor '
+                    'with the modifications you just made taking effect immediatly. It will '
+                    'also try to relocate you into the same buffer and line, but may fail. \n'
+                    'Use this to create your own actions and tweak them into making the editor '
+                    'just do the right thing you want. \n')
+            )
 
-parser.add_argument('--new-config', default=False,
+parser.add_argument('--mini', default=False,
             action="store_true",
-            help='restart configuration, global settings and persitance files from scratch.')
+            help='Use only the smallest subset possible of vy. (in case you crashed it)')
             
 parser.add_argument('--no-user-config', default=False,
             action="store_true",
@@ -62,14 +67,21 @@ cmdline = parser.parse_args()
 
 from vy import global_config
 
-global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
+if cmdline.mini or cmdline.no_user_config:
+    global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
 
 if not global_config.DONT_USE_USER_CONFIG:
     global_config._source_config()
 
-global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
-global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
+if cmdline.mini:
+    global_config.DONT_USE_PYGMENTS_LIB = True
+    global_config.DONT_USE_JEDI_LIB = True
+else:
+    global_config.DONT_USE_PYGMENTS_LIB = cmdline.no_pygments
+    global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
+    
 global_config.DEBUG = cmdline.debug
+global_config.MINI = cmdline.mini
 
 
 ########    SIGNAL HANDLING    #######################################
@@ -99,6 +111,8 @@ def enter_debugger():
 sys.breakpointhook = enter_debugger
 
 def raise_unraisable(unraisable):
+    import os
+    os.system('reset')
     try:
         global Editor
         Editor = Editor
@@ -144,27 +158,27 @@ if global_config.DEBUG:
     from importlib import import_module, reload
     EditorModule = import_module('vy.editor')
     EditorFactory = EditorModule._Editor
-    _current_instance = EditorFactory(*cmdline.files, command_line=cmdline)
-    tracked = 0
+    Editor = EditorFactory(*cmdline.files, command_line=cmdline)
+    first = True
     
     while True: 
         try:
-            _current_instance()
+            if first:
+                Editor()
+                first = False
+            else:
+                Editor(old.current_buffer.path, old.current_buffer.cursor)
         except SystemExit:
-            old = _current_instance
+            old = Editor
             from vy.debug_tools import reload as _intern_reload
-            from time import sleep
-            sleep(1)
-            print('\n***reload***\n')
-            sleep(1)
             _intern_reload(old)
             EditorModule = reload(EditorModule)
             EditorFactory = EditorModule._Editor
-            new = _current_instance = EditorFactory(*cmdline.files, command_line=cmdline)
+            Editor = new = EditorFactory(*[old.current_buffer.path, *cmdline.files], command_line=cmdline)
     
 from vy.editor import _Editor        
 try:
-    _Editor(*cmdline.files, command_line=cmdline)()
+    Editor = _Editor(*cmdline.files, command_line=cmdline)()
 except SystemExit:
     print('Thanks for using Vy in its beta version.\n'
           'Any comment or issue posted on github.com/nophke/vy will be taken into account.')

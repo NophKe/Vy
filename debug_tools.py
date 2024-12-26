@@ -56,4 +56,25 @@ def reload(ed):
 	_reload(mode_change)
 	_reload(commands)
 	_reload(actions)
+	
+	from vy import interface
+	from vy.interface import helpers
+	from vy.interface import normal
+	from vy.interface import insert
+	from vy.interface import visual
+	from vy.interface import command
+	_reload(helpers)
+	_reload(normal)
+	_reload(insert)
+	_reload(visual)
+	_reload(command)
+	_reload(interface)
 
+	from vy import filetypes
+	from vy.filetypes import lexer
+	_reload(filetypes)
+	_reload(lexer)
+	
+	
+	from vy import screen
+	_reload(screen)
