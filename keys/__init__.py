@@ -9,6 +9,11 @@ produce valid python statements as below.
 from .alt_keys import *
 from .function_keys import *
 
+# Backspace combinations
+M_bs = '\x88'
+C_M_bs = '\xff'
+C_bs = '\x7f'
+
 # Control + misc
 A_esc = M_esc = '\x9b'
 
@@ -81,7 +86,7 @@ C_Z = '\x1a'
 C_lbra = '\x1b'
 C_antislash = '\x1c'
 C_rbra = '\x1d'
-#C_caret = '\x5e'
+C_caret = '\x5e' # I double checked it but it still doesn't look right
 C_underscore = '\x1f'
 
 

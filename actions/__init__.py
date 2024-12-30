@@ -1,4 +1,4 @@
-""" 
+"""
 This document lists all of the Vy commands that are natively included.
 
 Most of these commands are accessible by different key mappings
@@ -560,7 +560,7 @@ def scroll_one_line_up(editor, reg=None, part=None, arg=None, count=1):
     curbuf = editor.current_buffer
     current_line_idx, col = curbuf.cursor_lin_col
 
-    if curwin.shift_to_lin + curwin.number_of_lin + 1 < current_line_idx:
+    if curwin.shift_to_lin + curwin.number_of_lin + 1 == current_line_idx:
         curbuf.cursor_lin_col = current_line_idx - 1, col
     if curwin.shift_to_lin > 0:
         curwin.shift_to_lin -= 1

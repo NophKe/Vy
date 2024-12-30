@@ -49,8 +49,9 @@ class CommandCompleter:
         self.histfile = histfile
 
     def __enter__(self):
-        self._old_history = [ readline.get_history_item(idx) 
-                                for idx in range(readline.get_current_history_length())]
+        self._old_history = ([readline.get_history_item(idx) for idx in range(readline.get_current_history_length())]
+                             or []
+                             )   
         self._old_complete = readline.get_completer() 
         readline.set_completer_delims(' \t')
         readline.set_history_length(1000)

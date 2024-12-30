@@ -4,8 +4,15 @@ from vy.filetypes.basefile import BaseFile
 
 def DO_open_file(editor):
     curbuf = editor.current_buffer
-    editor.edit(curbuf._values[curbuf.current_line_idx])
-    return 'normal'
+    path = curbuf._values[curbuf.current_line_idx]
+    try:
+        editor.edit(path)
+    except:
+        from os import startfile
+        startfile(path)
+        editor.screen.minibar('File opened externally.')
+    else:
+        return 'normal'
 
 class Folder(BaseFile):
     actions = { k.CR: DO_open_file, }

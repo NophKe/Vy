@@ -499,13 +499,17 @@ class Screen(Window):
         
         try:
             rv = self.gen_window()
-            ok_flag = True
-        except RuntimeError:
+        except RuntimeError as exc:
+            #raise
             rv = [''] * self._number_of_lin
             ok_flag = False
+            error = str(exc)
+        else:
+            ok_flag = True
+            error = ''
 
         rv.extend(minibar)
-        return rv, ok_flag
+        return rv, ok_flag, error
 
     def minibar(self, *lines):
 #        assert all(line.isprintable() for line in lines)
@@ -555,14 +559,16 @@ class Screen(Window):
             try:
                 lin, col = curbuf._cursor_lin_col
             except ValueError: #buffer in inconsisant state
-                pass
-            else:
-                if lin not in range(min_lin, max_lin):
-                    if lin < min_lin:
-                        curwin.shift_to_lin = lin
-                    elif lin >= max_lin:
-                        page_size = max_lin - min_lin - 1
-                        curwin.shift_to_lin = lin - page_size 
+                cancel_request = curbuf._async_tasks.must_stop.is_set
+                if cancel_request():
+                    raise RuntimeError('recenter should wait')
+                lin, col = curbuf.cursor_lin_col
+            if lin not in range(min_lin, max_lin):
+                if lin < min_lin:
+                    curwin.shift_to_lin = lin
+                elif lin >= max_lin:
+                    page_size = max_lin - min_lin - 1
+                    curwin.shift_to_lin = lin - page_size 
 
     def hide_cursor(self):
         stdout.write('\x1b[?25l')

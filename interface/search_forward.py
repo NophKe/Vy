@@ -16,5 +16,6 @@ def loop(editor):
     with editor.current_buffer:
         editor.actions.normal('n')
         editor.actions.normal('zz')
+        editor.screen.recenter()
     return 'normal'
     

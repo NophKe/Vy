@@ -31,7 +31,7 @@ def goto_end_of_line(self):
 
 @add_to_dict(k.C_V)
 def insert_literal_char(self):
-    buffer.insert(self.editor.read_stdin())
+    self.buffer.insert(self.editor.read_stdin())
 
 @add_to_dict(k.suppr, k.C_D)
 def do_suppr(self):
@@ -62,6 +62,38 @@ def goto_up(self):
 def kill_from_cursor_to_end(self):
     string = self.buffer.string
     self.buffer.string = string[:self.buffer.cursor]
+
+@add_to_dict(k.page_down)
+def page_down(self):
+    if not self.state:
+        self.state = 'history'
+    else:
+        target = self.selected + 7
+        max_target = len(self.completion)
+        if target <= max_target:
+            self.selected = target
+        elif target >= max_target +7:
+            self.selected = max_target
+        else:
+            self.selected = 0
+            
+@add_to_dict(k.page_up)
+def page_up(self):
+    if not self.state:
+        self.state = 'history'
+    else:
+        target = self.selected - 7
+        if target >= 0:
+            self.selected = target
+        elif target > -6:
+            self.selected = 0
+        else:
+            self.selected = len(self.completion)
+    
+@add_to_dict(k.C_bs, k.C_W)
+def kill_word_backward(self):
+
+    raise NotImplementedError
     
 class Completer:
     def __init__(self, file, prompt, editor):

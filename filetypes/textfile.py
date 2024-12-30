@@ -52,6 +52,7 @@ class TextFile(BaseFile):
                 continue
             
             cancel_handler.notify_working()
+            self.cursor_lin_col            
             string = self._string or ''.join(self._splited_lines)
             self._lock.release()
                 
@@ -109,16 +110,16 @@ class TextFile(BaseFile):
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
-            raise RuntimeError # (is None) buffer in inconsistant state
+            raise RuntimeError('cursor_lin_col undefined') # (is None) buffer in inconsistant state
 
         if not self._splited_lines:
-            raise RuntimeError # (is empty) buffer in inconsistant state
+            raise RuntimeError('_splited_lines is empty') # (is empty) buffer in inconsistant state
 
         local_split = self._splited_lines
         try:
             for on_lin in range(min_lin, max_lin):
                 if cancel_request():
-                    raise RuntimeError
+                    raise RuntimeError('cancelled')
                 try:
                     cur_lex = self._lexed_lines[on_lin] # Best case scenario
                 except IndexError: 
@@ -133,7 +134,7 @@ class TextFile(BaseFile):
         except IndexError: 
             #local_split[on_lin] raised IndexError
             if not (nb_of_lines := self._number_of_lin):
-                raise RuntimeError
+                raise RuntimeError('nb_of_lin undefined')
                 # buffer in inconsistent state
             
             if nb_of_lines <= on_lin:

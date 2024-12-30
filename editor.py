@@ -313,10 +313,11 @@ class _Editor:
             else:
                 sleep(0.1)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
+                f'{error = }, '
                 f'Failed: {missed} time(s), '
                 f'waiting keystrokes: {left_keys()}')
 
-            new_screen, ok_flag = get_line_list()
+            new_screen, ok_flag, error = get_line_list()
 
             filtered = ''
             for index, (line, old_line) in enumerate(
@@ -353,7 +354,7 @@ class _Editor:
             self.screen.hide_cursor()
             self.screen.enable_bracketed_paste()
             self.screen.enable_mouse_tracking()
-            print('\x1b[48:5:233m', flush=True)
+            print('\x1b[48:5:239m', flush=True)
         self._async_io_flag = True
         self.input_thread = Thread(target=self.input_loop)
         self.print_thread = Thread(target=self.print_loop,)
@@ -382,8 +383,6 @@ class _Editor:
         Calling the editor launches the command loop interraction.
         If the editor is allready running it is equivalent to Editor.edit()
         """
-        print(f'{buff=} {mode=}')
-#        raise
         if self._running:
             return self.edit(buff)
 

@@ -2,7 +2,7 @@ from vy.actions.helpers import atomic_commands as _atomic_commands
 import vy.keys as k
 from vy.editor import _Editor
 
-@_atomic_commands(f'i_{k.C_W}')
+@_atomic_commands(f'i_{k.C_W} i_{k.C_bs}')
 def erase_word_backward(editor: _Editor, *args, **kwargs):
     """
     Erase one word backward.
@@ -11,25 +11,23 @@ def erase_word_backward(editor: _Editor, *args, **kwargs):
     with editor.current_buffer as curbuf:
         curbuf : TextFile
            
-        if curbuf.current_line.strip():
+        if curbuf.current_line == '\n':
+            curbuf.join_line_with_next()
+            
+        elif not curbuf.current_line.strip():
+            curbuf.cursor = curbuf.find_begining_of_line()
+            curbuf.current_line = '\n'
+            
+        else:
             start_of_deletion = curbuf.find_previous_delim()
-            del curbuf[start_of_deletion:curbuf.cursor]       
-            curbuf.cursor = start_of_deletion
-                   
-        elif not curbuf[curbuf.cursor].strip():
-            start_of_deletion = curbuf.cursor
-            while not curbuf.string[start_of_deletion].strip():
+            
+            while curbuf.string[start_of_deletion] in '\t ':
                 start_of_deletion -=1
             del curbuf[start_of_deletion:curbuf.cursor]       
             curbuf.cursor = start_of_deletion
                 
-        elif curbuf.current_line == '\n':
-            curbuf.join_line_with_next()
-        else:
-            curbuf.cursor = curbuf.find_begining_of_line()
-            curbuf.current_line = '\n'
 
-@_atomic_commands('\n {k.C_J} {k.C_M} \r i_\n i_\r i_{k.C_J} i_{k.C_M}')
+@_atomic_commands('i_\n i_\r i_{k.C_J} i_{k.C_M}')
 def do_insert_newline(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Inserts a newline.  If the current buffer has set_autoindent set,
@@ -51,7 +49,7 @@ def do_insert_newline(editor: _Editor, reg=None, part=None, arg=None, count=1):
             cur_buf.current_line = '\n'
         else:
             cur_buf.insert_newline()
-    return 'insert'
+
 
 @_atomic_commands('i_\t')
 def do_insert_expandtabs(editor, reg=None, part=None, arg=None, count=1):

@@ -501,7 +501,7 @@ class BaseFile:
             self._current_line = ''
             self._cursor_lin_col = ()
             self._cursor = value
-            self.cursor_lin_col
+#            self.cursor_lin_col
 
     @string.setter
     def string(self, value):
@@ -869,7 +869,10 @@ class BaseFile:
     @property
     def header(self):
         if not self._repr:
-            self._repr = f'{self}: {(self.path.relative_to(self.path.cwd(), walk_up=True) if self.path else "( undound to file system )")}'
+            if (pth := self.path):
+                self._repr = f'{self}: {pth.relative_to(pth.cwd(), walk_up=True)}'
+            else:
+                self._repr = f'{self}: ( undound to file system )'
         return self._repr
     
     @property

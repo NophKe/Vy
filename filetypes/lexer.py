@@ -1,12 +1,37 @@
 from vy.global_config import DONT_USE_PYGMENTS_LIB
 
 def guess_lexer_base(path_str, code_str):
+    if path_str.lower().endswith('.vim.doc'):
+        return vimdoc_lexer
     if path_str.lower().endswith('.vy.doc'):
         return doc_lexer
     if path_str.lower().endswith('.py'):
         return py_lexer
     return txt_lexer
 
+def vimdoc_lexer(string):
+    idx = 0
+    lines = string.splitlines()
+    while idx != len(lines):
+        new_line = lines[idx]
+        try:
+            next_line = lines[idx+1]
+        except IndexError:
+            yield 0, '', new_line
+            return
+            
+        if new_line and not new_line.strip('='):
+            yield 0, 'Title', new_line
+            yield 0, 'Title', next_line
+            idx += 1
+        elif new_line and not new_line.strip('-'):
+            yield 0, 'Subtitle', new_line
+            yield 0, 'Subtitle', next_line
+            idx += 1
+        else:
+            yield 0, '', new_line
+        idx += 1
+        
 
 def py_lexer(string):
     important_lines = ('class ', 'def ', 'return ', 'raise ', 'yield ', 'assert ', 'pass')
@@ -78,6 +103,8 @@ except ImportError:
       'Operator': 'green',
       'Statement': 'cyan',
       'Loop': '*green*',
+      'Title': '*yellow*',
+      'Subtitle': '*magenta*',
     }
     DONT_USE_PYGMENTS_LIB = True    
 

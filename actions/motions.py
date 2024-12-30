@@ -115,8 +115,8 @@ def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin, col-count)
 
-@_motion_commands(f'i_{_k.down} {_k.down} j +'
-                  f'{_k.C_J} {_k.C_N}'
+@_motion_commands(f'j + \n \r {_k.C_J} i_{_k.C_M} {_k.C_N}'
+                  f'i_{_k.down} {_k.down}'
                  )
 def do_normal_j(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
@@ -146,8 +146,8 @@ def do_normal_zero(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to beginning of line.
     """
-    with editor.current_buffer as curbuf:
-        curbuf.cursor = curbuf.find_begining_of_line()
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_begining_of_line()
 
 @_motion_commands('e')
 def do_normal_e(editor: _Editor, reg=None, part=None, arg=None, count=1):
@@ -170,8 +170,8 @@ def do_normal_dollar(editor, reg=None, part=None, arg=None, count=1):
     """
     Move cursor to end of line.
     """
-    with editor.current_buffer as curbuf:
-        curbuf.cursor = curbuf.find_end_of_line()
+    curbuf = editor.current_buffer
+    curbuf.cursor = curbuf.find_end_of_line()
 
 @_motion_commands('G')
 def do_normal_G(editor, reg=None, part=None, arg=None, count=1):
@@ -307,27 +307,27 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     """
     needle = editor.registr['/']
     if not needle:
-        editor.screen.minibar(' ( No previous search. )')
-    else:
-        curbuf = editor.current_buffer
-        find = curbuf.string.find
-        current_offset = curbuf.cursor
-        
-        offset = find(needle, current_offset) 
-        if offset == current_offset:
-            offset = find(needle, current_offset + 1)
+        raise editor.MustGiveUp(' ( No previous search. )')
 
-        if offset == -1:
-            editor.screen.minibar(f'String: «{needle}» not found, retrying from first line.')
-            offset = find(needle)
+    curbuf = editor.current_buffer
+    find = curbuf.string.find
+    current_offset = curbuf.cursor
     
-        if offset == -1:
-            editor.screen.minibar(f'String: «{needle}» not found!')
-        else:
-            with curbuf._lock:
-                curbuf.cursor = offset    
-                editor.actions.normal('zz')
-                editor.screen.recenter()
+    offset = find(needle, current_offset) 
+    if offset == current_offset:
+        offset = find(needle, current_offset + 1)
+
+    if offset == -1:
+        editor.screen.minibar(f'String: «{needle}» not found, retrying from first line.')
+        offset = find(needle)
+
+    if offset == -1:
+        editor.screen.minibar(f'String: «{needle}» not found!')
+    else:
+        with curbuf._lock:
+            curbuf.cursor = offset    
+            editor.actions.normal('zz')
+            editor.screen.recenter()
         
     
 @_motion_commands("N")
