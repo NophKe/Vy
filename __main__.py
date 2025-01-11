@@ -164,10 +164,12 @@ if global_config.DEBUG:
     while True: 
         try:
             if first:
-                Editor()
                 first = False
+                Editor()
             else:
-                Editor(old.current_buffer.path, old.current_buffer.cursor)
+                Editor(old.current_buffer.path, position=old.current_buffer.cursor)
+                Editor.actions.normal('zz')
+                
         except SystemExit:
             old = Editor
             from vy.debug_tools import reload as _intern_reload

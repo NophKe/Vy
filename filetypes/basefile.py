@@ -134,8 +134,10 @@ class BaseFile:
                         rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
                 else:
                     rv = []
+                    
                 if self.string not in ns:
                     ns[self.string] = {}
+                ns[self.string][self.cursor_lin_col] = rv, prefix_len
             finally:
                 return rv, prefix_len
 

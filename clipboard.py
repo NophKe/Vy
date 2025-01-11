@@ -90,7 +90,7 @@ class _Register:
         
         elif key == '!':
             self.dico[key] = exec(value)
-
+        
         else:
             raise RuntimeError
 
@@ -102,38 +102,64 @@ def _not_working(*args):
 
 get_os_clipboard = set_os_clipboard = _not_working
 
+_FOUND_A_WAY = False
+
 try:
     import copykitten
     get_os_clipboard = copykitten.paste
     set_os_clipboard = copykitten.copy
 except ImportError:
     pass
+else:
+    try:
+        set_os_clipboard(get_os_clipboard())
+    except _NotWorking:
+        pass
+    else:
+        _FOUND_A_WAY = True
 
 try:
+    if _FOUND_A_WAY:
+        raise ImportError
     import pyperclip
     get_os_clipboard = pyperclip.paste
     set_os_clipboard = pyperclip.copy
     _NotWorking = pyperclip.PyperclipException
 except ImportError:
     pass
-
-try:
-    set_os_clipboard(get_os_clipboard())
-except _NotWorking:
+else:
     try:
-        import subprocess
-        def get_os_clipboard():
-            return subprocess.getoutput('termux-clipboard-get')
-            
-        def set_os_clipboard(new_value):
-            worker = subprocess.Popen('termux-clipboard-set', 
-                                        text=True,
-                                        stdin=subprocess.PIPE)
-            out, err = worker.communicate(new_value)
-            
+        set_os_clipboard(get_os_clipboard())
+    except _NotWorking:
+        pass
+    else:
+        _FOUND_A_WAY = True
+        
+try:
+    if _FOUND_A_WAY:
+        raise ImportError
+    import subprocess
+    def get_os_clipboard():
+        return subprocess.getoutput('termux-clipboard-get')
+        
+    def set_os_clipboard(new_value):
+        worker = subprocess.Popen('termux-clipboard-set', 
+                                    text=True,
+                                    stdin=subprocess.PIPE)
+        out, err = worker.communicate(new_value)
+except ImportError:
+    pass
+else:
+    try:
         set_os_clipboard(get_os_clipboard())
     except:
-        def get_os_clipboard():
-            raise _NotWorking
-        def set_os_clipboard(new_value):
-            pass
+        pass
+    else:
+        _FOUND_A_WAY = True
+        
+
+if not _FOUND_A_WAY:
+    def get_os_clipboard():
+        raise _NotWorking
+    def set_os_clipboard(new_value):
+        pass

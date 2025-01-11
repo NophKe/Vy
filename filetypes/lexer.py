@@ -1,73 +1,39 @@
+from re import split as re_split
+from token import EXACT_TOKEN_TYPES
+from keyword import iskeyword, issoftkeyword
+import builtins
+
 from vy.global_config import DONT_USE_PYGMENTS_LIB
 
 def guess_lexer_base(path_str, code_str):
-    if path_str.lower().endswith('.vim.doc'):
-        return vimdoc_lexer
-    if path_str.lower().endswith('.vy.doc'):
-        return doc_lexer
     if path_str.lower().endswith('.py'):
         return py_lexer
     return txt_lexer
 
-def vimdoc_lexer(string):
-    idx = 0
-    lines = string.splitlines()
-    while idx != len(lines):
-        new_line = lines[idx]
-        try:
-            next_line = lines[idx+1]
-        except IndexError:
-            yield 0, '', new_line
-            return
-            
-        if new_line and not new_line.strip('='):
-            yield 0, 'Title', new_line
-            yield 0, 'Title', next_line
-            idx += 1
-        elif new_line and not new_line.strip('-'):
-            yield 0, 'Subtitle', new_line
-            yield 0, 'Subtitle', next_line
-            idx += 1
-        else:
-            yield 0, '', new_line
-        idx += 1
-        
-
-def py_lexer(string):
-    important_lines = ('class ', 'def ', 'return ', 'raise ', 'yield ', 'assert ', 'pass')
-    control_lines = ('if ', 'else ', 'elif ', 'else:', 'with ')
-    statements = ('try ', 'try:', 'except ', 'except:', 'from ', 'import ', 'finally:')
-    loops = ('for ', 'while ')
-                       
-    for line in string.splitlines(True):
-        content = line.lstrip()
-        if content.startswith('#'):
-            yield 0, 'Comment', line
-        elif content.startswith(important_lines):
-            yield 0, 'Keyword', line
-        elif content.startswith(control_lines):
-            yield 0, 'Operator', line
-        elif content.startswith(statements):
-            yield 0, 'Statement', line
-        elif content.startswith(loops):
-            yield 0, 'Loop', line
-        else:
-            yield 0, '', line
-
-def doc_lexer(string):
-    for line in string.splitlines(True):
-        if line.lstrip().startswith('~'):
-            yield 0, 'Keyword', line
-        elif line.lstrip().startswith('*'):
-            yield 0, 'Keyword', line
-        elif line.startswith('  '):
-            yield 0, 'Comment', line
-        else:
-            yield 0, '', line
-
 def txt_lexer(string):
     for line in string.splitlines(True):
         yield 0, '', line
+
+def py_lexer(string):
+    for line in string.splitlines(True):
+        if line.strip().startswith('#'):
+            yield 0, 'Comment', line
+        else:
+            for it in re_split(r'\b|\d+', line):
+                if not it.strip():
+                    yield 0, '', it
+                elif it.isdigit():
+                    yield 0, 'Number', it
+                elif it.strip() in ',?;.:/!§%*$£=+)]`|-[(':
+                    yield 0, 'Operator', it
+                elif iskeyword(it) or issoftkeyword(it):
+                    yield 0, 'Keyword', it
+                elif it.strip() in EXACT_TOKEN_TYPES:
+                    yield 0, 'Operator', it
+                elif it in dir(builtins):
+                    yield 0, 'Name.Builtin', it
+                else:
+                    yield 0, '', it
 
 try:
     if DONT_USE_PYGMENTS_LIB:
@@ -84,7 +50,7 @@ try:
       Whitespace:         '',             Comment:            '/gray/',
       Comment.Preproc:    'cyan',         Keyword:            '*blue*',
       Keyword:            'cyan',         Operator.Word:      'magenta',
-      Name.Builtin:       'cyan',         Name.Function:      'green',
+      Name.Builtin:       'cyan',         Name.Function:      '_green_',
       Name.Namespace:     '*cyan*',       Name.Class:         '*green*',
       Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
       Name.Variable:      'red',          Name.Constant:      'red',
@@ -98,13 +64,17 @@ try:
 except ImportError:
     colorscheme = {
       '':         '',
-      'Keyword':  '*blue*',
+      'Name.Builtin':       'brightblue',         
+      'Name.Function':      'green',
+      'Keyword':  'cyan',
       'Comment':  '/gray/',
-      'Operator': 'green',
+      'Operator': '*green*',
       'Statement': 'cyan',
-      'Loop': '*green*',
-      'Title': '*yellow*',
-      'Subtitle': '*magenta*',
+      'Loop':      '*green*',
+      'Title':     '*yellow*',
+      'Subtitle':   '*magenta*',
+      'String':     'yellow',       
+      'Number':     '*blue*',
     }
     DONT_USE_PYGMENTS_LIB = True    
 
@@ -112,6 +82,7 @@ def guess_lexer(path, code_str):
     path_str = '' if path is None else str(path)
     if DONT_USE_PYGMENTS_LIB:
         return guess_lexer_base(path_str, code_str)
+    
     try:
         return guess_lexer_for_filename(path_str, code_str).get_tokens_unprocessed
     except ClassNotFound:

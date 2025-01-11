@@ -140,47 +140,48 @@ def getch_noblock():
                         break
                     except UnicodeDecodeError:
                         ret += buffer.read(1)
+                continue
+                
+            next_one = buffer.read(1)
+            if next_one != b"[":
+                yield (ret + next_one).decode("ascii")
+                continue
+                
+            ret = ret + next_one + buffer.read(1)
 
-            else:
-                next_one = buffer.read(1)
-                if next_one != b"[":
-                    yield (ret + next_one).decode("ascii")
+            while ret[-1] not in range(0x40, 0x7E + 1):
+                ret += buffer.read(1)
+
+            if ret == b"\x1b[200~":
+                ret = buffer.read(1)
+                while not ret.endswith(b"\x1b[201~"):
+                    ret += buffer.read(1)
+                ret = ret.removesuffix(b"\x1b[201~")
+                yield "vy:paste"
+                yield ret.replace(b"\r", b"\n").decode("utf-8")
+
+            elif ret == b"\x1b[M":
+                button = ord(buffer.read(1)) - 32  # 32 == ord(ascii(' '))
+                coord_x = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
+                coord_y = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
+                if button == 64:
+                    yield "\x1b[A"
+                elif button == 65:
+                    yield "\x1b[B"
                 else:
-                    ret = ret + next_one + buffer.read(1)
-
-                    while ret[-1] not in range(0x40, 0x7E + 1):
-                        ret += buffer.read(1)
-
-                    if ret == b"\x1b[200~":
-                        ret = buffer.read(1)
-                        while not ret.endswith(b"\x1b[201~"):
-                            ret += buffer.read(1)
-                        ret = ret.removesuffix(b"\x1b[201~")
-                        yield "vy:paste"
-                        yield ret.replace(b"\r", b"\n").decode("utf-8")
-
-                    elif ret == b"\x1b[M":
-                        button = ord(buffer.read(1)) - 32  # 32 == ord(ascii(' '))
-                        coord_x = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
-                        coord_y = str(ord(buffer.read(1)) - 32)  # 32 == ord(ascii(' '))
-                        if button == 64:
-                            yield "\x1b[A"
-                        elif button == 65:
-                            yield "\x1b[B"
-                        else:
-                            if button == 0:
-                                yield f"vy:mouse:left"
-                            elif button == 1:
-                                yield "vy:mouse:middle"
-                            elif button == 2:
-                                yield "vy:mouse:right"
-                            else:
-                                yield f"vy:mouse:{button=}"
-                                continue  # discard coordonates
-                            yield coord_x
-                            yield coord_y
+                    if button == 0:
+                        yield f"vy:mouse:left"
+                    elif button == 1:
+                        yield "vy:mouse:middle"
+                    elif button == 2:
+                        yield "vy:mouse:right"
                     else:
-                        yield ret.decode("ascii")
+                        yield f"vy:mouse:{button=}"
+                        continue  # discard coordonates
+                    yield coord_x
+                    yield coord_y
+            else:
+                yield ret.decode("ascii")
 
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)

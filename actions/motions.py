@@ -115,7 +115,7 @@ def do_normal_h(editor, reg=None, part=None, arg=None, count=1):
     lin, col = editor.current_buffer.cursor_lin_col
     editor.current_buffer.cursor_lin_col = (lin, col-count)
 
-@_motion_commands(f'j + \n \r {_k.C_J} i_{_k.C_M} {_k.C_N}'
+@_motion_commands(f'j + \n \r {_k.C_J} i_{_k.C_M} {_k.C_N} '
                   f'i_{_k.down} {_k.down}'
                  )
 def do_normal_j(editor: _Editor, reg=None, part=None, arg=None, count=1):

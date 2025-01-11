@@ -1,6 +1,57 @@
 from vy.utils import Cancel
 from threading import Thread
 
+import re
+
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end_of_word = False
+
+class Trie:
+    def __init__(self, text=None):
+        self.root = TrieNode()
+        if text:
+            # Extract words from the text using a regular expression
+            words = re.findall(r'\b\w+\b', text)
+            for word in words:
+                self.insert(word)
+
+    def insert(self, word: str):
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.is_end_of_word = True
+
+    def search(self, word: str) -> bool:
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                return False
+            node = node.children[char]
+        return node.is_end_of_word
+
+    def starts_with(self, prefix: str) -> bool:
+        node = self.root
+        for char in prefix:
+            if char not in node.children:
+                return False
+            node = node.children[char]
+        return True
+
+    def _collect_words(self, node, prefix, words):
+        if node.is_end_of_word:
+            words.append(prefix)
+        for char, child in node.children.items():
+            self._collect_words(child, prefix + char, words)
+
+    def __iter__(self):
+        words = []
+        self._collect_words(self.root, '', words)
+        return iter(words)
+    
 class Completer:
     def __init__(self, buffer):
         self.buff = buffer

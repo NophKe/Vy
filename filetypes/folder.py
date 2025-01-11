@@ -8,8 +8,10 @@ def DO_open_file(editor):
     try:
         editor.edit(path)
     except:
-        from os import startfile
-        startfile(path)
+        import subprocess
+        subprocess.call(["xdg-open", path])
+#        from os import startfile
+#        startfile(path)
         editor.screen.minibar('File opened externally.')
     else:
         return 'normal'

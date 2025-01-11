@@ -2,8 +2,10 @@ from vy.filetypes.textfile import TextFile
 from functools import lru_cache
 
 class SimplePyFile(TextFile):
-    actions = {}  # new empty dict to avoid poluting the inherited
+    actions = {}
+    # new empty dict to avoid poluting the inherited
     # one from TextFile base class.
+    
     set_wrap = False
     set_autoindent = True
     set_expandtabs = True
@@ -50,7 +52,7 @@ try:
     from jedi import Script
     from jedi.api.exceptions import RefactoringError
     from jedi import settings
-
+    
     settings.add_bracket_after_function = True
     settings.case_insensitive_completion = True
 #    settings.fast_parser = False
@@ -182,27 +184,23 @@ else:
         # But still redefine _has_syntax_errors to make profit of jedi caching system
         # BUT WHAT IS WRONG ? BUGGY and slower ??
 
-        def __unused_has_syntax_errors(self, ns={}):
-            string = self.string
-            if string not in ns:
-                engine: Script = self.jedi()
-                errors = engine.get_syntax_errors()
-                if errors:
-                    error_message = errors[0].get_message()
-                    error_line = errors[0]
-                    ns[string] = error_message
-                    return error_message
-                ns[string] = ''
-            return ns[string]
+#        def _cached_has_syntax_errors(self, string):
+#            engine: Script = self.jedi()
+#            errors = engine.get_syntax_errors()
+#            if errors:
+#                error_message = errors[0].get_message()
+#                error_line = errors[0]
+#                return f'{len(errors)} errors! {error_message} on line {error_line}'
+#            return 'no syn err'
 
-        def jedi(self, ns={}) -> Script:
-            #    return Script(code=self.string, path=self.path)
+        def jedi(self) -> Script:
+            return Script(code=self.string, path=self.path)
 
             # jedi is not thread-safe... I forgot one more time...
             # AGAIN jedi is not thread-safe... THIS should be LOCKED !
-             if self.string not in ns:
-                 ns[self.string] = Script(code=self.string, path=self.path)
-             return ns[self.string]
+#             if self.string not in ns:
+#                 ns[self.string] = Script(code=self.string, path=self.path)
+#             return ns[self.string]
 
         def _token_chain(self):
             engine: Script = self.jedi()

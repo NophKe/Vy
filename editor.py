@@ -23,7 +23,6 @@ from vy.screen import Screen
 from vy.interface import Interface
 from vy.filetypes import Open_path
 from vy.console import getch_noblock
-from vy.global_config import DEBUG
 from vy.utils import _HistoryList
 from vy.clipboard import _Register
 
@@ -76,8 +75,8 @@ class _Cache:
             new_buffer.cache_id = key
             return new_buffer
 
-#    @staticmethod
-    def _make_key(self,key):
+    @staticmethod
+    def _make_key(key):
         if hasattr(key, 'cache_id'):
             return key.cache_id
         elif isinstance(key, int):
@@ -95,12 +94,6 @@ class _Cache:
     def __repr__(self):
         from pprint import pformat
         return pformat(self._dic)
-
-    def __str__(self):
-        rv = ''
-        for buff in self._dic.values():
-            rv += f'{buff.path.relative_to(Path().cwd()) if buff.path else buff.cache_id}\t:\t{str(buff)}\n'
-        return rv
 
     def __iter__(self):
         yield from self._dic.values()    
@@ -264,17 +257,17 @@ class _Editor:
         try:
             buffer = self.cache[location]
         except UnicodeDecodeError:
-            self.warning(f"Vy cannot deal with encoding of file {location}")
+            raise self.MustGiveUp(f"Vy cannot deal with encoding of file {location}")
         except PermissionError:
-            self.warning(f"You do not seem to have enough rights to read {location}\n"
+            raise self.MustGiveUp(f"You do not seem to have enough rights to read {location}\n"
                           "or the targeted directory does not exist")
+
+        if self.screen:
+            self.current_window.change_buffer(buffer)
         else:
-            if self.screen:
-                self.current_window.change_buffer(buffer)
-            else:
-                self.screen = Screen(buffer)
-            buffer.cursor = position
-    
+            self.screen = Screen(buffer)
+        buffer.cursor = position
+
     @property
     def current_window(self):
         return self.screen.focused
@@ -313,9 +306,7 @@ class _Editor:
             else:
                 sleep(0.1)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
-                f'{error = }, '
-                f'Failed: {missed} time(s), '
-                f'waiting keystrokes: {left_keys()}')
+                                    f'Failed: {missed} time(s), waiting keystrokes: {left_keys()}, {error= } ' )
 
             new_screen, ok_flag, error = get_line_list()
 
@@ -323,7 +314,7 @@ class _Editor:
             for index, (line, old_line) in enumerate(
                             zip(new_screen, chain(old_screen, repeat(''))),
                             start=1):
-                if line != old_line:
+                if line and line != old_line:
                     filtered += f'\x1b[{index};1H{line}'
 
             if filtered:
@@ -348,14 +339,16 @@ class _Editor:
     def start_async_io(self):
 #        signal(SIGWINCH, lambda x, y: self.screen.set_redraw_needed())
         assert not self._async_io_flag
-        if not DEBUG:
-            self.screen.alternative_screen()
-            self.screen.clear_screen()
-            self.screen.hide_cursor()
-            self.screen.enable_bracketed_paste()
-            self.screen.enable_mouse_tracking()
-            print('\x1b[48:5:239m', flush=True)
+
+        self.screen.alternative_screen()
+        self.screen.clear_screen()
+        self.screen.hide_cursor()
+        self.screen.enable_bracketed_paste()
+        self.screen.enable_mouse_tracking()
         self._async_io_flag = True
+        
+        print('\x1b[48:5:234m', flush=True)
+        
         self.input_thread = Thread(target=self.input_loop)
         self.print_thread = Thread(target=self.print_loop,)
         self.input_thread.start()
@@ -366,25 +359,26 @@ class _Editor:
             self._async_io_flag = False
             self.input_thread.join()
             self.print_thread.join()
-            if not DEBUG:
-                self.screen.clear_screen()
-                self.screen.original_screen()
-                self.screen.show_cursor()
-                self.screen.disable_bracketed_paste()
-                self.screen.disable_mouse_tracking()
-                self.screen.bottom()
-                self.screen.reset()
-                print('\x1b[0m')
+ 
+            self.screen.clear_screen()
+            self.screen.original_screen()
+            self.screen.show_cursor()
+            self.screen.disable_bracketed_paste()
+            self.screen.disable_mouse_tracking()
+            self.screen.bottom()
+            self.screen.reset()
+            
+            print('\x1b[0m')
             #assert self._input_queue.join() ## one key may get stuck there
             #                                ## what can we do ?
         
-    def __call__(self, buff=None, mode='normal'):
+    def __call__(self, buff=None, mode='normal', position=0):
         """
         Calling the editor launches the command loop interraction.
         If the editor is allready running it is equivalent to Editor.edit()
         """
         if self._running:
-            return self.edit(buff)
+            return self.edit(buff, position)
 
         try:
             import gc
@@ -395,7 +389,7 @@ class _Editor:
             pass 
 
         if buff:
-            self.edit(buff)
+            self.edit(buff, position)
         elif self.arg_list:
             self.edit(self.arg_list[self.arg_list_pointer])
         else:
@@ -462,6 +456,7 @@ class _Editor:
                 self.start_async_io()
                 continue
         finally:
+            self._input_queue.shutdown(immediate=True)
             self._running = False
             self.stop_async_io()
             self.registr.save()
