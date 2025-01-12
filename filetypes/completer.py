@@ -88,7 +88,8 @@ class Completer:
             self.prefix_len = 0
                 
     def get_raw_screen(self):
-        if self.buff._cursor_lin_col != self._last:
+#        if self.buff._cursor_lin_col != self._last:
+        if self.buff.cursor_lin_col != self._last:
             self._last = self.buff.cursor_lin_col
             self._async.restart_work()
         if self._async.task_done:

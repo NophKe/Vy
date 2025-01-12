@@ -50,6 +50,7 @@ try:
         raise ImportError
 
     from jedi import Script
+    from jedi import Interpreter
     from jedi.api.exceptions import RefactoringError
     from jedi import settings
     
@@ -177,30 +178,8 @@ else:
         PyFile.actions[':get_help'] = DO_get_help
         PyFile.actions['K'] = DO_get_help
 
-        # if we reache this line then jedi install
-        # is ok. parso is dependency of jedi then ._has_syntax_errors and .footer are
-        # defined. No need to redefine PyFile.footer!
-        #
-        # But still redefine _has_syntax_errors to make profit of jedi caching system
-        # BUT WHAT IS WRONG ? BUGGY and slower ??
-
-#        def _cached_has_syntax_errors(self, string):
-#            engine: Script = self.jedi()
-#            errors = engine.get_syntax_errors()
-#            if errors:
-#                error_message = errors[0].get_message()
-#                error_line = errors[0]
-#                return f'{len(errors)} errors! {error_message} on line {error_line}'
-#            return 'no syn err'
-
         def jedi(self) -> Script:
             return Script(code=self.string, path=self.path)
-
-            # jedi is not thread-safe... I forgot one more time...
-            # AGAIN jedi is not thread-safe... THIS should be LOCKED !
-#             if self.string not in ns:
-#                 ns[self.string] = Script(code=self.string, path=self.path)
-#             return ns[self.string]
 
         def _token_chain(self):
             engine: Script = self.jedi()
@@ -213,23 +192,15 @@ else:
                 return token
 
         def auto_complete(self):
-            return self._cached_auto_complete(self.string, self.cursor_lin_col)
-
-        @lru_cache(127)
-        def _cached_auto_complete(self, string, position):
-            lin, col = position
-            engine: Script = self.jedi()
-            try:
-                results = engine.complete(line=lin + 1, column=col - 1)
-            except:
-                return super().auto_complete()
-            if results:
-                lengh = results[0].get_completion_prefix_length()
-                rv = [item.name_with_symbols for item in results]
-                return rv, lengh
-            else:
-                return super().auto_complete()
-
+            if self.string[self.cursor] != '\n':
+                lin, col = self.cursor_lin_col
+                engine: Script = self.jedi()
+#                results = engine.complete_search(line=lin+1, column=col)
+                results = engine.complete(line=lin+1, column=col)
+                if results:
+                    lengh = results[0].get_completion_prefix_length()
+                    return [item.name_with_symbols for item in results], lengh 
+            return [], 0
 
 try:
     from black import format_str, Mode
