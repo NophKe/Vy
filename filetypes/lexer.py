@@ -1,7 +1,10 @@
+import re
 from re import split as re_split
 from token import EXACT_TOKEN_TYPES
 from keyword import iskeyword, issoftkeyword
 import builtins
+
+tokenize = r'(\b|\d+|\'[^\']*\'|"[^"]*"|' + '|'.join(map(re.escape, EXACT_TOKEN_TYPES)) + ')'
 
 from vy.global_config import DONT_USE_PYGMENTS_LIB
 
@@ -19,19 +22,21 @@ def py_lexer(string):
         if line.strip().startswith('#'):
             yield 0, 'Comment', line
         else:
-            for it in re_split(r'\b|\d+', line):
-                if not it.strip():
+            for it in re_split(tokenize, line):
+                if not it:
+                    continue
+                elif not it.strip():
                     yield 0, '', it
                 elif it.isdigit():
                     yield 0, 'Number', it
-                elif it.strip() in ',?;.:/!§%*$£=+)]`|-[(':
-                    yield 0, 'Operator', it
                 elif iskeyword(it) or issoftkeyword(it):
                     yield 0, 'Keyword', it
-                elif it.strip() in EXACT_TOKEN_TYPES:
+                elif it in EXACT_TOKEN_TYPES:
                     yield 0, 'Operator', it
                 elif it in dir(builtins):
                     yield 0, 'Name.Builtin', it
+                elif it[0] == it[-1] and it[0] in '\'"':
+                    yield 0, 'String', it
                 else:
                     yield 0, '', it
 
@@ -50,7 +55,7 @@ try:
       Whitespace:         '',             Comment:            '/gray/',
       Comment.Preproc:    'cyan',         Keyword:            '*blue*',
       Keyword:            'cyan',         Operator.Word:      'magenta',
-      Name.Builtin:       'cyan',         Name.Function:      '_green_',
+      Name.Builtin:       'cyan',         Name.Function:      '*green*',
       Name.Namespace:     '*cyan*',       Name.Class:         '*green*',
       Name.Exception:     'cyan',         Name.Decorator:     'brightblack',
       Name.Variable:      'red',          Name.Constant:      'red',
@@ -68,7 +73,7 @@ except ImportError:
       'Name.Function':      'green',
       'Keyword':  'cyan',
       'Comment':  '/gray/',
-      'Operator': '*green*',
+      'Operator': 'brightgreen',
       'Statement': 'cyan',
       'Loop':      '*green*',
       'Title':     '*yellow*',

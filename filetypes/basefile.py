@@ -872,7 +872,11 @@ class BaseFile:
     def header(self):
         if not self._repr:
             if (pth := self.path):
-                self._repr = f'{self}: {pth.relative_to(pth.cwd(), walk_up=True)}'
+                try:
+                    self._repr = f'{self}: {pth.relative_to(pth.cwd(), walk_up=True)}'
+                except:
+                    self._repr = f'{self}: {pth.resolve()}'
+                
             else:
                 self._repr = f'{self}: ( undound to file system )'
         return self._repr

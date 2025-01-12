@@ -3,14 +3,9 @@ from threading import Thread
 from vy.filetypes.basefile import BaseFile
 from time import sleep
 
-from re import split as _split
-
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
 def make_word_set(string):
-    """
-    >>> raise Error
-    """
     accu = set()
     entry = ''
     for letter in string:
@@ -21,7 +16,6 @@ def make_word_set(string):
                 accu.add(entry)
                 entry = ''
     return accu
-#    return set(_split(r'[{}\. :,()\[\]]|$|\t', string))
 
 class TextFile(BaseFile):
     """
@@ -92,6 +86,12 @@ class TextFile(BaseFile):
                             if w not in self.word_set:
                                 self.ANY_BUFFER_WORD_SET.add(w)
                                 self.word_set.add(w)
+                    else:
+                        for word in self.word_set.copy():
+                            if cancel_request():
+                                break
+                            if word not in string:
+                                self.word_set.remove(word)
   
                             
             cancel_handler.notify_stopped()
