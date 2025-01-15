@@ -15,15 +15,20 @@ settings.
 from pathlib import Path
 from os import access, W_OK
 
+
 from .textfile import TextFile
 from .folder import Folder
-from .pyfile import PyFile, SimplePyFile
 
-known_extensions = {'.pyx': SimplePyFile,
+from vy.global_config import MINI
+if not MINI:
+    from .pyfile import PyFile, SimplePyFile
+    known_extensions = {'.pyx': SimplePyFile,
                     '.pxd': SimplePyFile,
                     '.py' : PyFile,
                     '.txt': TextFile,
                    }
+else:
+    known_extensions = {}
 
 def register_extension(*args):
     def update_ext_dict(cls):

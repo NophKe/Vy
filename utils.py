@@ -168,42 +168,37 @@ def async_update(blocking_call, update):
 class Cancel:
     def __init__(self):
         self.lock = Lock()
-        self.must_stop = Event()
-        self.task_done = Event()
-        self.task_restarted = Event()
+        self.task_restarted = Lock()
+        self.must_stop = False
         self.task_started = False
 
     def notify_working(self):
-        while not self.lock.acquire(blocking=False):
-            sleep(0)
+        self.lock.acquire()
         self.task_started = True
         self.lock.release()
             
-    def notify_task_done(self):
-        self.task_done.set()
-        self.notify_stopped()
-        
     def notify_stopped(self):
-        self.must_stop.wait()
-        self.task_restarted.set()
+        self.task_restarted.acquire()
+        self.task_restarted.acquire()
+        self.task_restarted.release()
 
     def cancel_work(self):
         self.lock.acquire()
-        if self.task_started:
-            self.must_stop.set()
-            self.task_restarted.wait()
-        
-            self.task_restarted.clear()
-            self.task_done.clear()
-            self.must_stop.clear()
-            self.task_started = False
+        self.must_stop = True
             
-    def complete_work(self):
-        self.task_done.wait()
-
     def restart_work(self):
         self.cancel_work()
         self.allow_work()
 
     def allow_work(self):
+        if self.task_started:
+            while True:
+                try:
+                    self.task_restarted.release()
+                except RuntimeError:
+                    continue
+                else:
+                    break
+            self.task_started = False
+        self.must_stop = False
         self.lock.release()

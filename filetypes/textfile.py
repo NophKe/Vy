@@ -30,7 +30,7 @@ class TextFile(BaseFile):
         self._lexed_cache = {}
         self._token_list = []
         self._lexed_lines = []
-        Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True).start()
+        self._th = Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True).start()
 
     def _lex_away(self):
         from vy.filetypes.lexer import guess_lexer, get_prefix
@@ -38,7 +38,7 @@ class TextFile(BaseFile):
         local_dict = self._lexed_cache
         local_lexed = self._lexed_lines
         cancel_handler = self._async_tasks
-        cancel_request = self._async_tasks.must_stop.is_set
+        cancel_request = lambda: self._async_tasks.must_stop
 
         while True:
             if not self._lock.acquire(blocking=False):
@@ -105,7 +105,7 @@ class TextFile(BaseFile):
         # Any case of failure will be turned into a RuntimeError
         # to signal the screen to give up and retry later.
         raw_line_list = list()
-        cancel_request = self._async_tasks.must_stop.is_set
+        cancel_request = lambda: self._async_tasks.must_stop
 
         try:
             cursor_lin, cursor_col = self._cursor_lin_col

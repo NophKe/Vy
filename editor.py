@@ -25,6 +25,7 @@ from vy.filetypes import Open_path
 from vy.console import getch_noblock
 from vy.utils import _HistoryList
 from vy.clipboard import _Register
+from vy.global_config import DEBUG
 
 class _Cache:
     """
@@ -138,6 +139,7 @@ class _Editor:
         actions = NameSpace(self)
         try:
             for name, action in action_dict.items():
+            
 #                if action is normal_mode:
 #                    assert action.v_alias
 # 
@@ -236,8 +238,6 @@ class _Editor:
         ( you don't have access to the editor variable ) you should raise an 
         exception.
         """
-        if isinstance(msg, Exception):  # should be deleted
-            self.exception = msg        # or not ???
         if not self._running:
             print(msg)
             return
@@ -340,8 +340,9 @@ class _Editor:
 #        signal(SIGWINCH, lambda x, y: self.screen.set_redraw_needed())
         assert not self._async_io_flag
 
-        self.screen.alternative_screen()
-        self.screen.clear_screen()
+        if not DEBUG:
+            self.screen.alternative_screen()
+            self.screen.clear_screen()
         self.screen.hide_cursor()
         self.screen.enable_bracketed_paste()
         self.screen.enable_mouse_tracking()
@@ -360,6 +361,7 @@ class _Editor:
             self.input_thread.join()
             self.print_thread.join()
  
+        if not DEBUG:
             self.screen.clear_screen()
             self.screen.original_screen()
             self.screen.show_cursor()

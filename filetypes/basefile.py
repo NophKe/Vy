@@ -121,7 +121,7 @@ class BaseFile:
                     self.ANY_BUFFER_WORD_SET.add(w)
                     self.word_set.add(w)
     
-    def auto_complete(self, ns={}):
+    def auto_complete(self):
         with self._lock:
             try:
                 rv, prefix_len = ns[self.string][self.cursor_lin_col]
@@ -137,7 +137,7 @@ class BaseFile:
                     
                 if self.string not in ns:
                     ns[self.string] = {}
-                ns[self.string][self.cursor_lin_col] = rv, prefix_len
+#                ns[self.string][self.cursor_lin_col] = rv, prefix_len
             finally:
                 return rv, prefix_len
 

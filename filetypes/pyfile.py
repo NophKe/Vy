@@ -21,7 +21,7 @@ except ImportError:
 else:
     class PyFile(SimplePyFile):
         def _has_syntax_errors(self):
-            if self._async_tasks.must_stop.is_set():
+            if self._async_tasks.must_stop:
                 return '( not parsed, no async )'
             if string := self._string:
                 return self._cached_has_syntax_errors(string)

@@ -4,7 +4,17 @@ from token import EXACT_TOKEN_TYPES
 from keyword import iskeyword, issoftkeyword
 import builtins
 
-tokenize = r'(\b|\d+|\'[^\']*\'|"[^"]*"|' + '|'.join(map(re.escape, EXACT_TOKEN_TYPES)) + ')'
+dunder = r'__[^_ \n][^_\n]*__'
+dunder = r'__[^_ \n][^_\n]*__'
+
+tokenize = ( '('
+           + r'\b|\d+|'
+           + r'\'[^\']*\'|'
+           + r'"[^"]*"|'
+           + dunder + '|'
+           + '|'.join(map(re.escape, EXACT_TOKEN_TYPES))
+           + ')'
+           )
 
 from vy.global_config import DONT_USE_PYGMENTS_LIB
 
@@ -26,7 +36,14 @@ def py_lexer(string):
                 if not it:
                     continue
                 elif not it.strip():
-                    yield 0, '', it
+                    if '\t' in it:
+                        for sub_space in re.split('(\t+)', it):
+                            if '\t' in sub_space:
+                                yield 0, 'Important', sub_space
+                            else:
+                                yield 0, '', sub_space
+                    else:
+                        yield 0, '', it
                 elif it.isdigit():
                     yield 0, 'Number', it
                 elif iskeyword(it) or issoftkeyword(it):
@@ -37,6 +54,8 @@ def py_lexer(string):
                     yield 0, 'Name.Builtin', it
                 elif it[0] == it[-1] and it[0] in '\'"':
                     yield 0, 'String', it
+                elif it[0] == it[-1] and it[0] in '_':
+                    yield 0, 'Keyword', it
                 else:
                     yield 0, '', it
 
@@ -80,6 +99,7 @@ except ImportError:
       'Subtitle':   '*magenta*',
       'String':     'yellow',       
       'Number':     '*blue*',
+      'Important':  '/*_brightred_*/',
     }
     DONT_USE_PYGMENTS_LIB = True    
 
@@ -121,6 +141,7 @@ codes = {
         "brightcyan"    :  "\x1b[96m",  "white"         :  "\x1b[97m",
     }
 
+
 def get_prefix(token):
     try:
         return colorscheme[token]
@@ -148,4 +169,3 @@ def _resolve_prefix(color_string):
     return result
 
 colorscheme = {str(key): _resolve_prefix(value) for key, value in colorscheme.items()}
-

@@ -559,8 +559,8 @@ class Screen(Window):
             try:
                 lin, col = curbuf._cursor_lin_col
             except ValueError: #buffer in inconsisant state
-                cancel_request = curbuf._async_tasks.must_stop.is_set
-                if cancel_request():
+                return
+                if curbuf._async_tasks.must_stop:
                     raise RuntimeError('recenter should wait')
                 lin, col = curbuf.cursor_lin_col
             if lin not in range(min_lin, max_lin):
