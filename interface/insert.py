@@ -136,8 +136,8 @@ def monoline_loop(editor: _Editor):
     while True:
         
         if not editor._input_queue.qsize():
+            completer_engine.update()
             try:
-                completer_engine.update()
                 all_done = True
             except:
                 all_done = False

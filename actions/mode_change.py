@@ -80,7 +80,7 @@ def command_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     return 'command'
 
-@_atomic_commands(':python :py')
+@_atomic_commands(f'{_k.S_tab} :python :py')
 def python_mode(editor, reg=None, part=None, arg=None, count=1):
     """
     Starts «Python» mode.

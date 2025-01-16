@@ -186,13 +186,6 @@ def getch_noblock():
     finally:
         tcsetattr(stdin, TCSAFLUSH, old_mode)
 
-def starts_async_input():
-    for key_press in getch_noblock():
-        if self._async_io_flag:
-            if key_press:
-                self._input_queue.put(key_press)
-        else:
-            break
 
 def test():
     print('press space to leave!')

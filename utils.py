@@ -1,4 +1,4 @@
-from threading import Event, Thread, Lock
+from _thread import allocate_lock
 from time import sleep
 
 class DummyLine:
@@ -167,8 +167,8 @@ def async_update(blocking_call, update):
 
 class Cancel:
     def __init__(self):
-        self.lock = Lock()
-        self.task_restarted = Lock()
+        self.lock = allocate_lock()
+        self.task_restarted = allocate_lock()
         self.must_stop = False
         self.task_started = False
 
@@ -196,6 +196,7 @@ class Cancel:
                 try:
                     self.task_restarted.release()
                 except RuntimeError:
+                    sleep(0)
                     continue
                 else:
                     break

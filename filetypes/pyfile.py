@@ -12,7 +12,6 @@ class SimplePyFile(TextFile):
     set_number = True
     set_comment_string = ('#', '')
 
-
 try:
     import parso
 except ImportError:
@@ -50,7 +49,6 @@ try:
         raise ImportError
 
     from jedi import Script
-    from jedi import Interpreter
     from jedi.api.exceptions import RefactoringError
     from jedi import settings
     
@@ -163,7 +161,10 @@ else:
         result = engine.infer(line=lin + 1, column=col)
         if result:
             doc = result[0].docstring(fast=False)
-            editor.screen.minibar(*doc.splitlines())
+            if doc:
+                editor.screen.minibar(*doc.splitlines())
+            else:
+                editor.screen.minibar(str(result[0]))
         else:
             editor.warning(' (no help available)')
 
@@ -189,18 +190,27 @@ else:
                 if result:
                     assert len(result) == 1
                     token = result[0]
-                return token
+                    return token
+            return False
 
         def auto_complete(self):
-            if self.string[self.cursor] != '\n':
-                lin, col = self.cursor_lin_col
-                engine: Script = self.jedi()
-#                results = engine.complete_search(line=lin+1, column=col)
-                results = engine.complete(line=lin+1, column=col)
-                if results:
-                    lengh = results[0].get_completion_prefix_length()
-                    return [item.name_with_symbols for item in results], lengh 
-            return [], 0
+            return self._cached_auto_complete(self.string, self.cursor_lin_col)
+
+        @lru_cache(127)
+        def _cached_auto_complete(self, string, position):
+            lin, col = position
+            engine: Script = self.jedi()
+            try:
+                results = engine.complete(line=lin + 1, column=col - 1)
+            except:
+                return super().auto_complete()
+            if results:
+                lengh = results[0].get_completion_prefix_length()
+                rv = [item.name_with_symbols for item in results]
+                return rv, lengh
+            else:
+                return super().auto_complete()
+
 
 try:
     from black import format_str, Mode

@@ -58,7 +58,7 @@ def bench_insert_list():
     _print(f'bench_insert_list:\n\t\t took {round(time() - start, 3)} seconds.')
 
 def bench_lexed_lines():
-    File = TextFile("/home/nono/test_me.py")
+    File = TextFile(path="/home/nono/test_me.py")
     counter = 0
     start = time()
     max_lin = File.number_of_lin
@@ -77,7 +77,7 @@ def bench_lexed_lines():
     _print(f'bench_get_lexed_lines:\n\t\t took {round(time() - start, 3)} seconds.')
     _print(f'failed {counter} times')
 
-path = Path('/home/nono/test.c')
+path = Path('/home/nono/vy/oldies.c')
 file = open(path)
 value= file.read()
 file.close()
@@ -151,30 +151,4 @@ if __name__ == '__main__':
                 globals()[test]()
         _print(f'Whole Test Suite:\n\t\t took {round(time() - start, 3)} seconds.')
 
-else:
-    from vy.editor import _Editor as Editor
-    ed = Editor()
-    ed.edit('/home/nono/test_me.py')
-    for dic in [ed.actions.command, ed.actions.insert, ed.actions.insert, ed.actions.motion, ed.actions.motion]:
-        import time
-        ed.screen.clear_screen()
-        _print(f'testing {dic}')
-        time.sleep(1)
-        for act in dic:
-            ed.screen.clear_screen()
-            print(f'testing {act}')
-            time.sleep(1)
-            try:
-                func = dic[act]
-                if hasattr(func, "not_tested"):
-                    continue
-                func(ed)
-            except BaseException as exc:
-                print(exc.__cause__)
-                print(act)
-                print(func)
-                print(f'{dic is ed.actions.command =}')
-                print(f'{dic is ed.actions.insert =}')
-                print(f'{dic is ed.actions.normal = }')
-                print(f'{dic is ed.actions.motion =}')
-                print(f'{dic is ed.actions.visual =}')
+

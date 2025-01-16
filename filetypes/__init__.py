@@ -19,6 +19,13 @@ from os import access, W_OK
 from .textfile import TextFile
 from .folder import Folder
 
+def register_extension(*args):
+    def update_ext_dict(cls):
+        for arg in args:
+            known_extensions[arg] = cls
+        return cls
+    return update_ext_dict
+
 from vy.global_config import MINI
 if not MINI:
     from .pyfile import PyFile, SimplePyFile
@@ -29,13 +36,13 @@ if not MINI:
                    }
 else:
     known_extensions = {}
-
-def register_extension(*args):
-    def update_ext_dict(cls):
-        for arg in args:
-            known_extensions[arg] = cls
-        return cls
-    return update_ext_dict
+    @register_extension('.py')    
+    class SimplePyFile(TextFile):
+        set_wrap = False
+        set_autoindent = True
+        set_expandtabs = True
+        set_number = True
+        set_comment_string = ('#', '')
 
 @register_extension('Makefile')
 class MakeFile(TextFile):

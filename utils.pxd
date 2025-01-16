@@ -8,22 +8,16 @@ from queue import Queue
 cdef class Cancel:
     cdef:
         object lock
+        object task_restarted
         
-        public object must_start
         public object must_stop
-        public object task_done
-        public object task_restarted
         public object task_started
-        bint working
-        bint cancelled
 
-    cpdef void notify_task_done(self) noexcept
     cpdef void notify_stopped(self) noexcept
     cpdef void notify_working(self) noexcept
     cpdef void allow_work(self) noexcept
     cpdef void cancel_work(self) noexcept
     cpdef void restart_work(self) noexcept
-    cpdef void complete_work(self) noexcept
 
 cdef class DummyLine:
     cdef:

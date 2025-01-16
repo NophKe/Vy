@@ -58,7 +58,7 @@ class _Cache:
         will be created from reading the path content or from scratch.
 
         Pass it an integer to reach buffers unrelated to file system.
-        
+
         Pass it None to create a new unnamed buffer.
         """
         if key is None:

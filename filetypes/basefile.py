@@ -85,7 +85,7 @@ class BaseFile:
     set_expandtabs = False
     set_number = True
 
-    def __init__(self, cursor=0, init_text='', path=None):
+    def __init__(self, /, cursor=0, init_text='', path=None):
         # start of private
         self._virtual_col = 0
         self._selected = None
@@ -121,7 +121,7 @@ class BaseFile:
                     self.ANY_BUFFER_WORD_SET.add(w)
                     self.word_set.add(w)
     
-    def auto_complete(self):
+    def auto_complete(self, ns={}):
         with self._lock:
             try:
                 rv, prefix_len = ns[self.string][self.cursor_lin_col]
@@ -137,9 +137,10 @@ class BaseFile:
                     
                 if self.string not in ns:
                     ns[self.string] = {}
-#                ns[self.string][self.cursor_lin_col] = rv, prefix_len
+                ns[self.string][self.cursor_lin_col] = rv, prefix_len
             finally:
                 return rv, prefix_len
+
 
     def __enter__(self):
         if self.modifiable:
@@ -186,7 +187,10 @@ class BaseFile:
         with self._lock:
             if not self._cursor_lin_col:
                 lin, off = self.current_line_off
-                col = self.cursor - off + 1
+                try:
+                    col = self.cursor - off + 1
+                except TypeError:
+                    breakpoint()
                 self._cursor_lin_col = (lin, col)
             return self._cursor_lin_col
 
@@ -503,7 +507,7 @@ class BaseFile:
             self._current_line = ''
             self._cursor_lin_col = ()
             self._cursor = value
-#            self.cursor_lin_col
+            self.cursor_lin_col
 
     @string.setter
     def string(self, value):
@@ -675,10 +679,10 @@ class BaseFile:
 #TODO CHeck for end of file
         cursor = self.cursor +1
         try:
-            if not self.string[cursor].isspace(): 
-                while not self.string[cursor].isspace(): 
+            if not self.string[cursor].isspace():
+                while not self.string[cursor].isspace():
                     cursor += 1
-            while self.string[cursor].isspace(): 
+            while self.string[cursor].isspace():
                 cursor += 1
         except IndexError:
             pass
@@ -716,7 +720,7 @@ class BaseFile:
     def find_next_delim(self):
         global DELIMS
         cursor = self.cursor
-        
+
         if self.string[cursor] in DELIMS:
             return self.find_next_non_delim()
 
@@ -757,13 +761,13 @@ class BaseFile:
         for off in self._token_list:
             if off > cursor:
                 return off
-                
+
     def find_previous_token(self):
         cursor = self.cursor
         for idx, off in enumerate(self._token_list):
             if off > cursor:
                 return off
-    
+
     def __getitem__(self, key):
         return self.string[key]
 
@@ -777,7 +781,7 @@ class BaseFile:
                 stop = key.stop or len(self)
             else:
                 raise TypeError(f'{key = } {type(key) = } expected int or slice.')
-            
+
             _string = self.string
             self.string = _string[:start] + _string[stop:]
 
@@ -788,7 +792,7 @@ class BaseFile:
                 stop = key.stop or len(self)
             elif isinstance(key, int):
                 start = key
-                stop = start + 1            
+                stop = start + 1
             else:
                 raise TypeError(f'{key = } {type(key) = } expected int or slice.')
             self.string = self.string[:start] + value + self.string[stop:]
@@ -805,7 +809,7 @@ class BaseFile:
     def save_as(self, new_path, override=False):
         from pathlib import Path
         new_path = Path(new_path).resolve()
-                
+
         if not new_path.exists():
             self.path = new_path
             self.path.touch()
@@ -867,7 +871,7 @@ class BaseFile:
 
     def __str__(self):
         return ('writeable ' if self.modifiable else 'read-only ') + self.__class__.__name__ 
-        
+
     @property
     def header(self):
         if not self._repr:
@@ -876,11 +880,11 @@ class BaseFile:
                     self._repr = f'{self}: {pth.relative_to(pth.cwd(), walk_up=True)}'
                 except:
                     self._repr = f'{self}: {pth.resolve()}'
-                
+
             else:
                 self._repr = f'{self}: ( undound to file system )'
         return self._repr
-    
+
     @property
     def footer(self):
         current_state = self._string
@@ -889,17 +893,17 @@ class BaseFile:
                 else '( saved )' if current_state == known_status[-1]
                 else '( edited )') + str(self.undo_list)
 
-    
+
     def _test_all_assertions(self):
         assert (_string := self._string) or (_string := ''.join(self._splited_lines))
         assert (_splited_lines := self._splited_lines) or (_splited_lines := _string.splitlines(True))
         assert (_number_of_lin := self._number_of_lin)
-        
+
         assert ''.join(_splited_lines) == _string
         assert self._lenght == len(self) == len(_string)
-        
+
         assert _number_of_lin == len(_splited_lines) == len(self.lines_offsets)
         assert self._cursor == self.lines_offsets[self.current_line_idx] + self.cursor_lin_col[1] - 1
 
 #        assert self.lines_offsets == self.generate_properties()
-        
+

@@ -44,12 +44,12 @@ class TextFile(BaseFile):
             if not self._lock.acquire(blocking=False):
                 sleep(0)
                 continue
-            
+
             cancel_handler.notify_working()
             self.cursor_lin_col            
             string = self._string or ''.join(self._splited_lines)
             self._lock.release()
-                
+
             line = ''
 
             if cancel_request():
@@ -92,12 +92,10 @@ class TextFile(BaseFile):
                                 break
                             if word not in string:
                                 self.word_set.remove(word)
-  
-                            
             cancel_handler.notify_stopped()
             self._lexed_lines.clear()
             self._token_list.clear()
-    
+
     def get_raw_screen(self, min_lin, max_lin):
         # This method does not take the internal lock allowing
         # the screen to asynchronously visit the buffer content.
@@ -110,7 +108,8 @@ class TextFile(BaseFile):
         try:
             cursor_lin, cursor_col = self._cursor_lin_col
         except ValueError:
-            raise RuntimeError('cursor_lin_col undefined') # (is None) buffer in inconsistant state
+            cursor_lin = cursor_col = -1
+#            raise RuntimeError('cursor_lin_col undefined') # (is None) buffer in inconsistant state
 
         if not self._splited_lines:
             raise RuntimeError('_splited_lines is empty') # (is empty) buffer in inconsistant state
@@ -128,15 +127,15 @@ class TextFile(BaseFile):
                     cur_lex = self._lexed_cache.get(cur_lin, cur_lin.replace('\n',' '))
                     # if the line got lexed by a previous lexer pass, use the cached
                     # lexed version. Otherwise, just remove the newline character
-                
+
                 raw_line_list.append(cur_lex)
-        
+
         except IndexError: 
             #local_split[on_lin] raised IndexError
             if not (nb_of_lines := self._number_of_lin):
                 raise RuntimeError('nb_of_lin undefined')
                 # buffer in inconsistent state
-            
+
             if nb_of_lines <= on_lin:
                 # on_lin  matches a valid index, this means we passed 
                 # the final line of the buffer and should yield the empty line (~) 
