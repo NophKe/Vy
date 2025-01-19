@@ -16,7 +16,6 @@ def loop(editor: _Editor):
     
         editor.actions.normal('n')
 #        from time import sleep
-#        sleep(0.05)
         editor.actions.normal('zz')
         
     return 'normal'

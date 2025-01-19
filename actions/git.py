@@ -32,12 +32,24 @@ def git_diff(editor: _Editor, reg=None, part=None, arg=None, count=1):
     editor.edit('/tmp/.vy/last_diff.diff')
     editor.current_buffer.insert(out)
     editor.current_buffer.cursor = 0
+    editor.current_buffer.modifiable = False
     editor.start_async_io()
 
    
+@_atomic(':git_add_and_commit :add_and_commit')
+def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    import subprocess
+    editor.stop_async_io()
+    ret = subprocess.run('EDITOR="python -m vy" git add --edit && git commit', shell=True)
+    editor.start_async_io()
+    if ret:
+        editor.warning('error')
+
 @_atomic(':git_add :add')
 def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    subprocess.run('EDITOR="python -m vy" git add --edit && git commit', shell=True)
+    ret = subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
+    if ret.returncode:
+        editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()

@@ -15,7 +15,7 @@ from pathlib import Path
 from bdb import BdbQuit
 from itertools import repeat, chain
 from time import sleep, time
-from threading import Thread
+from threading import Thread, Lock
 from queue import Queue
 from signal import signal, SIGWINCH
 
@@ -188,6 +188,7 @@ class _Editor:
         self.current_mode = ''
         self._input_queue = Queue()
         self._skip_next_undo = False
+        self._screen_lock = Lock()
         
     def save_undo_record(self):
         if self._skip_next_undo:
@@ -238,8 +239,9 @@ class _Editor:
         ( you don't have access to the editor variable ) you should raise an 
         exception.
         """
-        if not self._running:
+        if not self._running or not self._async_io_flag:
             print(msg)
+            input('(press any key)')
             return
         if self._macro_keys:
             self.screen.minibar_completer(
@@ -300,17 +302,18 @@ class _Editor:
                 old_screen.clear()
                 start = now
 
-            if ok_flag and not left_keys(): # > 1:
-                self.screen.recenter()
-                self.screen.infobar(f' {self.current_mode.upper()} ', '')
-            else:
-                sleep(0.1)
-                self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
-                                    f'Failed: {missed:3} time(s), waiting keystrokes: {left_keys():3}, {error= :4} ' )
+            with self._screen_lock:
+                if ok_flag and not left_keys(): # > 1:
+                    self.screen.recenter()
+                    self.screen.infobar(f' {self.current_mode.upper()} ', '')
+                else:
+                    sleep(0.1)
+                    self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
+                                        f'Failed: {missed:3} time(s), waiting keystrokes: {left_keys():3}, {error= :4} ' )
 
-            new_screen, ok_flag, error = get_line_list()
-
-            filtered = ''
+                new_screen, ok_flag, error = get_line_list()
+    
+                filtered = ''
             for index, (line, old_line) in enumerate(
                             zip(new_screen, chain(old_screen, repeat(''))),
                             start=1):

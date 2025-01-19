@@ -1,4 +1,4 @@
-r"""
+"""
 BaseFile is... ( well... ) the basis for what is usually called a
 «buffer» in the in the Vi-like editors jargon.
 
@@ -278,7 +278,8 @@ class BaseFile:
             if not self._splited_lines:
 #                assert self._string
                 #self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
-                self._splited_lines = [line for line in self.string.splitlines(True)]
+#                self._splited_lines = [line for line in self.string.splitlines(True)]
+                self._splited_lines = self.string.splitlines(True)
             return self._splited_lines
 
     @property
@@ -828,9 +829,10 @@ class BaseFile:
 
     @property
     def unsaved(self):
-        if self.path and self.path.exists():
-            if (last_saved := self._states[-1]):
-                return last_saved != self.string != '\n'
+        if not self.modifiable:
+            return False
+        if self.path and self.path.exists() and (last_saved := self._states[-1]):
+            return last_saved != self.string != '\n'
         return self.string != '\n'
 
     def find_normal_l(self):

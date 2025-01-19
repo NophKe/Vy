@@ -324,10 +324,8 @@ def do_normal_n(editor, reg=None, part=None, arg=None, count=1):
     if offset == -1:
         editor.screen.minibar(f'String: «{needle}» not found!')
     else:
-        with curbuf._lock:
-            curbuf.cursor = offset    
-            editor.actions.normal('zz')
-            editor.screen.recenter()
+        curbuf.cursor = offset    
+        editor.actions.normal('zz')
         
     
 @_motion_commands("N")
