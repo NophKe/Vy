@@ -42,8 +42,6 @@ def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
     editor.stop_async_io()
     ret = subprocess.run('EDITOR="python -m vy" git add --edit && git commit', shell=True)
     editor.start_async_io()
-    if ret:
-        editor.warning('error')
 
 @_atomic(':git_add :add')
 def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):

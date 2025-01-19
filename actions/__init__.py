@@ -486,12 +486,12 @@ def do_zz(editor: _Editor, reg=None, part=None, arg=None, count=1):
     Recenters the screen to make cursor line the central line.
     Warning: not to confund with ZZ.
     """
-    curwin = editor.current_window
-    middle = (curwin.number_of_lin + 1) // 2
-    lin = curwin.buff.current_line_idx
-    from time import sleep
-    sleep(1)
-    curwin.shift_to_lin = max(0, min(lin - middle, curwin.number_of_lin))
+    with editor._screen_lock:
+        curwin = editor.current_window
+        curwin.shown_lines = (0, 0)
+        middle = (curwin.number_of_lin + 1) // 2
+        lin = curwin.buff.current_line_idx
+        curwin.shift_to_lin = max(0, min(lin - middle, curwin.buff.number_of_lin))
 
 
 @_atomic_commands("z-")
