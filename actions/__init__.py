@@ -526,10 +526,12 @@ def scroll_one_screen_down(editor, reg=None, part=None, arg=None, count=1):
     """
     curwin = editor.current_window
     curbuf = editor.current_buffer
-    curwin.shift_to_lin = max(curwin.number_of_lin, (curwin.shift_to_lin + curwin.number_of_lin))
-    current_line_idx, cursor_col = curbuf.cursor_lin_col
-    if curwin.shift_to_lin > current_line_idx:
-        curbuf.cursor_lin_col = curwin.shift_to_lin, cursor_col
+    with editor._screen_lock:   
+        curwin.shift_to_lin = max(curwin.number_of_lin, (curwin.shift_to_lin + curwin.number_of_lin))
+        current_line_idx, cursor_col = curbuf.cursor_lin_col
+        if curwin.shift_to_lin > current_line_idx:
+            curbuf.cursor_lin_col = curwin.shift_to_lin, cursor_col
+        curwin.shown_lines = (0, 0)
 
 
 @_atomic_commands(f"{_k.C_E}")
@@ -555,12 +557,13 @@ def scroll_one_line_up(editor, reg=None, part=None, arg=None, count=1):
     """
     curwin = editor.current_window
     curbuf = editor.current_buffer
-    current_line_idx, col = curbuf.cursor_lin_col
 
-    if curwin.shift_to_lin + curwin.number_of_lin + 1 == current_line_idx:
-        curbuf.cursor_lin_col = current_line_idx - 1, col
-    if curwin.shift_to_lin > 0:
-        curwin.shift_to_lin -= 1
+    with editor._screen_lock:
+        lin, col = curbuf.cursor_lin_col
+        if curwin.shift_to_lin > 0:
+            curwin.shift_to_lin -= 1
+            if curwin.shift_to_lin + curwin.number_of_lin  > lin:
+                curbuf.cursor_lin_col = lin - 1, col
 
 
 @_atomic_commands(f"z{_k.C_M}")
@@ -579,15 +582,9 @@ def do_zt(editor, reg=None, part=None, arg=None, count=1):
     """
     Recenters the screen to make cursor line the top line.
     """
-    curwin = editor.current_window
-    lin, _ = curwin.buff.cursor_lin_col
-    new_pos = lin
-    if new_pos <= 0:
-        curwin.shift_to_lin = 0
-    elif new_pos > curwin.buff.number_of_lin:
-        curwin.shift_to_lin = curwin.number_of_lin
-    else:
-        curwin.shift_to_lin = new_pos
+    with editor._screen_lock:
+        editor.current_window.shift_to_lin = \
+            editor.current_buffer.current_line_idx
 
 
 @_atomic_commands("zb")
@@ -595,6 +592,11 @@ def do_zb(editor, reg=None, part=None, arg=None, count=1):
     """
     Recenters the screen to make cursor line the bottom line.
     """
+    with editor._screen_lock:
+        
+        editor.current_window.shift_to_lin = \
+            editor.current_buffer.current_line_idx
+            
     curwin = editor.current_window
     lin, _ = curwin.buff.cursor_lin_col
     new_pos = lin - curwin.number_of_lin
