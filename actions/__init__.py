@@ -481,21 +481,17 @@ def do_exit_hard(editor, reg=None, part=None, arg=None, count=1):
 
 
 @_atomic_commands("zz")
-def do_zz(editor, reg=None, part=None, arg=None, count=1):
+def do_zz(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
     Recenters the screen to make cursor line the central line.
     Warning: not to confund with ZZ.
     """
     curwin = editor.current_window
     middle = (curwin.number_of_lin + 1) // 2
-    lin, _ = curwin.buff.cursor_lin_col
-    new_pos = lin - middle
-    if new_pos <= 0:
-        curwin.shift_to_lin = 0
-    elif new_pos > curwin.buff.number_of_lin:
-        curwin.shift_to_lin = curwin.number_of_lin
-    else:
-        curwin.shift_to_lin = new_pos
+    lin = curwin.buff.current_line_idx
+    from time import sleep
+    sleep(1)
+    curwin.shift_to_lin = max(0, min(lin - middle, curwin.number_of_lin))
 
 
 @_atomic_commands("z-")

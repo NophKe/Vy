@@ -306,7 +306,7 @@ class _Editor:
             else:
                 sleep(0.1)
                 self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
-                                    f'Failed: {missed} time(s), waiting keystrokes: {left_keys()}, {error= } ' )
+                                    f'Failed: {missed:3} time(s), waiting keystrokes: {left_keys():3}, {error= :4} ' )
 
             new_screen, ok_flag, error = get_line_list()
 

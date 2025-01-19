@@ -65,6 +65,8 @@ def reload(ed):
 	from vy.interface import insert
 	from vy.interface import visual
 	from vy.interface import command
+	from vy.interface import search_forward
+	_reload(search_forward)
 	_reload(helpers)
 	_reload(normal)
 	_reload(insert)

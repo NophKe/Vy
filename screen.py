@@ -534,7 +534,7 @@ class Screen(Window):
         self._infobar_right = right
 
     @property
-    def infobar_txt(self):
+    def infobar_txt(self, ns={}):
         left = self._infobar_left
         right = self._infobar_right
         middle = self.number_of_col // 2
@@ -546,8 +546,7 @@ class Screen(Window):
             left = left[:middle - 5] + '....'
         else:
             left = left.ljust(middle, ' ')
-        left =  '\x1b[7;1m' + left + '\x1b[27;22m'
-        return f"{left}{right}"
+        return f'\x1b[7;1m{left}\x1b[27;22m{right}'
     
     def recenter(self):
         curwin = self.focused
