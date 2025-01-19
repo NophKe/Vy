@@ -136,6 +136,7 @@ from vy.actions.motions import *
 from vy.actions.commands import *
 from vy.actions.edition import *
 from vy.actions.linewise import *
+from vy.actions.git import *
 
 
 @_atomic_commands(f"{_k.C_L} :redraw :redraw!")

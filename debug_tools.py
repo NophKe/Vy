@@ -46,11 +46,13 @@ def reload(ed):
 	from vy.actions import mode_change
 	from vy.actions import commands
 	from vy.actions import edition
+	from vy.actions import git
 	from vy.actions import with_arg
 	from vy.actions import linewise
 	_reload(linewise)
 	_reload(with_arg)
 	_reload(edition)
+	_reload(git)
 	_reload(helpers)
 	_reload(motions)
 	_reload(mode_change)
@@ -72,8 +74,19 @@ def reload(ed):
 
 	from vy import filetypes
 	from vy.filetypes import lexer
-	_reload(filetypes)
+	from vy.filetypes import basefile
+	from vy.filetypes import textfile
+	from vy.filetypes import completer
+	from vy.filetypes import folder
+	from vy.filetypes import pyfile
+	
 	_reload(lexer)
+	_reload(basefile)
+	_reload(textfile)
+	_reload(completer)
+	_reload(folder)
+	_reload(pyfile)
+	_reload(filetypes)
 	
 	
 	from vy import screen
