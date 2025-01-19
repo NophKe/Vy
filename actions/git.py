@@ -33,4 +33,11 @@ def git_diff(editor: _Editor, reg=None, part=None, arg=None, count=1):
     editor.current_buffer.insert(out)
     editor.current_buffer.cursor = 0
     editor.start_async_io()
+
    
+@_atomic(':git_add :add')
+def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    import subprocess
+    editor.stop_async_io()
+    subprocess.run('EDITOR="python -m vy" git add --edit && git commit', shell=True)
+    editor.start_async_io()
