@@ -51,3 +51,12 @@ def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
+
+@_atomic(':git_remove_staged :remove_staged')
+def git_remove_staged(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    import subprocess
+    editor.stop_async_io()
+    ret = subprocess.run('git restore --staged .', shell=True)
+    if ret.returncode:
+        editor.warning(f'error {ret.returncode=}')
+    editor.start_async_io()

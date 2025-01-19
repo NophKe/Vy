@@ -90,9 +90,8 @@ def page_up(self):
         else:
             self.selected = len(self.completion)
     
-@add_to_dict(k.C_bs, k.C_W)
+@add_to_dict(k.C_W)
 def kill_word_backward(self):
-
     raise NotImplementedError
     
 class Completer:

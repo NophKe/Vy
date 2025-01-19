@@ -373,7 +373,7 @@ class _Editor:
             self.screen.bottom()
             self.screen.reset()
             
-            print('\x1b[0m')
+        print('\x1b[0m')
             #assert self._input_queue.join() ## one key may get stuck there
             #                                ## what can we do ?
         
