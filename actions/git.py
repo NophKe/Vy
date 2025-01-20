@@ -30,9 +30,11 @@ def git_commmit_known(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_status(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    subprocess.run('git status', shell=True)
-    subprocess.run('read', shell=True)
+    msg = subprocess.getoutput('git status')
+#    msg = subprocess.getoutput('git status', shell=True)
     editor.start_async_io()
+    msg = msg.expandtabs().splitlines()
+    editor.screen.minibar(*msg)
    
 
 @_atomic(':git_diff :diff')
@@ -53,7 +55,7 @@ def git_diff(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('EDITOR="python -m vy" git add --edit && git commit', shell=True)
+    ret = subprocess.run('EDITOR="python -m vy" git add --edit || read && git commit', shell=True)
     editor.start_async_io()
 
 @_atomic(':git_add :add')
