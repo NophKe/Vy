@@ -134,7 +134,6 @@ def give_up(editor: _Editor):
 def monoline_loop(editor: _Editor):
     last_insert = ''
     while True:
-        
         if not editor._input_queue.qsize():
             completer_engine.update()
             try:
@@ -172,23 +171,26 @@ def init(editor: _Editor):
     minibar_completer = editor.screen.minibar_completer
     minibar = editor.screen.minibar
     dictionary = editor.actions.insert
-    
+
 def loop(editor: _Editor):
     editor.current_buffer.stop_selection()
     global completer_engine
     completer_engine = Completer(editor.current_buffer)
-    user_input = monoline_loop(editor) 
-    
-    cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
-    
-    try:
-        action = dictionary[user_input]
-    except KeyError:
-        raise editor.MustGiveUp(f' ( Invalid command: {_escape(user_input)} )')
-    
-    mode = action(editor)
-    cancel_minibar()
-    minibar_completer.give_up()
+    on_lin = editor.current_buffer.current_line_idx
+    mode = 'insert'
 
+    while on_lin == editor.current_buffer.current_line_idx:
+        user_input = monoline_loop(editor) 
+        cancel_minibar = minibar(f' __ Processing command: {_escape(user_input)} __')
+        try:
+            action = dictionary[user_input]
+        except KeyError:
+            raise editor.MustGiveUp(f' ( Invalid command: {_escape(user_input)} )')
+        mode = action(editor)
+        cancel_minibar()
+        if mode and mode != 'insert':
+            break # :-]
+
+    minibar_completer.give_up()
     return mode
 
