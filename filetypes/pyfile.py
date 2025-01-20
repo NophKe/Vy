@@ -49,6 +49,7 @@ try:
         raise ImportError
 
     from jedi import Script
+    from jedi import Interpreter
     from jedi.api.exceptions import RefactoringError
     from jedi import settings
     
@@ -180,7 +181,8 @@ else:
         PyFile.actions['K'] = DO_get_help
 
         def jedi(self) -> Script:
-            return Script(code=self.string, path=self.path)
+            return Interpreter(code=self.string, path=self.path)
+#            return Script(code=self.string, path=self.path)
 
         def _token_chain(self):
             engine: Script = self.jedi()

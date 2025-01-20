@@ -93,7 +93,7 @@ def git_clean(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('git push && read', shell=True)
+    ret = subprocess.run('git push || read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
