@@ -269,6 +269,7 @@ class _Editor:
         else:
             self.screen = Screen(buffer)
         buffer.cursor = position
+        return buffer
 
     @property
     def current_window(self):
@@ -313,7 +314,7 @@ class _Editor:
 
                 new_screen, ok_flag, error = get_line_list()
     
-                filtered = ''
+            filtered = ''
             for index, (line, old_line) in enumerate(
                             zip(new_screen, chain(old_screen, repeat(''))),
                             start=1):

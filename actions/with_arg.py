@@ -198,12 +198,14 @@ def do_system(editor, reg=None, part=None, arg=None, count=1):
     """
     from subprocess import run
     if not arg:
-        editor.warning('Commmand needs arg!')
-    else:
-        completed = run(arg, capture_output=True, shell=True, text=True)
-        retval = completed.returncode
-        output = completed.stdout + completed.stderr
-        editor.warning( f'{output}\nCommand Finished with status: {retval or "OK"}')
+        raise editor.MustGiveUp('Commmand needs arg!')
+    
+    completed = run(arg, capture_output=True, shell=True, text=True)
+    retval = completed.returncode
+    output = completed.stdout + '\n' + ' '*30 + '-'*10 +'    START OF STDERR:\n' + completed.stderr
+    new_buffer = editor.edit('/tmp/vy/last_command_output')
+    new_buffer.string = output
+    editor.warning( f'{output}\nCommand Finished with status: {retval or "OK"}')
     
 @_with_filename(":chdir :chd :cd")
 def do_chdir(editor, reg=None, part=None, arg=None, count=1):

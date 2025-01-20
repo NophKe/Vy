@@ -3,14 +3,17 @@ from re import split as re_split
 from token import EXACT_TOKEN_TYPES
 from keyword import iskeyword, issoftkeyword
 import builtins
-"toto\" toto" 
+
+VULGAR = ('TODO', 'FIXME', 'FUCK')
 
 tokenize = ( '('
-           + r'\b|\d+|'
+           + r'\b|'
+           + r'\d+|'
            + r"'[^']*'|"
            + r'"[^"]*"|'
            + r'__[^_]*__|'
            + '|'.join(map(re.escape, EXACT_TOKEN_TYPES))
+           + '|'.join(VULGAR)
            + ')'
            )
 
@@ -57,6 +60,8 @@ def py_lexer(string):
                 yield 0, 'Important', it
             elif it == 'self':
                 yield 0, 'Operator', it
+            elif it in VULGAR:
+                yield 0, 'Important', it
             else:
                 yield 0, '', it
 
