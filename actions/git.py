@@ -63,7 +63,7 @@ def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
+    ret = subprocess.run('EDITOR="python -m vy" git add --edit || read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
@@ -73,7 +73,27 @@ def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_remove_staged(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('git restore --staged .', shell=True)
+    ret = subprocess.run('git restore --staged . || read', shell=True)
+    if ret.returncode:
+        editor.warning(f'error {ret.returncode=}')
+    editor.start_async_io()
+    
+@_atomic(':git_clean :clean')
+@_only_if_git_repo
+def git_clean(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    import subprocess
+    editor.stop_async_io()
+    ret = subprocess.run('git clean --interactive || read', shell=True)
+    if ret.returncode:
+        editor.warning(f'error {ret.returncode=}')
+    editor.start_async_io()
+    
+@_atomic(':git_push :push')
+@_only_if_git_repo
+def git_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
+    import subprocess
+    editor.stop_async_io()
+    ret = subprocess.run('git push && read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
