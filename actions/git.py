@@ -31,7 +31,6 @@ def git_status(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
     msg = subprocess.getoutput('git status')
-#    msg = subprocess.getoutput('git status', shell=True)
     editor.start_async_io()
     msg = msg.expandtabs().splitlines()
     editor.screen.minibar(*msg)
@@ -43,11 +42,14 @@ def git_diff(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
     out = subprocess.check_output('git diff', text=True, shell=True)
-    editor.edit('/tmp/.vy/last_diff.diff')
-    editor.current_buffer.insert(out)
-    editor.current_buffer.cursor = 0
-    editor.current_buffer.modifiable = False
     editor.start_async_io()
+    if out:
+        editor.edit('/tmp/.vy/last_diff.diff')
+        editor.current_buffer.insert(out)
+        editor.current_buffer.cursor = 0
+        editor.current_buffer.modifiable = False
+    else:
+        editor.screen.minibar('everything is up to date')
 
    
 @_atomic(':git_add_and_commit :add_and_commit')
