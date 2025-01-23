@@ -873,6 +873,8 @@ class BaseFile:
 
     def __str__(self):
         return ('writeable ' if self.modifiable else 'read-only ') + self.__class__.__name__ 
+    def __repr__(self):
+        return f'{self}(cursor={self.cursor})'
 
     @property
     def header(self):
@@ -909,3 +911,4 @@ class BaseFile:
 
 #        assert self.lines_offsets == self.generate_properties()
 
+    

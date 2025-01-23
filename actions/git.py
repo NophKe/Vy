@@ -57,7 +57,13 @@ def git_diff(editor: _Editor, reg=None, part=None, arg=None, count=1):
 def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('EDITOR="python -m vy" git add --edit || read && git commit', shell=True)
+    ret = subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
+    if ret.returncode:
+        editor.warning(f'Aborting "git add" error {ret.returncode=}')
+    else:
+        ret = subprocess.run('EDITOR="python -m vy" git commit', shell=True)
+        if ret.returncode:
+            editor.warning(f'Aborting "git commit" error {ret.returncode=}')
     editor.start_async_io()
 
 @_atomic(':git_add :add')

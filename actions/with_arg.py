@@ -41,27 +41,18 @@ _c_with_buffer_header = """
     aliases: %s"""
 _with_buffer = _CompletableCommand(_c_with_buffer_header, 'buffer')
 
-@_with_filename(':w :write')
-def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
+@_with_filename(':ls!')
+def do_list_files_from_fs(editor: _Editor, reg=None, part=None, arg=None, count=1):
     """
-    Saves the current buffer. If {filename} is given, saves as this
-    new name modifying the current buffer to point to this location.
     """
-    if not arg:
-        if not editor.current_buffer.unsaved:
-            return
-        elif editor.current_buffer.path:
-            try:
-                return editor.current_buffer.save()
-            except (IsADirectoryError, FileExistsError, PermissionError) as exc:
-                editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
-        else:
-            editor.warning('give your file a path (:w some_name) or forget it (:q!).')
-    elif arg:
-        try:
-            return editor.current_buffer.save_as(arg)
-        except (IsADirectoryError, FileExistsError, PermissionError) as exc:
-            editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
+    from subprocess import run
+    if  arg:
+        raise editor.MustGiveUp('arg unknown, WIP, TODO')
+    
+    completed = run(f'ls --color=force --width={editor.screen.number_of_col} -C', capture_output=True, shell=True, text=True)
+    retval = completed.returncode
+    output = completed.stdout
+    editor.warning( f'{output}\nCommand Finished with status: {retval or "OK"}')
 
 @_with_args(':reg :registers :di :display :show_register_content')
 def show_registers(editor, reg=None, part=None, arg=None, count=1):
@@ -89,10 +80,13 @@ def do_remove_cached_buffer(editor, reg=None, part=None, arg=None, count=1):
         buffer = editor.cache[arg]
     del editor.cache[buffer]
     
+    unsaved  = list(filter(lambda buff: buff.unsaved, editor.cache))
+    target = '.' if not unsaved else unsaved[0]
+    
     for window in editor.screen:
         if window.buff is buffer:
             if window is editor.screen:
-                window.change_buffer(editor.cache['.'])
+                window.change_buffer(editor.cache[target])
             elif window is window.parent.left_panel:
                 window.parent.merge_from_right_panel()
             elif window is window.parent.right_panel:

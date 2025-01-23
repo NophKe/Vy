@@ -48,7 +48,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
     number = f'{on_lin:{num_len}}: '
     line =  f'\x1b[2;37;27m{number}\x1b[97;22m'
     start_cursor = '\x1b[7;5m'
-    stop_cursor = '\x1b[27;25m' 
+    stop_cursor = '\x1b[27;25m'
     retval: list = list()
     on_col: int = len(number)
     cursor_col += on_col - 1
@@ -58,7 +58,7 @@ def expandtabs_numbered(tab_size, max_col, text, on_lin, cursor_lin, cursor_col,
 
     visual_flag = any(visual)
     start_v, stop_v = visual
-    
+
     if visual_flag:
         if start_v == -1:
             start_v = on_col
@@ -198,7 +198,7 @@ class CompletionBanner:
         self.selected = -1
         self.pretty_completion = []
         self.completion = []
-    
+
     def set_value(self, completion, selected):
         self.completion = completion
         self.selected = selected
@@ -213,7 +213,7 @@ class CompletionBanner:
 #        self.completion, self.selected = self.make_func()
         if self.completion: # and self.selected != -1:
             self.pretty_completion = [
-                f'| {k} ' if index != self.selected else f"|\x1b[7m {k} \x1b[27m" 
+                f'| {k} ' if index != self.selected else f">\x1b[7m {k} \x1b[27m" 
                        for index, k in enumerate(self.completion)]
             if self.selected >= 0:
                 if self.selected <= self.view_start:
@@ -230,7 +230,7 @@ class Window():
             yield from self.right_panel
         else:
             yield self
-        
+
     def set_focus(self):
         if self.parent is not self:
             if self.parent._focused is not self:
@@ -278,7 +278,7 @@ class Window():
             return self.left_panel.get_left_buffer()
         else:
             return self
-            
+
     def change_buffer(self, new_buffer):
         assert self._v_split_flag is False
         # TODO may be shorter
@@ -465,7 +465,7 @@ class Window():
 class Screen(Window):
     def __init__(self, buff):
         super().__init__(self, 0, 0, buff)
-        
+
         self._infobar_right = ''
         self._infobar_left = ''
         self._minibar_txt = ('',)
@@ -496,7 +496,7 @@ class Screen(Window):
         columns, lines = get_terminal_size()
         self._number_of_col = columns
         self._number_of_lin = lines - len(minibar)
-        
+
         try:
             rv = self.gen_window()
         except RuntimeError as exc:
@@ -551,8 +551,8 @@ class Screen(Window):
     def recenter(self):
         curwin = self.focused
         curbuf = self.focused.buff
-        
-        
+
+
         min_lin, max_lin = curwin.shown_lines
         if max_lin: # gen_windows() allready got called once
             try:
@@ -581,17 +581,17 @@ class Screen(Window):
 
     def save_cursor(self):
         stdout.write('\x1b\u009bs')
-    
+
     def restore_cursor(self):
         stdout.write('\x1b8')
-    
+
     def top_left(self):
         stdout.write('\x1b[1;1H')
-    
+
     def bottom(self):
         col, _ = get_terminal_size()
         stdout.write(f'\x1b[{col}H')
-    
+
     def bold(self):
         stdout.write('\x1b[1m')
 
@@ -606,7 +606,7 @@ class Screen(Window):
 
     def clear_line(self):
         stdout.write('\x1b[2K')
-    
+
     def alternative_screen(self):
         stdout.write('\x1b[?47h')
 
@@ -617,10 +617,10 @@ class Screen(Window):
         stdout.write('\x1b[1J')
         stdout.write('\x1b[2J')
         stdout.write('\x1b[3J')
-    
+
     def enable_bracketed_paste(self):
         stdout.write('\x1b[?2004h')
-    
+
     def disable_bracketed_paste(self):
         stdout.write('\x1b[?2004l')
 
