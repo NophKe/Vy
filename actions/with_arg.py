@@ -5,6 +5,28 @@ the argument will be named, you will get differnet autocompletion.
 from vy.actions.helpers import _command
 from vy.editor import _Editor
 
+@_with_filename(':w :write')
+def do_try_to_save(editor, reg=None, part=None, arg=None, count=1):
+    """
+    Saves the current buffer. If {filename} is given, saves as this
+    new name modifying the current buffer to point to this location.
+    """
+    if not arg:
+        if not editor.current_buffer.unsaved:
+            return
+        elif editor.current_buffer.path:
+            try:
+                return editor.current_buffer.save()
+            except (IsADirectoryError, FileExistsError, PermissionError) as exc:
+                editor.warning(f'{exc.__doc__} quit without saving (:q!) or try to force saving (:w!)')
+        else:
+            editor.warning('give your file a path (:w some_name) or forget it (:q!).')
+    elif arg:
+        try:
+            return editor.current_buffer.save_as(arg)
+        except (IsADirectoryError, FileExistsError, PermissionError) as exc:
+            editor.warning(f'{exc.__doc__} quit without saving (:q!) or (:forget_this_buffer_dont_save)')
+
 class _CompletableCommand(_command):
     category = "with_args"
     def __init__(self, header, completer):
