@@ -10,35 +10,57 @@ def DO_open_file(editor):
     except:
         import subprocess
         subprocess.call(["xdg-open", path])
-#        from os import startfile
-#        startfile(path)
         editor.screen.minibar('File opened externally.')
     else:
         return 'normal'
 
+def DO_delete_file(editor, *args, **kwargs):
+    curbuf = editor.current_buffer
+    path = curbuf._values[curbuf.current_line_idx]
+    path: Path
+    editor.confirm(f'deleting {path}')
+    path.unlink()
+    curbuf._string = ''
+    curbuf._splited_lines.clear()
+    curbuf.string
+    return 'normal'
+
 class Folder(BaseFile):
-    actions = { k.CR: DO_open_file, }
+    actions = { 
+        k.CR: DO_open_file, 
+        ':delete_this_file': DO_delete_file,
+        }
     unsaved = False
     modifiable = False
     
     @property
     def string(self):
+        from pathlib import Path
+            
         if not self._string:
-            cwd = Path().cwd().resolve()
-            browsing  = self.path.resolve()
-            while not browsing.is_relative_to(cwd):
-                cwd = cwd.parent
-            value = [browsing.parent.resolve()]
-
+            assert self.path
+            
+            value = []
             value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and     x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and     x.name.startswith('.')))
 
-            self._values = [ val.resolve() for val in value ]
-#            pretty  = [ val for val in value ]
-            pretty  = [ val.relative_to(cwd,walk_up=True) for val in value ]
-            self._string = '\n'.join(str(item) if not item.is_dir() else str(item) + '/' for item in pretty )
+            self._values = [self.path.parent.resolve()] + value
+            
+            cwd = self.path.cwd().resolve()
+            pretty = []
+            
+            for pth in self._values:
+                if pth.is_relative_to(cwd) and pth != cwd:
+                    ret = str(pth.relative_to(cwd))
+                else:
+                    ret = str(pth.resolve())
+                if pth.is_dir():
+                    ret += '/'
+                pretty.append(ret)
+            
+            self._string = '\n'.join(iter(pretty))
             self._lenght = len(self._string)
         return self._string
 
@@ -47,7 +69,14 @@ class Folder(BaseFile):
         return
 
     def get_raw_line(self, index):
-        return self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
+        retval = self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
+        from vy.global_config import BG_COLOR
+        if index == 0:
+            return '\x1b[1;33;44m' + retval + BG_COLOR
+        elif index == self.current_line_idx:
+            return '\x1b[1;37;42m' + retval + BG_COLOR
+        else:
+            return retval
 
     def get_raw_screen(self, min_lin, max_lin):
         rv = []

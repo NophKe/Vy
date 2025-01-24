@@ -26,6 +26,7 @@ from vy.console import getch_noblock
 from vy.utils import _HistoryList
 from vy.clipboard import _Register
 from vy.global_config import DEBUG
+from vy import keys
 
 class _Cache:
     """
@@ -230,6 +231,25 @@ class _Editor:
         assert isinstance(string, str)
         self._macro_keys.insert(0, string)
 
+    def confirm(self, msg):
+        if not self._running or not self._async_io_flag:
+            print(msg)
+            if self._macro_keys:
+                self.screen.minibar_completer(
+                  'this happened during the execution of a macro that is still running',
+                  f'left to evaluate: {self._macro_keys}')
+            if input('(press any key)') != keys.CR:
+                raise self.MustGiveUp
+                
+        self.screen.minibar(*msg.splitlines(), 
+                            '    ( press enter to confirm, anything else to skip. )')
+        if self.read_stdin() != keys.CR:
+            raise self.MustGiveUp
+        self.screen.minibar('')
+        self.screen.minibar_completer.give_up()
+        
+    
+
     def warning(self, msg):
         """
         Displays a warning message to the user. This should be the main way 
@@ -342,6 +362,7 @@ class _Editor:
 
     def start_async_io(self):
 #        signal(SIGWINCH, lambda x, y: self.screen.set_redraw_needed())
+        from vy.global_config import BG_COLOR
         assert not self._async_io_flag
 
         if not DEBUG:
@@ -417,7 +438,9 @@ class _Editor:
                     continue
                 
                 except self.MustGiveUp as exc:
-                    self.warning(str(exc))
+                    msg = str(exc)
+                    if msg:
+                        self.warning(msg)
                     # don't save undo list, or position, or anything   
                     continue
 

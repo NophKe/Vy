@@ -26,6 +26,7 @@ DONT_USE_PYGMENTS_LIB = False
 DONT_USE_JEDI_LIB = False
 DONT_USE_USER_CONFIG = False
 MINI = False
+BG_COLOR = '\x1b[48:5:234m'
 
 def _source_config():
     global USER_DIR

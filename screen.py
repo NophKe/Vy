@@ -11,7 +11,7 @@ def expand_quick(max_col, text):
     if not text:
         return [ ' ' * max_col ]
     line = ''
-    line = '\x1b[97;22m'
+#    line = '\x1b[97;22m'
     on_col = 0
     retval = []
     esc_flag: bool = False
@@ -28,9 +28,10 @@ def expand_quick(max_col, text):
             continue
 
         if on_col ==  max_col:
-            line += '\x1b[97;22m'
+#            line += '\x1b[97;22m'
             retval.append(line)
-            line = '\x1b[97;22m'
+            line= ''
+#            line = '\x1b[97;22m'
             on_col = 1
             esc_flag = False
 
