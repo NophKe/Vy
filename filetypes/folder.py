@@ -8,8 +8,12 @@ def DO_open_file(editor):
     try:
         editor.edit(path)
     except:
+        editor.confirm('try to open this file externally ?')
         import subprocess
-        subprocess.call(["xdg-open", path])
+        import threading
+        threading.Thread(target= lambda:subprocess.call(["xdg-open", path]),
+                         daemon=True,
+                        ).start()
         editor.screen.minibar('File opened externally.')
     else:
         return 'normal'
@@ -18,7 +22,7 @@ def DO_delete_file(editor, *args, **kwargs):
     curbuf = editor.current_buffer
     path = curbuf._values[curbuf.current_line_idx]
     path: Path
-    editor.confirm(f'deleting {path}')
+    editor.confirm(f'delete {path} ?')
     path.unlink()
     curbuf._string = ''
     curbuf._splited_lines.clear()
@@ -39,14 +43,22 @@ class Folder(BaseFile):
             
         if not self._string:
             assert self.path
-            
             value = []
+            browsing = self.path
+            while browsing != Path('/'):
+                value.append(browsing)
+                browsing = browsing.parent
+            else:
+                value.append(browsing)
+            
+            value.reverse()
+            
             value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if x.is_dir()     and     x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and not x.name.startswith('.')))
             value.extend(sorted(x for x in self.path.iterdir() if not x.is_dir() and     x.name.startswith('.')))
 
-            self._values = [self.path.parent.resolve()] + value
+            self._values = value
             
             cwd = self.path.cwd().resolve()
             pretty = []
@@ -56,8 +68,14 @@ class Folder(BaseFile):
                     ret = str(pth.relative_to(cwd))
                 else:
                     ret = str(pth.resolve())
+                    
                 if pth.is_dir():
                     ret += '/'
+                    
+                if ret.endswith('/') and not ret.startswith('/'):
+                    ret = '\x1b[1m' + ret + '\x1b[22m'
+                else:
+                    ret = '\x1b[3m' + ret + '\x1b[23m'
                 pretty.append(ret)
             
             self._string = '\n'.join(iter(pretty))
@@ -71,10 +89,8 @@ class Folder(BaseFile):
     def get_raw_line(self, index):
         retval = self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
         from vy.global_config import BG_COLOR
-        if index == 0:
-            return '\x1b[1;33;44m' + retval + BG_COLOR
-        elif index == self.current_line_idx:
-            return '\x1b[1;37;42m' + retval + BG_COLOR
+        if index == self.current_line_idx:
+            return '\x1b[45m' + retval + BG_COLOR
         else:
             return retval
 

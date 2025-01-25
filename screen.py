@@ -374,7 +374,7 @@ class Window():
         return expand_quick(self.number_of_col, head_line)
 
     def gen_footer(self):
-        return expand_quick(self.number_of_col, self.buff.footer)
+        return expand_quick(self.number_of_col, f'\x1b[2m{self.buff.footer}\x1b[22m')
 
     def gen_body(self, min_lin, max_lin):
         max_col = self.number_of_col
