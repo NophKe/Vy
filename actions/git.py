@@ -8,6 +8,8 @@ _git_header = """
 
     [SYNTAX]      :%s {argument}
     aliases: %s"""
+
+_with_untracked = _CompletableCommand(_git_header, 'git_untracked')
 _with_modif = _CompletableCommand(_git_header, 'git_modif_or_untracked')
 
 def _only_if_git_repo(func):
@@ -112,7 +114,7 @@ def git_remove_staged(editor: _Editor, reg=None, part=None, arg=None, count=1):
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
     
-@_atomic(':git_clean :clean')
+@_atomic(':git_clean_interactive :clean_interactive')
 @_only_if_git_repo
 def git_clean(editor: _Editor, reg=None, part=None, arg=None, count=1):
     import subprocess
@@ -131,3 +133,22 @@ def git_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
+    
+@_with_untracked(':git_clean :clean')
+@_only_if_git_repo
+def git_clean(editor: _Editor, reg=None, part=None, arg='', count=1):
+    import subprocess
+    show = subprocess.getoutput(f'git clean --dry-run {arg}')
+    if show:
+        try:
+            editor.confirm(show)
+            editor.stop_async_io()
+        except editor.MustGiveUp:
+            editor.screen.minibar('nothing done')
+        else:
+            editor.start_async_io()
+            ret = subprocess.run(f'git clean -f {arg}', shell=True)
+            if ret.returncode:
+                editor.warning(f'error {ret.returncode=}')
+    else:
+        editor.screen.minibar('nothing to do!')
