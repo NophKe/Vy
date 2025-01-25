@@ -56,6 +56,12 @@ class CommandCompleter(Completer):
                         return self.get_buffer(args)
                     elif func.completer == 'option':
                         return self.get_option(args)
+                    else:
+                        try:
+                            return getattr(self, 'get_' + func.completer)()
+                            return getattr(self, 'get_' + func.completer)(args)
+                        except AttributeError:
+                            raise
                 return self.get_history()
                      
         elif one_inside_dict_starts_with(cmd_actions, user_input) or \

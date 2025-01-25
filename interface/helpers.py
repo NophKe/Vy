@@ -223,6 +223,15 @@ class Completer:
     def get_complete(self):
         return [], 0
 
+    def get_git_modif_or_untracked(self, arg=''):
+        import subprocess
+        out = subprocess.getoutput('git status --porcelain')
+        matched = []
+        for l in out.splitlines():
+            if l[1] in 'M?' : #or l[0] in 'M?':
+                matched.append(l[3:])
+        return [m for m in matched if m.startswith(arg)], len(arg)
+
     def start_complete(self):
         if not self.state:
             self.state = 'complete'
