@@ -1,10 +1,12 @@
 from vy.actions.helpers import atomic_commands as _atomic
 from vy.actions.with_arg import _CompletableCommand
 from vy.editor import _Editor
+import subprocess as _subprocess
 
 _git_header = """
     This command is part of command mode «with args» commands.
     Those will not work outside of a valid git repo.
+    You may be asked to confirm if you have unsaved work.
 
     [SYNTAX]      :%s {argument}
     aliases: %s"""
@@ -20,39 +22,48 @@ def _only_if_git_repo(func):
         return func(editor, *args, **kwargs)
     return wrapped
 
+def _only_if_all_saved(func):
+    def wrapped(editor, *args, **kwargs):
+        unsaved = len(list(None for buff in editor.cache if buff.unsaved))
+        if unsaved:
+            editor.confirm(f'You have un-saved work upon {unsaved} file(s).')
+        return func(editor, *args, **kwargs)
+    return wrapped
+
 @_atomic(':git_commit_all_files :commit_all_files')
 @_only_if_git_repo
+@_only_if_all_saved
 def git_commmit_all(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    subprocess.run('EDITOR="python -m vy" git add . && git commit', shell=True)
+    _subprocess.run('EDITOR="python -m vy" git add . && git commit', shell=True)
     editor.start_async_io()
     
 @_atomic(':git_commit_known_files :commit_known_files')
 @_only_if_git_repo
+@_only_if_all_saved
 def git_commmit_known(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    subprocess.run('EDITOR="python -m vy" git commit -a', shell=True)
+    _subprocess.run('EDITOR="python -m vy" git commit -a', shell=True)
     editor.start_async_io()
     
 @_atomic(':git_status :status')
 @_only_if_git_repo
 def git_status(editor: _Editor, reg=None, part=None, arg='', count=1):
-    import subprocess
     editor.stop_async_io()
-    msg = subprocess.getoutput(f'git status {arg}')
+    msg = _subprocess.getoutput(f'git status {arg}')
+    unsaved = len(list(None for buff in editor.cache if buff.unsaved))
     editor.start_async_io()
     msg = msg.expandtabs().splitlines()
+    if unsaved:
+        msg.append('-----')
+        msg.append(f'    {unsaved} unsaved buffer(s) in editor cache.')
     editor.screen.minibar(*msg)
-   
 
 @_with_modif(':git_diff :diff')
 @_only_if_git_repo
 def git_diff(editor: _Editor, reg=None, part=None, arg='', count=1):
-    import subprocess
     editor.stop_async_io()
-    out = subprocess.check_output(f'git diff {arg}', text=True, shell=True)
+    out = _subprocess.check_output(f'git diff {arg}', text=True, shell=True)
     editor.start_async_io()
     if out:
         editor.edit('/tmp/.vy/last_diff.diff')
@@ -64,10 +75,10 @@ def git_diff(editor: _Editor, reg=None, part=None, arg='', count=1):
 
 @_with_modif(':git_add :add')
 @_only_if_git_repo
-def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
+@_only_if_all_saved
+def git_add(editor: _Editor, reg=None, part=None, arg='-p', count=1):
     editor.stop_async_io()
-    ret = subprocess.run(f'git add {arg}', shell=True)
+    ret = _subprocess.run(f'git add {arg}', shell=True)
     if ret.returncode:
         editor.warning(f'Aborting "git add" error {ret.returncode=}')
     editor.start_async_io()
@@ -75,13 +86,12 @@ def git_add(editor: _Editor, reg=None, part=None, arg=None, count=1):
 @_atomic(':git_add_and_commit :add_and_commit')
 @_only_if_git_repo
 def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
+    ret = _subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
     if ret.returncode:
         editor.warning(f'Aborting "git add" error {ret.returncode=}')
     else:
-        ret = subprocess.run('EDITOR="python -m vy" git commit', shell=True)
+        ret = _subprocess.run('EDITOR="python -m vy" git commit', shell=True)
         if ret.returncode:
             editor.warning(f'Aborting "git commit" error {ret.returncode=}')
     editor.start_async_io()
@@ -89,17 +99,17 @@ def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
 @_atomic(':git_add_commit_and_push :add__commit_and_push')
 @_only_if_git_repo
 def git_add_and_commit_and_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
+    import _subprocess
     editor.stop_async_io()
-    ret = subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
+    ret = _subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
     if ret.returncode:
         editor.warning(f'Aborting "git add" error {ret.returncode=}')
     else:
-        ret = subprocess.run('EDITOR="python -m vy" git commit', shell=True)
+        ret = _subprocess.run('EDITOR="python -m vy" git commit', shell=True)
         if ret.returncode:
             editor.warning(f'Aborting "git commit" error {ret.returncode=}')
         else:
-            ret = subprocess.run('EDITOR="python -m vy" git push', shell=True)
+            ret = _subprocess.run('EDITOR="python -m vy" git push', shell=True)
             if ret.returncode:
                 editor.warning(f'Aborting "git push" error {ret.returncode=}')
     editor.start_async_io()
@@ -107,9 +117,8 @@ def git_add_and_commit_and_push(editor: _Editor, reg=None, part=None, arg=None, 
 @_atomic(':git_remove_staged :remove_staged')
 @_only_if_git_repo
 def git_remove_staged(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('git restore --staged . || read', shell=True)
+    ret = _subprocess.run('git restore --staged . || read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
@@ -117,9 +126,8 @@ def git_remove_staged(editor: _Editor, reg=None, part=None, arg=None, count=1):
 @_atomic(':git_clean_interactive :clean_interactive')
 @_only_if_git_repo
 def git_clean(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('git clean --interactive || read', shell=True)
+    ret = _subprocess.run('git clean --interactive || read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
@@ -127,9 +135,8 @@ def git_clean(editor: _Editor, reg=None, part=None, arg=None, count=1):
 @_atomic(':git_push :push')
 @_only_if_git_repo
 def git_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import subprocess
     editor.stop_async_io()
-    ret = subprocess.run('git push || read', shell=True)
+    ret = _subprocess.run('git push || read', shell=True)
     if ret.returncode:
         editor.warning(f'error {ret.returncode=}')
     editor.start_async_io()
@@ -137,8 +144,7 @@ def git_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
 @_with_untracked(':git_clean :clean')
 @_only_if_git_repo
 def git_clean(editor: _Editor, reg=None, part=None, arg='', count=1):
-    import subprocess
-    show = subprocess.getoutput(f'git clean --dry-run {arg}')
+    show = _subprocess.getoutput(f'git clean --dry-run {arg}')
     if show:
         try:
             editor.confirm(show)
@@ -147,7 +153,7 @@ def git_clean(editor: _Editor, reg=None, part=None, arg='', count=1):
             editor.screen.minibar('nothing done')
         else:
             editor.start_async_io()
-            ret = subprocess.run(f'git clean -f {arg}', shell=True)
+            ret = _subprocess.run(f'git clean -f {arg}', shell=True)
             if ret.returncode:
                 editor.warning(f'error {ret.returncode=}')
     else:

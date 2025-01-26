@@ -129,6 +129,7 @@ from vy.actions.helpers import sa_commands as _sa_commands
 from vy.actions.helpers import atomic_commands as _atomic_commands
 from vy.actions.helpers import with_args_commands as _with_args_commands
 
+from vy.actions.macros import *
 from vy.actions.evaluation import *
 from vy.actions.mode_change import *
 from vy.actions.with_arg import *
@@ -195,7 +196,8 @@ def go_back_in_jump_list(editor, count=1, *args, **kwargs):
     else:
         editor.edit(buf.path)
         editor.current_buffer.cursor_lin_col = lin, col
-        editor.jump_list.skip_next()
+        raise editor.MustGiveUp
+#        editor.jump_list.skip_next()
 
 
 @_sa_commands(f"{_k.C_I}")
@@ -211,7 +213,8 @@ def go_forward_in_jump_list(editor, count=1, *args, **kwargs):
     else:
         editor.edit(buf.path)
         editor.current_buffer.cursor_lin_col = lin, col
-        editor.jump_list.skip_next()
+        raise editor.MustGiveUp
+#        editor.jump_list.skip_next()
 
 
 @_sa_commands(f"{_k.C_W}>")
@@ -748,31 +751,6 @@ def reload_last_saved(editor: _Editor, *args, **kwargs):
     last_record = editor.current_buffer.path.read_text()
     editor.current_buffer.string = last_record
     editor.current_buffer.cursor = 0
-
-
-@_sa_commands("q")
-def record_macro(editor, reg=None, part=None, arg=None, count=1):
-    if not editor.record_macro:
-        editor.screen.minibar("choose a letter for this new macro")
-        editor.record_macro = editor.read_stdin()
-        editor.screen.minibar(f"recording macro: «{editor.record_macro}»")
-    else:
-        editor.screen.minibar(f"end recording: «{editor.record_macro}»")
-        editor.macros[editor.record_macro].pop()  # delete final 'q'
-        editor.record_macro = ""
-
-
-@_sa_commands("@")
-def execute_macro(editor, reg=None, part=None, arg=None, count=1):
-    macro_name = editor.read_stdin()
-    try:
-        macro = editor.macros[macro_name]
-    except KeyError:
-        raise editor.MustGiveUp(f" ( not a valid macro ) ")
-    
-    editor.screen.minibar(f"executing: «{editor.record_macro}»")
-    editor.macros['@'] = editor.macros[macro_name]
-    editor._macro_keys = macro.copy()
 
 
 @_sa_commands(":open_parent_folder")

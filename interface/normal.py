@@ -16,7 +16,7 @@ for a more accurate description.
 from vy.interface.helpers import one_inside_dict_starts_with
 from vy.keys import _escape
 
-def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
+def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key, action_replay):
     """Updates mini-bar before reading a new key-strike"""
     texte                   = ''
     if REG                  : texte += ' Register: ' + REG + ' '
@@ -27,14 +27,17 @@ def _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key):
     if key                  : texte += ' ( not fully evaluated: ' + _escape(key) + ' )'
     if texte:
         editor.screen.minibar(texte)
-    return editor.read_stdin()
+    key = editor.read_stdin()
+    action_replay.append(key)
+    return key
 
 def loop(editor, capture=True):
     """ Normal mode event-loop function """
     # Capture local variables
-    get_char = lambda: _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key)
+    get_char = lambda: _get_char(editor, REG, COUNT, CMD, MOTION_COUNT, RANGE, key, action_replay)
     
     
+    action_replay = []
     dictionary = {}
     minibar = editor.screen.minibar
     curbuf = editor.current_buffer
@@ -49,6 +52,7 @@ def loop(editor, capture=True):
     COUNT = ''
     curbuf.stop_selection()
     key = get_char()
+    
 
     if key == '"':
         REG = get_char()
@@ -71,10 +75,13 @@ def loop(editor, capture=True):
         minibar(f' ( Invalid command: {_escape(key)} )')
         return
 
+#    editor.registr['.'] = repr(tuple(action_replay))
     if key in local_actions:
         return local_actions[key](editor)
 
     action = dictionary[key]
+    if 'macro' not in action.__module__:
+        editor.registr['.'] = repr(tuple(action_replay))
     
     if action.motion:
         cancel = minibar(f' ( Processing Motion: {str(COUNT) + " times " if COUNT != 1 else ""}{_escape(key)} )')
@@ -82,7 +89,6 @@ def loop(editor, capture=True):
         cancel()
         return rv
 
-    
     if action.atomic:
         cancel_minibar = minibar(f' ( Processing Command: {_escape(key)} )')
         rv = action(editor, count=COUNT)
@@ -117,6 +123,8 @@ def loop(editor, capture=True):
             rv = action(editor, reg=REG if REG else '+', part=slice(start,stop))
             cancel()
             curbuf.cursor_lin_col = origin_position
+            
+            editor.registr['.'] = repr(tuple(action_replay))
             return rv
 
         while one_inside_dict_starts_with(motion_cmd, key):
@@ -139,5 +147,6 @@ def loop(editor, capture=True):
         rv = action(editor, reg=REG if REG else '+', part=RRANGE)
         cancel()
         curbuf.cursor_lin_col = origin_position
+        editor.registr['.'] = repr(tuple(action_replay))
         return rv
 

@@ -7,8 +7,7 @@ from vy.editor import _Editor
 def init(editor):
     global dictionary, minibar, _get_char
     
-    dictionary = ChainMap(editor.actions.motion,
-                            editor.actions.visual)
+    dictionary = ChainMap(editor.actions.motion, editor.actions.visual)
     minibar = editor.screen.minibar
 
     def _get_char(REG, COUNT, key):
@@ -81,4 +80,4 @@ def loop(editor: _Editor):
                   part=editor.current_buffer.selected_offsets) 
         return rv or 'normal'
     else:
-        editor.screen.minibar(f'unrecognized key: {_escape(key)}')
+        editor.warning(f'unrecognized key: {_escape(key)}... no (.motion .full  .atomic .stand_alon) !!!')

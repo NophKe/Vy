@@ -194,6 +194,7 @@ class Completer:
                 cond = all(item.startswith(char) for item in self.completion)
                 if cond:
                     self.buffer.string = self.buffer.string[:-self.prefix_len]
+                    self.buffer.cursor = max(0, len(self.buffer.string) -1)
                     while char and cond:
                         self.buffer.string += self.completion[0][index]
                         self.buffer.cursor += 1

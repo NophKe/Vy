@@ -147,6 +147,9 @@ def reload_actions(editor :_Editor, *args, **kwargs):
     """
     from importlib import reload as _reload
     from vy import actions
+    from vy.actions import git    
+    from vy.actions import evaluation    
+    from vy.actions import macros
     from vy.actions import helpers
     from vy.actions import motions
     from vy.actions import mode_change
@@ -154,6 +157,9 @@ def reload_actions(editor :_Editor, *args, **kwargs):
     from vy.actions import edition
     from vy.actions import with_arg
     from vy.actions import linewise
+    _reload(git)    
+    _reload(evaluation)    
+    _reload(macros)    
     _reload(linewise)
     _reload(with_arg)
     _reload(edition)

@@ -326,7 +326,8 @@ class _Editor:
             with self._screen_lock:
                 if ok_flag and not left_keys(): # > 1:
                     self.screen.recenter()
-                    self.screen.infobar(f' {self.current_mode.upper()} ', '')
+                    self.screen.infobar(f' {self.current_mode.upper()} ', 
+                                        f'recording macro: {self.record_macro}' if self.record_macro else '')
                 else:
                     sleep(0.1)
                     self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
