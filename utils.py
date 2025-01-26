@@ -6,8 +6,7 @@ class DummyLine:
     This class provides a simple interface around a line oriented
     buffer. It is meant to be used for simple use-case like implementing
     custom input/scanf function. No optimization, nor locking is made around
-    the data.
-     
+    the data.:
     >>> x = DummyLine()
     >>> x.insert('FOO')
     >>> x.cursor = 0
@@ -81,7 +80,7 @@ class DummyLine:
 
     @cursor.setter
     def cursor(self, value):
-        # assert len(self) >= value >= 0
+        assert len(self) >= value >= 0
         self._cursor = value
 
     def __len__(self):
@@ -91,6 +90,7 @@ class TextLine(DummyLine):
     """
     TODO -- This class should soon be the return value
            of the different BaseFile properties.
+    FUCK -- git blame this and die !
     """
     ending = '\n'
 

@@ -422,13 +422,15 @@ class Window():
             to_print = expand(
                 tab_size, max_col, pretty_line, on_lin, cursor_lin,
                 cursor_col, num_len, (start_v_col, stop_v_col)
-            )
-            if wrap:
+                )
+            
+            if wrap or on_lin == cursor_lin:
                 line_list.extend(to_print)
             else:
                 line_list.append(to_print[0])
 
-        if wrap:
+#        if wrap:
+        if True: 
             shown_lines =  max_lin - min_lin
             # TODO some wher in this lies the bug
             while len(line_list) != shown_lines:
@@ -439,7 +441,7 @@ class Window():
                     else:
                         line_list.pop()
                 except IndexError:
-                    raise RuntimeError
+                    raise RuntimeError('wrapping error')
                     assert true_cursor, f'{true_cursor = }'
                     assert line_list, f'{line_list = }'
                     assert shown_lines, f'{shown_lines = }'

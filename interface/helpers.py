@@ -178,6 +178,50 @@ class Completer:
         self.buffer.cursor += len(to_insert) - to_delete
         
     def update_minibar(self):
+        if not self.state:
+            self.screen.minibar_completer.give_up()
+        elif self.buffer.cursor != len(self.buffer.string):
+            self.state = ''
+        else:
+            self.completion, self.prefix_len = getattr(self, 'get_' + self.state)()
+#            breakpoint()
+            if len(self.completion) == 1:
+                self.select_item()
+            elif self.completion and self.completion != ['']:
+                index = 0
+#                char = max(self.completion, key=len)[0][index]
+                char = self.completion[0][index]
+                cond = all(item.startswith(char) for item in self.completion)
+                if cond:
+                    self.buffer.string = self.buffer.string[:-self.prefix_len]
+                    while char and cond:
+                        self.buffer.string += self.completion[0][index]
+                        self.buffer.cursor += 1
+                        index += 1
+                        try:
+#                            char = max(self.completion, key=len)[0][index]
+                            char = self.completion[0][index]
+                        except IndexError:
+                            no_break = False
+                            break
+
+                        try:
+                            cond = all(item[index] == char for item in self.completion)
+                        except IndexError:
+                            cond = False
+                    else:
+                        no_break = True
+                    self.buffer.cursor = len(self.buffer.string)
+#                    if not no_break:
+#                        self.state = ''
+#                    self.state = ''
+#                        
+            if self.selected > len(self.completion) - 1:
+                self.selected = 0
+            if self.selected < 0:
+                self.selected = 0
+            self.screen.minibar_completer(lambda: (self.completion, self.selected))
+                        
         mini_text = self.prompt + ''.join(
                 char if idx != self.buffer.cursor
                 else f'\x1b[7m{char}\x1b[27m' 
@@ -185,19 +229,7 @@ class Completer:
                 )
         
         self.screen.minibar(*(self.buffered + [mini_text]))
-        if not self.state:
-            self.screen.minibar_completer.give_up()
-        elif self.buffer.cursor != len(self.buffer.string):
-            self.state = ''
-        else:
-            self.completion, self.prefix_len = getattr(self, 'get_' + self.state)()
-            if self.selected > len(self.completion) - 1:
-                self.selected = 0
-            if self.selected < 0:
-                self.selected = 0
-            self.screen.minibar_completer(lambda: (self.completion, self.selected))
-
-    def get_filenames(self, arg=None):
+    def get_filenames(self, arg):
         if arg is None:
             arg = self.buffer.string
         user_input = Path(arg)
@@ -232,6 +264,7 @@ class Completer:
         for l in self._get_git_info().splitlines():
             if l[1] in 'M?':
                 matched.append(l[3:])
+                
         return [m for m in matched if m.startswith(arg)], len(arg)
 
     def get_git_untracked(self, arg=''):
@@ -242,10 +275,8 @@ class Completer:
         return [m for m in matched if m.startswith(arg)], len(arg)
         
     def get_git_modif_or_untracked(self, arg=''):
-        import subprocess
-        out = subprocess.getoutput('git status --porcelain')
         matched = []
-        for l in out.splitlines():
+        for l in self._get_git_info().splitlines():
             if l[1] in 'M?' : #or l[0] in 'M?':
                 matched.append(l[3:])
         return [m for m in matched if m.startswith(arg)], len(arg)

@@ -71,12 +71,12 @@ def indent_current_line(editor, reg=None, part=None, arg=None, count=1):
         last_target = curbuf.current_line_idx + count
         max_line = min(last_line, last_target)
         indent = curbuf.set_tabsize * ' '
-        curbuf.move_cursor('_')
         for idx in range(curbuf.current_line_idx, max_line):
             cur_lin = curbuf.current_line
             curbuf.current_line = indent + cur_lin
             if idx != max_line - 1:
-                curbuf.move_cursor('j')
+                curbuf.cursor_lin_col = (idx,0)
+        curbuf.move_cursor('_')
 
 @_sa_commands(f'<< v_< :dedent i_{k.C_D}')
 def dedent_current_line(editor, reg=None, part=None, arg=None, count=1):

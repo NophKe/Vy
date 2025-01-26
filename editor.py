@@ -243,13 +243,13 @@ class _Editor:
                 
         self.screen.minibar(*msg.splitlines(), 
                             '    ( press enter to confirm, anything else to skip. )')
-        if self.read_stdin() != keys.CR:
-            raise self.MustGiveUp
+        
+        answer = self.read_stdin() 
         self.screen.minibar('')
         self.screen.minibar_completer.give_up()
+        if answer != keys.CR:
+            raise self.MustGiveUp
         
-    
-
     def warning(self, msg):
         """
         Displays a warning message to the user. This should be the main way 

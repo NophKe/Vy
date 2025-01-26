@@ -6,8 +6,10 @@ def DO_open_file(editor):
     curbuf = editor.current_buffer
     path = curbuf._values[curbuf.current_line_idx]
     try:
-        editor.edit(path)
-    except:
+        editor.cache[path]
+    except PermissionError as exc:
+        editor.screen.minibar(str(exc))
+    except UnicodeDecodeError:
         editor.confirm('try to open this file externally ?')
         import subprocess
         import threading
@@ -16,7 +18,8 @@ def DO_open_file(editor):
                         ).start()
         editor.screen.minibar('File opened externally.')
     else:
-        return 'normal'
+        editor.edit(path)
+    return 'normal'
 
 def DO_delete_file(editor, *args, **kwargs):
     curbuf = editor.current_buffer
@@ -82,9 +85,6 @@ class Folder(BaseFile):
             self._lenght = len(self._string)
         return self._string
 
-    @string.setter
-    def string(self, value):
-        return
 
     def get_raw_line(self, index):
         retval = self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
@@ -110,3 +110,8 @@ class Folder(BaseFile):
     @property    
     def footer(self):
         return str(self.path.resolve())
+
+
+    @string.setter
+    def string(self, value):
+        return

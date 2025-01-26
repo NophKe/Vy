@@ -173,6 +173,10 @@ def init(editor: _Editor):
     dictionary = editor.actions.insert
 
 def loop(editor: _Editor):
+    if not editor.current_buffer.modifiable:
+        editor.screen.minibar('Cannot insert here !')
+        return 'normal'
+    
     editor.current_buffer.stop_selection()
     global completer_engine
     completer_engine = Completer(editor.current_buffer)

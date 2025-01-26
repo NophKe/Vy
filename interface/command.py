@@ -58,7 +58,6 @@ class CommandCompleter(Completer):
                         return self.get_option(args)
                     else:
                         try:
-                            return getattr(self, 'get_' + func.completer)()
                             return getattr(self, 'get_' + func.completer)(args)
                         except AttributeError:
                             raise

@@ -347,13 +347,14 @@ class BaseFile:
         Inserts value at the cursor position.
         Cursor will move to end of inserted text value.
         """
-        with self:
-            if value == '\n':
-                self.insert_newline()
-            elif '\n' not in value:
-                self._list_insert(value)
-            else:
-                self._string_insert(value)
+        if self.modifiable:
+            with self:
+                if value == '\n':
+                    self.insert_newline()
+                elif '\n' not in value:
+                    self._list_insert(value)
+                else:
+                    self._string_insert(value)
 
     def _string_insert(self, value):
         string = self.string
@@ -450,28 +451,29 @@ class BaseFile:
         """
         This function inserts a newline using a «fast path».
 
-        It does do by checking what is allready being computed, and
+        It does so by checking what is allready being computed, and
         delaying expensive computations.
         """
-        with self:
-            if self._splited_lines:
-                self._lenght += 1
-                self._number_of_lin += 1
-                lin, col = self.cursor_lin_col
+        if self.modifiable:
+            with self:
+                if self._splited_lines:
+                    self._lenght += 1
+                    self._number_of_lin += 1
+                    lin, col = self.cursor_lin_col
 
-                top = (self._splited_lines[lin])[:col-1] + '\n'
-                bottom = (self._splited_lines[lin])[col-1:]
-                self._splited_lines.insert(lin, top)
-                self._splited_lines[lin+1] = bottom
-                self._current_line = bottom
-                self._string = ''
-                self._cursor_lin_col = (lin+1, 1)
-                self._cursor += 1
-                self._lines_offsets.clear()
-
-            else:
-                self._string_insert('\n')
-
+                    top = (self._splited_lines[lin])[:col-1] + '\n'
+                    bottom = (self._splited_lines[lin])[col-1:]
+                    self._splited_lines.insert(lin, top)
+                    self._splited_lines[lin+1] = bottom
+                    self._current_line = bottom
+                    self._string = ''
+                    self._cursor_lin_col = (lin+1, 1)
+                    self._cursor += 1
+                    self._lines_offsets.clear()
+    
+                else:
+                    self._string_insert('\n')
+    
     @property
     def current_line(self):
         with self._lock:
@@ -481,17 +483,18 @@ class BaseFile:
 
     @current_line.setter
     def current_line(self, value):
-        with self:
-            assert value.endswith('\n') and '\n' not in value[:-1], f'{repr(value) = }'
-            lin = self.current_line_idx
-            old_val = self._splited_lines[lin]
-            self._lenght -= len(old_val) - len(value)
+        if self.modifiable:
+            with self:
+                assert value.endswith('\n') and '\n' not in value[:-1], f'{repr(value) = }'
+                lin = self.current_line_idx
+                old_val = self._splited_lines[lin]
+                self._lenght -= len(old_val) - len(value)
 
-            self._splited_lines[lin] = value
-            self._string = ''
-            self._current_line = value
-            self._lines_offsets.clear()
-
+                self._splited_lines[lin] = value
+                self._string = ''
+                self._current_line = value
+                self._lines_offsets.clear()
+    
     @property
     def cursor(self):
         """
@@ -512,20 +515,19 @@ class BaseFile:
 
     @string.setter
     def string(self, value):
-        if not self.modifiable or self._string == value:
-            return
-        with self:
-            self._current_line = ''
-            self._splited_lines.clear()
-            self._lines_offsets.clear()
-            
-            if not value.endswith(self.ending):
-                value += self.ending
+        if self.modifiable:
+            with self:
+                self._current_line = ''
+                self._splited_lines.clear()
+                self._lines_offsets.clear()
                 
-            self._string = value
-            self._number_of_lin = value.count('\n')
-            self._lenght = len(self._string)
-            self._cursor_lin_col = ()
+                if not value.endswith(self.ending):
+                    value += self.ending
+                    
+                self._string = value
+                self._number_of_lin = value.count('\n')
+                self._lenght = len(self._string)
+                self._cursor_lin_col = ()
 
     def set_undo_point(self):
         try:

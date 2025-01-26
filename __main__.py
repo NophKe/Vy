@@ -180,7 +180,8 @@ if global_config.DEBUG:
     
 from vy.editor import _Editor        
 try:
-    Editor = _Editor(*cmdline.files, command_line=cmdline)()
+    Editor = _Editor(*cmdline.files, command_line=cmdline)
+    Editor()
 except SystemExit:
     print('Thanks for using Vy in its beta version.\n'
           'Any comment or issue posted on github.com/nophke/vy will be taken into account.')
