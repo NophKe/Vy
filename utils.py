@@ -105,8 +105,8 @@ class _HistoryList:
             self.append(initial)
     
     def append(self, value):
-        if self.skip:
-            self.skip = False
+        if value in self.data:
+            self.pointer = self.data.index(value) + 1
         else:
             self.data.insert(self.pointer, value)
             self.pointer += 1

@@ -66,7 +66,12 @@ def git_diff(editor: _Editor, reg=None, part=None, arg='', count=1):
     out = _subprocess.check_output(f'git diff {arg}', text=True, shell=True)
     editor.start_async_io()
     if out:
-        editor.edit('/tmp/.vy/last_diff.diff')
+        filename = '/tmp/.vy/last_diff.diff'
+        try:
+            del editor.cache[filename]
+        except KeyError:
+            pass
+        editor.edit(filename)
         editor.current_buffer.insert(out)
         editor.current_buffer.cursor = 0
         editor.current_buffer.modifiable = False

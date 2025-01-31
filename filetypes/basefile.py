@@ -543,7 +543,7 @@ class BaseFile:
 
     def undo(self):
         with self:
-            self.undo_list.skip_next()            # first
+#            self.undo_list.skip_next()            # first
             txt, pos = self.undo_list.pop()    # second
             if isinstance(txt, str):
                 self.string = txt
@@ -561,7 +561,7 @@ class BaseFile:
             
     def redo(self):
         with self:
-            self.undo_list.skip_next()            # must skip even if push or pop
+#            self.undo_list.skip_next()            # must skip even if push or pop
             txt, pos = self.undo_list.push() # raises
             if isinstance(txt, str):
                 self.string = txt

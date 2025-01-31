@@ -165,10 +165,7 @@ def show_file_and_position(editor, *args, **kwargs):
     """
     buff = editor.current_buffer
     x, y = buff.cursor_lin_col
-    if buff.path:
-        val = str(buff.path)
-    else:
-        val = '( unbound to filesystem )'
+    val = str(buff.path) if buff.path else '( unbound to filesystem )'
     val += f', on line {x} on collumn {y}' 
     editor.screen.minibar(val)
     
@@ -196,8 +193,7 @@ def go_back_in_jump_list(editor, count=1, *args, **kwargs):
     else:
         editor.edit(buf.path)
         editor.current_buffer.cursor_lin_col = lin, col
-        raise editor.MustGiveUp
-#        editor.jump_list.skip_next()
+        raise editor.MustGiveUp # so that we don't record undo or position
 
 
 @_sa_commands(f"{_k.C_I}")
@@ -213,8 +209,7 @@ def go_forward_in_jump_list(editor, count=1, *args, **kwargs):
     else:
         editor.edit(buf.path)
         editor.current_buffer.cursor_lin_col = lin, col
-        raise editor.MustGiveUp
-#        editor.jump_list.skip_next()
+        raise editor.MustGiveUp # so that we don't record undo or position
 
 
 @_sa_commands(f"{_k.C_W}>")
@@ -247,20 +242,23 @@ def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
     ---
     NOTE: There is no difference between 'U' and 'u' (Not Vim's behaviour).
     """
+#    editor.current_buffer.undo()
+#    raise editor.MustGiveUp
+    breakpoint()
     if arg:
         try:
             count = int(arg)
         except ValueError:
-            #editor.screen.minibar(f"Wrong count argument, must be an integer: {arg}")
             raise editor.MustGiveUp(f"Wrong count argument, must be an integer: {arg}")
-    recenter = editor.actions.normal['zz']
     
+    recenter = editor.actions.normal['zz']
     try:
         if count != 1:            
             with editor.current_buffer as curbuf:
                 for _ in range(count):
                     curbuf.undo()
                     recenter(editor)
+                raise editor.MustGiveUp
         else:
             lst = editor.current_buffer.undo_list
             old_pos = lst.last_record()[1]
@@ -271,18 +269,18 @@ def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
                 editor.current_buffer.move_cursor('_')
             else:
                 editor.current_buffer.undo()
-                editor._skip_next_undo = True
-                
+            raise editor.MustGiveUp
     except IndexError:
-        editor.screen.minibar(" ( older record ) ")
-        
+        raise editor.MustGiveUp(" ( older record ) ")
 
-    
+
 @_sa_commands(f"{_k.C_R} :red :redo")
 def redo(editor, reg=None, part=None, arg=None, count=1):
     """
     Redo last undone action in the current buffer.
     """
+    editor.current_buffer.redo()
+    raise editor.MustGiveUp
     if arg:
         try:
             count = int(arg)
@@ -292,8 +290,10 @@ def redo(editor, reg=None, part=None, arg=None, count=1):
         with editor.current_buffer as curbuf:
             for _ in range(count):
                 curbuf.redo()
+            else:
+                raise editor.MustGiveUp
     except IndexError:
-        editor.screen.minibar(" ( most recent record ) ")
+        raise editor.MustGiveUp(" ( most recent record ) ")
 
 
 @_atomic_commands(":pwd :pw :pwd-verbose")
@@ -764,9 +764,7 @@ def cycle_through_windows(editor: _Editor, reg=None, part=None, arg=None, count=
     for window in editor.screen:
         if found:
             window.set_focus()
-            break
-        if window is editor.screen.focused:
-            found = True
-            continue
-    else:
-        next(iter(editor.screen)).set_focus()
+            return
+        found = window is editor.screen.focused
+        
+    next(iter(editor.screen)).set_focus()

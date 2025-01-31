@@ -193,6 +193,7 @@ class _Editor:
         
     def save_undo_record(self):
         if self._skip_next_undo:
+            raise Error
             self._skip_next_undo = False
         else:
             self.current_buffer.set_undo_point()
