@@ -101,10 +101,9 @@ def git_add_and_commit(editor: _Editor, reg=None, part=None, arg=None, count=1):
             editor.warning(f'Aborting "git commit" error {ret.returncode=}')
     editor.start_async_io()
     
-@_atomic(':git_add_commit_and_push :add__commit_and_push')
+@_atomic(':git_add_commit_and_push :add_commit_and_push')
 @_only_if_git_repo
 def git_add_and_commit_and_push(editor: _Editor, reg=None, part=None, arg=None, count=1):
-    import _subprocess
     editor.stop_async_io()
     ret = _subprocess.run('EDITOR="python -m vy" git add --edit', shell=True)
     if ret.returncode:
