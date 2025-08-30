@@ -49,15 +49,16 @@ class Interface():
     
     def find_mode_and_execute_it(self, name):
         loop = self.mode_dict.get(name, None)
-        if loop is None:
-            mod_name = f'vy.interface.{name}'
-            if mod_name in modules:
-                reload(modules[mod_name])
+        if loop is not None:
+            return loop(self.inst)
             
-            module = import_module(mod_name, __package__)
-            if hasattr(module, 'init'):
-                module.init(self.inst)
-            loop = module.loop
-            self.mode_dict[name] = loop
-            
-        return loop(self.inst)
+        mod_name = f'vy.interface.{name}'
+        if mod_name in modules:
+            reload(modules[mod_name])
+        
+        module = import_module(mod_name, __package__)
+        if hasattr(module, 'init'):
+            module.init(self.inst)
+        loop = module.loop
+        self.mode_dict[name] = loop
+        

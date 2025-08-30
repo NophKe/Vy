@@ -13,10 +13,13 @@ def DO_open_file(editor):
         editor.confirm('try to open this file externally ?')
         import subprocess
         import threading
-        threading.Thread(target= lambda:subprocess.call(["xdg-open", path]),
+        try:
+            threading.Thread(target= lambda:subprocess.call(["xdg-open", path]),
                          daemon=True,
                         ).start()
-        editor.screen.minibar('File opened externally.')
+            editor.screen.minibar('File opened externally.')
+        except FileNotFoundError:
+            editor.screen.minibar('Install "xdg-open" on linux to open files externally..')
     else:
         editor.edit(path)
     return 'normal'
