@@ -323,4 +323,29 @@ def grep_in_directory(editor: _Editor, arg=None, *args, **kwargs):
        raise editor.MustGiveUp(f"error while evaluating '{command}'")
     
     editor.warning(completed.stdout)
-        
+
+@_with_args(':show_work_done_since_original')
+def diff_saved_and_unsaved_changes(editor: _Editor, arg=None, *args, **kwargs):
+    """
+    Shows unsaved and saved changes since the file opening.
+    """
+    import difflib
+    from vy.filetypes.textfile import TextFile
+    buffer: TextFile = editor.current_buffer
+    current = buffer.splited_lines
+    original = buffer.undo_list.data[0][0].splitlines(True)
+    diff = ''.join(difflib.unified_diff(current, original)) or 'no work done yet'
+    editor.warning(diff)
+    
+@_with_args(':show_work_done_since_last_saved')
+def diff_unsaved_changes(editor: _Editor, arg=None, *args, **kwargs):
+    """
+    Shows unsaved changes.
+    """
+    import difflib
+    from vy.filetypes.textfile import TextFile
+    buffer: TextFile = editor.current_buffer
+    current = buffer.splited_lines
+    original = buffer.path.read_text().splitlines(True)
+    diff = ''.join(difflib.unified_diff(current, original)) or 'no work done yet'
+    editor.warning(diff)

@@ -143,3 +143,13 @@ class TextFile(BaseFile):
                     raw_line_list.append(None)
 
         return cursor_lin, cursor_col, raw_line_list
+        
+    def auto_complete(self):
+            if self._lsp_server:
+                lin, col = self.cursor_lin_col
+                try:
+                    return self._lsp_server.text_document_completion(f'file://{self.path}', self.string, lin, col - 1,)
+                except TimeoutError:
+                    pass
+
+            return super().auto_complete()

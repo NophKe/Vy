@@ -59,13 +59,25 @@ class HtmlFile(TextFile):
     set_number = True
     set_comment_string = ('<!--', '-->')
 
-@register_extension('.c', '.cpp', '.h', '.hpp', '.js', '.css')
+#@register_extension('.c', '.cpp', '.h', '.hpp', '.js', '.css')
+
+@register_extension('.c', '.cpp', '.h', '.hpp')
 class CSyntaxFile(TextFile):
     set_wrap = True
     set_autoindent = True
     set_expandtabs = True
     set_number = True
     set_comment_string = ('/*', '*/')
+    _lsp_server = ['ccls']
+    _lsp_lang_id = 'c'
+
+@register_extension('.f90')
+class FortranFile(TextFile):
+    _lsp_server = 'wtf'
+@register_extension('.kt')
+class KotlinFile(TextFile):
+    _lsp_server = 'kotlin-language-server'
+    _lsp_lang_id = ''
 
 def Open_path(location):
     """

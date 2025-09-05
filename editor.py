@@ -262,7 +262,7 @@ class _Editor:
         """
         if not self._running or not self._async_io_flag:
             print(msg)
-            input('(press any key)')
+            input('(______________________press any key)')
             return
         if self._macro_keys:
             self.screen.minibar_completer(
@@ -313,6 +313,7 @@ class _Editor:
         filtered = ''
         new_screen = list()
         old_screen = list()
+        error = 'editor initialising'
         
 
         while self._async_io_flag:
@@ -328,7 +329,9 @@ class _Editor:
                 if ok_flag and not left_keys(): # > 1:
                     self.screen.recenter()
                     self.screen.infobar(f' {self.current_mode.upper()} ', 
-                                        f'recording macro: {self.record_macro}' if self.record_macro else '')
+                                        f'recording macro: {self.record_macro}' if self.record_macro else 
+                                        f'waiting keystrokes: {left_keys():3}' if left_keys() else
+                                        '' )
                 else:
                     sleep(0.1)
                     self.screen.infobar(' ___ SCREEN OUT OF SYNC -- STOP TOUCHING KEYBOARD___ ',
@@ -357,6 +360,9 @@ class _Editor:
         for key_press in reader:
             if self._async_io_flag:
                 if key_press:
+                    if key_press == keys.F12:
+                        from __main__ import dump_traceback
+                        dump_traceback() 
                     self._input_queue.put(key_press)
             else:
                 break
@@ -468,7 +474,8 @@ class _Editor:
                     
                     print()
                     print_tb(exc.__traceback__)
-                    self.screen.reset(); print()
+                    self.screen.reset()
+                    print()
                     
                     print('The program may be corrupted, save all and restart quickly.')
                     try:

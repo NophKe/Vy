@@ -92,8 +92,12 @@ class Folder(BaseFile):
     def get_raw_line(self, index):
         retval = self.splited_lines[index].removesuffix('\n') + '\x1b[22m'
         from vy.global_config import BG_COLOR
+        # bug on MacOs
+        BG_COLOR = ''
+        HIGHLIGHT = '\x1b[45m' 
+        HIGHLIGHT = ''
         if index == self.current_line_idx:
-            return '\x1b[45m' + retval + BG_COLOR
+            return HIGHLIGHT + retval + BG_COLOR
         else:
             return retval
 

@@ -59,10 +59,13 @@ NOTE: the word «offset» will be used to speak about characters and their
      positions, whereas «index» will be used for line numbers.
 """
 
+from vy.lsp_client import open_lsp_channel
 from vy.utils import _HistoryList, DummyLine, Cancel
+
 from threading import RLock
 from sys import intern
 from re import split as _split
+from functools import lru_cache
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
@@ -84,6 +87,8 @@ class BaseFile:
     set_autoindent = False
     set_expandtabs = False
     set_number = True
+    _lsp_server = None
+    _lsp_lang_id = None
 
     def __init__(self, /, cursor=0, init_text='', path=None):
         # start of private
@@ -115,31 +120,36 @@ class BaseFile:
         self.cursor_lin_col
         self.number_of_lin
 
+        if self._lsp_server:
+            self._lsp_server = open_lsp_channel(self._lsp_server, self)
+        if self._lsp_server:
+            self._lsp_server.text_document_did_open(self._path_as_uri, self._lsp_lang_id, 1, self.string) 
+            
         for line in _splited_lines:
             for w in make_word_set(line):
                 if w not in self.word_set:
                     self.ANY_BUFFER_WORD_SET.add(w)
-                    self.word_set.add(w)
+                self.word_set.add(w)
+
+
+    def _notify_lsp_content_change(self):
+        """ Notify the LSP server of file content and cursor changes. """
+        if self._lsp_server:
+            self._lsp_server.text_document_did_change(self._path_as_uri, 1, [{ "text": self.string }]) 
+           
     
-    def auto_complete(self, ns={}):
+    def auto_complete(self):
         with self._lock:
-            try:
-                rv, prefix_len = ns[self.string][self.cursor_lin_col]
-            except KeyError:
-                word = self.string[self.find_previous_delim():self.cursor+1].strip()
-                prefix_len = len(word)
-                if prefix_len:
-                    rv = [item for item in self.word_set if item.startswith(word)]
-                    if not rv or (len(rv) == 1 and rv[0] == word):
-                        rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
-                else:
-                    rv = []
-                    
-                if self.string not in ns:
-                    ns[self.string] = {}
-                ns[self.string][self.cursor_lin_col] = rv, prefix_len
-            finally:
-                return rv, prefix_len
+            word = self._string[self.find_previous_delim():self._cursor+1].strip()
+            prefix_len = len(word)
+            if prefix_len:
+                rv = [item for item in self.word_set if item.startswith(word)]
+                if not rv or (len(rv) == 1 and rv[0] == word):
+                    rv = [item for item in self.ANY_BUFFER_WORD_SET if item.startswith(word)]
+            else:
+                rv = []
+                
+            return rv, prefix_len
 
 
     def __enter__(self):
@@ -158,6 +168,8 @@ class BaseFile:
             if self._recursion == 0:
 #                self._test_all_assertions()
                 self._async_tasks.allow_work()
+                if self._lsp_server:
+                    self._notify_lsp_content_change()
                 self._lock.release()
 
     @property
@@ -494,6 +506,7 @@ class BaseFile:
                 self._string = ''
                 self._current_line = value
                 self._lines_offsets.clear()
+                self._notify_lsp_content_change()
     
     @property
     def cursor(self):
@@ -528,6 +541,7 @@ class BaseFile:
                 self._number_of_lin = value.count('\n')
                 self._lenght = len(self._string)
                 self._cursor_lin_col = ()
+                self._notify_lsp_content_change()
 
     def set_undo_point(self):
         try:
@@ -798,7 +812,7 @@ class BaseFile:
                 stop = start + 1
             else:
                 raise TypeError(f'{key = } {type(key) = } expected int or slice.')
-            self.string = self.string[:start] + value + self.string[stop:]
+            self.string = self._string[:start] + value + self._string[stop:]
 
 ########    saving mechanism     e#########################################
 
@@ -808,6 +822,8 @@ class BaseFile:
         self._repr = None
         self.path.write_text(self.string)
         self._states.append(self.string)
+        if self._lsp_server:
+            self._lsp_server.text_document_did_save(self._path_as_uri, self.string) 
 
     def save_as(self, new_path, override=False):
         from pathlib import Path
@@ -828,6 +844,8 @@ class BaseFile:
                 self.save()
             else:
                 raise FileExistsError('Add ! in interface or override=True in *kwargs ....')
+        if self._lsp_server:
+            self._lsp_server.text_document_did_save(self._path_as_uri, self.string) 
 
     @property
     def unsaved(self):
@@ -900,6 +918,10 @@ class BaseFile:
                 else '( edited )') + str(self.undo_list)
 
 
+    @property
+    def _path_as_uri(self):
+        return f'file://{self.path}' if self.path else None
+
     def _test_all_assertions(self):
         assert (_string := self._string) or (_string := ''.join(self._splited_lines))
         assert (_splited_lines := self._splited_lines) or (_splited_lines := _string.splitlines(True))
@@ -910,7 +932,7 @@ class BaseFile:
 
         assert _number_of_lin == len(_splited_lines) == len(self.lines_offsets)
         assert self._cursor == self.lines_offsets[self.current_line_idx] + self.cursor_lin_col[1] - 1
-
 #        assert self.lines_offsets == self.generate_properties()
+
 
     

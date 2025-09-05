@@ -94,7 +94,7 @@ import sys
 import traceback
 import subprocess
 
-#faulthandler.enable()
+faulthandler.enable()
 
 def dump_traceback(*args):
     subprocess.call('reset')

@@ -242,9 +242,6 @@ def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
     ---
     NOTE: There is no difference between 'U' and 'u' (Not Vim's behaviour).
     """
-#    editor.current_buffer.undo()
-#    raise editor.MustGiveUp
-    breakpoint()
     if arg:
         try:
             count = int(arg)

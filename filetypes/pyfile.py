@@ -11,6 +11,9 @@ class SimplePyFile(TextFile):
     set_expandtabs = True
     set_number = True
     set_comment_string = ('#', '')
+    _lsp_server = ['pylsp', '-v']
+    _lsp_server = ['pylsp']
+    _lsp_lang_id = 'python'
 
 try:
     import parso
@@ -196,22 +199,18 @@ else:
             return False
 
         def auto_complete(self):
-            return self._cached_auto_complete(self.string, self.cursor_lin_col)
-
-        @lru_cache(127)
-        def _cached_auto_complete(self, string, position):
-            lin, col = position
             engine: Script = self.jedi()
             try:
+                lin, col = self.cursor_lin_col
                 results = engine.complete(line=lin + 1, column=col - 1)
             except:
                 return super().auto_complete()
+                
             if results:
                 lengh = results[0].get_completion_prefix_length()
                 rv = [item.name_with_symbols for item in results]
                 return rv, lengh
-            else:
-                return super().auto_complete()
+            return super().auto_complete()
 
 
 try:
@@ -243,3 +242,4 @@ try:
     from mypy.main import main as mypy_checker
 except:
     pass
+
