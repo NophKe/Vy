@@ -91,6 +91,7 @@ class TextLine(DummyLine):
     TODO -- This class should soon be the return value
            of the different BaseFile properties.
     FUCK -- git blame this and die !
+    FUCK -- git blame this and die !
     """
     ending = '\n'
 
@@ -166,6 +167,7 @@ def async_update(blocking_call, update):
         return future_key_press.result(), True
 
 class Cancel:
+    __slots__ = ('lock', 'task_restarted', 'must_stop', 'task_started')
     def __init__(self):
         self.lock = allocate_lock()
         self.task_restarted = allocate_lock()

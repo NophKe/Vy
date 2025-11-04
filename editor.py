@@ -191,13 +191,6 @@ class _Editor:
         self._skip_next_undo = False
         self._screen_lock = Lock()
         
-    def save_undo_record(self):
-        if self._skip_next_undo:
-            raise Error
-            self._skip_next_undo = False
-        else:
-            self.current_buffer.set_undo_point()
-        
     def save_in_jump_list(self):
         curbuf = self.current_buffer
         lin, col = curbuf.cursor_lin_col
@@ -420,8 +413,7 @@ class _Editor:
             gc.collect()
             gc.freeze()
         except:
-            # we're probably not on cpython, just
-            pass 
+            pass # we're probably not on cpython
 
         if buff:
             self.edit(buff, position)
@@ -441,8 +433,7 @@ class _Editor:
                     self.current_mode = self.interface(self.current_mode) \
                                         or self.current_mode
                     self.save_in_jump_list()
-                    self.save_undo_record()
-#                    self.recenter_screen()
+                    self.current_buffer.set_undo_point()
                     continue
                 
                 except self.MustGiveUp as exc:

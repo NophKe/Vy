@@ -1,3 +1,4 @@
+from vy.global_config import DEBUG
 import subprocess
 import threading
 import itertools
@@ -7,6 +8,7 @@ import os
 import time
 
 def open_lsp_channel(server, buffer):
+    return False
     try:
         return LSPClient(server, buffer)
     except FileNotFoundError:
@@ -26,6 +28,8 @@ class LSPClient:
     """
 
     def __init__(self, server_command, target_buffer, timeout=5.0):
+        self._server_command = server_command
+        self._target_buffer = target_buffer
         self._timeout = timeout
         self._proc = subprocess.Popen(
                 server_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0
@@ -33,9 +37,11 @@ class LSPClient:
         self._pending_responses = {}
         self._id_gen = itertools.count(1)
         self._reader_thread = threading.Thread(target=self._read_loop, daemon=True)
-        self._stderr_thread = threading.Thread(target=self._stderr_loop, daemon=True)
         self._reader_thread.start()
-        self._stderr_thread.start()
+
+        if DEBUG:
+            self._stderr_thread = threading.Thread(target=self._stderr_loop, daemon=True)
+            self._stderr_thread.start()
 
         # Minimal realistic client capabilities. These can be extended depending on language server needs.
         # See https://microsoft.github.io/language-server-protocol/specifications/specification-current/#clientCapabilities
@@ -90,12 +96,16 @@ class LSPClient:
 
     def __bool__(self):
         """
-        Determine the boolean value of the LSPClient instance.
+        The server has a True value so that 
         
         Returns:
             bool: Always returns True to indicate an active client.
         """
         return True
+
+    def _restart_server(self):
+        self._proc.kill()
+        self.__init__(self._server_command, self._target_buffer, self._timeout)
 
     def _stderr_loop(self):
         """
@@ -138,8 +148,14 @@ class LSPClient:
 
         message = json.dumps(request).encode("utf-8")
         payload = b"Content-Length: %d\r\n\r\n" % len(message) + message
-        self._proc.stdin.write(payload)
-        self._proc.stdin.flush()
+        try:
+            self._proc.stdin.write(payload)
+            self._proc.stdin.flush()
+        except BrokenPipeError:
+            self._restart_server()
+            self._proc.stdin.write(payload)
+            self._proc.stdin.flush()
+            
 
         with open('stdin_from_lsp.log', 'a') as out:
             out.write(f"--> Request: {method}\n")
@@ -182,55 +198,91 @@ class LSPClient:
             out.write(message.decode('utf-8') + "\n")
             out.flush()
 
-        self._proc.stdin.write(payload)
-        self._proc.stdin.flush()
-
-    def _read_loop(self):
-        """
-        Internal method for continuously reading responses from the LSP server process.
-        
-        This method runs in a separate thread and processes incoming JSON-RPC messages.
-        """
-        while True:
-            headers = {}
+        try:
+            self._proc.stdin.write(payload)
+            self._proc.stdin.flush()
+        except BrokenPipeError:
+            self._restart_server()
+            self._proc.stdin.write(payload)
+            self._proc.stdin.flush()
+    if DEBUG:
+        def _read_loop(self):
+            """
+            Internal method for continuously reading responses from the LSP server process.
+            
+            This method runs in a separate thread and processes incoming JSON-RPC messages.
+            """
             while True:
-                line = self._proc.stdout.readline().decode('utf-8')
-                with open('stdout_from_lsp.log', 'a+') as out:
-                    out.write("<-- Header: " + line)
-                    out.flush()
-                if not line.strip():
-                    break
-                key, value = line.split(":", 1)
-                headers[key.strip()] = value.strip()
-    
-            content_length = int(headers.get("Content-Length", 0))
-            if content_length:
-                content = self._proc.stdout.read(content_length).decode("utf-8")
-                with open('stdout_from_lsp.log', 'a+') as out:
-                    out.write("<-- Content: " + content + "\n")
-                    out.flush()
-                
-                try:
-                    response = json.loads(content)
+                headers = {}
+                while True:
+                    line = self._proc.stdout.readline().decode('utf-8')
+                    with open('stdout_from_lsp.log', 'a+') as out:
+                        out.write("<-- Header: " + line)
+                        out.flush()
+                    if not line.strip():
+                        break
+                    key, value = line.split(":", 1)
+                    headers[key.strip()] = value.strip()
+        
+                content_length = int(headers.get("Content-Length", 0))
+                if content_length:
+                    content = self._proc.stdout.read(content_length).decode("utf-8")
+                    with open('stdout_from_lsp.log', 'a+') as out:
+                        out.write("<-- Content: " + content + "\n")
+                        out.flush()
                     
-                    # Handle response to a request
-                    if "id" in response:
-                        response_id = str(response["id"])
-                        if response_id in self._pending_responses:
-                            self._pending_responses[response_id].put(response)
-                        else:
+                    try:
+                        response = json.loads(content)
+                        
+                        # Handle response to a request
+                        if "id" in response:
+                            response_id = str(response["id"])
+                            if response_id in self._pending_responses:
+                                self._pending_responses[response_id].put(response)
+                            else:
+                                with open('read_from_lsp.log', 'a') as out:
+                                    out.write(f"Received response for unknown id: {response_id}\n")
+                                    out.flush()
+                        # Handle server notifications (no id)
+                        elif "method" in response:
                             with open('read_from_lsp.log', 'a') as out:
-                                out.write(f"Received response for unknown id: {response_id}\n")
+                                out.write(f"Received notification: {response['method']}\n")
                                 out.flush()
-                    # Handle server notifications (no id)
-                    elif "method" in response:
+                    except json.JSONDecodeError as e:
                         with open('read_from_lsp.log', 'a') as out:
-                            out.write(f"Received notification: {response['method']}\n")
-                            out.flush()
-                except json.JSONDecodeError as e:
-                    with open('read_from_lsp.log', 'a') as out:
-                        out.write(f"Error decoding JSON: {e}, content: {repr(content)}\n")
+                            out.write(f"Error decoding JSON: {e}, content: {repr(content)}\n")
                         out.flush()    
+    
+    else: #vy.global_config.DEBUG is False
+        def _read_loop(self):
+            """
+            Internal method for continuously reading responses from the LSP server process.
+            
+            This method runs in a separate thread and processes incoming JSON-RPC messages.
+            """
+            while True:
+                headers = {}
+                while (line := self._proc.stdout.readline().decode('utf-8').strip()):
+                    key, value = line.split(":", 1)
+                    headers[key.strip()] = value.strip()
+        
+                content_length = int(headers.get("Content-Length", 0))
+                if content_length:
+                    content = self._proc.stdout.read(content_length).decode("utf-8")
+                    try:
+                        response = json.loads(content)
+                        # Handle response to a request
+                        if "id" in response:
+                            response_id = str(response["id"])
+                            if response_id in self._pending_responses:
+                                self._pending_responses[response_id].put(response)
+                            else:
+                                pass
+                        # Handle server notifications (no id)
+                        elif "method" in response:
+                            pass     
+                    except json.JSONDecodeError as e:
+                        pass
 
     def _read_exactly(self, stream, n):
         """

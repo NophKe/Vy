@@ -1,9 +1,6 @@
-from vy.utils import async_update
+from vy import keys as _k
 from vy.keys import _escape
 from vy.editor import _Editor
-from vy.interface.helpers import one_inside_dict_starts_with
-from vy.utils import Cancel
-from vy import keys as k
 
 class Completer:
     def __init__(self, buffer):
@@ -64,7 +61,7 @@ def select_and_dot(editor: _Editor):
     editor.current_buffer.insert('.')
     return True
     
-@add_to_dict(k.up)
+@add_to_dict(_k.up)
 def move_up(editor: _Editor):
     if completer_engine.selected != -1:
         completer_engine.move_cursor_up()
@@ -86,7 +83,7 @@ def switch_or_select(editor: _Editor):
             completer_engine.move_cursor_down()
             return True
 
-@add_to_dict(k.C_N)
+@add_to_dict(_k.C_N)
 def select_first_or_previous(editor: _Editor):
     if completer_engine.selected == -1:
         completer_engine.selected = 0
@@ -94,20 +91,20 @@ def select_first_or_previous(editor: _Editor):
     return move_down(editor)
 
 
-@add_to_dict(k.C_P)
+@add_to_dict(_k.C_P)
 def select_last_or_next(editor: _Editor):
     if completer_engine.selected == -1:
         completer_engine.selected = len(completer_engine.completion) - 1
         return True
     return move_up(editor)
 
-@add_to_dict(k.down)
+@add_to_dict(_k.down)
 def move_down(editor: _Editor):
     if completer_engine.selected != -1:
         completer_engine.move_cursor_down()
         return True
     
-@add_to_dict('\r', '\n', k.C_J, k.C_M)
+@add_to_dict('\r', '\n', _k.C_J, _k.C_M)
 def select_item(editor: _Editor):
     if not completer_engine.is_active:
         return False
@@ -120,12 +117,12 @@ def select_item(editor: _Editor):
     curbuf.cursor += len(to_insert) - to_delete
     return True
 
-@add_to_dict(k.C_Y)
+@add_to_dict(_k.C_Y)
 def validate_selection(editor: _Editor):
     if completer_engine.is_active:
         return select_item(editor)
     
-@add_to_dict(k.C_C)
+@add_to_dict(_k.C_C)
 def give_up(editor: _Editor):
     editor.screen.minibar(' ( Auto-completion aborted )')
     minibar_completer.give_up()
@@ -133,35 +130,27 @@ def give_up(editor: _Editor):
 
 def monoline_loop(editor: _Editor):
     last_insert = ''
+    current_buffer = editor.current_buffer
     while True:
-        if not editor._input_queue.qsize():
+        completion = editor._input_queue.qsize() == 0 # no pending keys
+        
+        if completion:
             completer_engine.update()
-            try:
-                all_done = True
-            except:
-                all_done = False
-            finally:
-                key_press = editor.read_stdin()
-#            key_press, all_done = async_update(editor.read_stdin, completer_engine.update)
-        else:
-            key_press = editor.read_stdin()
-            all_done = False
+        
+        key_press = editor.read_stdin()
 
-#        key_press = editor.read_stdin()
-#        key_press, all_done = async_update(editor.read_stdin, completer_engine.update)
-#        key_press, all_done = editor.read_stdin(), False
-        if (key_press in completion_dict) and all_done:
+        if completion and (key_press in completion_dict):
             if completion_dict[key_press](editor):
                 continue
 
         if key_press in editor.actions.insert:
             return key_press
         
-        elif key_press.isprintable():
-            editor.current_buffer.insert(key_press)
+        if key_press.isprintable():
+            current_buffer.insert(key_press)
             last_insert += key_press
             continue
-        break
+        
     if last_insert.strip():
         editor.registr['.'] = last_insert
     return key_press

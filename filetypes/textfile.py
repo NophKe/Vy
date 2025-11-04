@@ -117,8 +117,8 @@ class TextFile(BaseFile):
         local_split = self._splited_lines
         try:
             for on_lin in range(min_lin, max_lin):
-                if cancel_request():
-                    raise RuntimeError('cancelled')
+#                if cancel_request():
+#                    raise RuntimeError('cancelled')
                 try:
                     cur_lex = self._lexed_lines[on_lin] # Best case scenario
                 except IndexError: 

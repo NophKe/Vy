@@ -254,7 +254,6 @@ def undo(editor: _Editor, reg=None, part=None, arg=None, count=1):
             with editor.current_buffer as curbuf:
                 for _ in range(count):
                     curbuf.undo()
-                    recenter(editor)
                 raise editor.MustGiveUp
         else:
             lst = editor.current_buffer.undo_list
@@ -326,7 +325,7 @@ def do_save_all(editor, reg=None, part=None, arg=None, count=1):
             if buf.path:
                 buf.save()
             else:
-                editor.warning(f"Cannot save {repr(buf)}")
+                editor.warning(f"Cannot save {repr(buf)}, give it a name or discard it.")
                 editor.edit(buf)
                 break
 

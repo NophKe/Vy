@@ -288,10 +288,7 @@ class BaseFile:
         """
         with self._lock:
             if not self._splited_lines:
-#                assert self._string
-                #self._splited_lines = [intern(line) for line in self.string.splitlines(True)]
-#                self._splited_lines = [line for line in self.string.splitlines(True)]
-                self._splited_lines = self.string.splitlines(True)
+                self._splited_lines = self._string.splitlines(True)
             return self._splited_lines
 
     @property
@@ -575,22 +572,9 @@ class BaseFile:
             
     def redo(self):
         with self:
-#            self.undo_list.skip_next()            # must skip even if push or pop
             txt, pos = self.undo_list.push() # raises
-            if isinstance(txt, str):
-                self.string = txt
-            elif isinstance(txt, list):
-                self._splited_lines = txt
-            else:
-                raise TypeError
-                
-            if isinstance(pos, tuple):
-                self.cursor_lin_col = pos
-            elif isinstance(pos, int):
-                self.cursor = pos
-            else:
-                raise TypeError
-            
+            self.string = txt
+            self.cursor_lin_col = pos
         
     def find_end_of_line(self):
         r"""
@@ -709,7 +693,7 @@ class BaseFile:
     def find_first_char_of_word(self):
         if self.cursor == 0:
             return 0
-        elif  self.string[self.cursor - 1].isspace():
+        elif self.string[self.cursor - 1].isspace():
             return self.cursor
         else:
             return self.string[:self.cursor].rfind(' ') + 1
@@ -893,6 +877,7 @@ class BaseFile:
 
     def __str__(self):
         return ('writeable ' if self.modifiable else 'read-only ') + self.__class__.__name__ 
+        
     def __repr__(self):
         return f'{self}(cursor={self.cursor})'
 

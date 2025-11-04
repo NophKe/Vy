@@ -20,10 +20,10 @@ from .textfile import TextFile
 from .folder import Folder
 
 def register_extension(*args):
-    def update_ext_dict(cls):
+    def update_ext_dict(klass):
         for arg in args:
-            known_extensions[arg] = cls
-        return cls
+            known_extensions[arg] = klass
+        return klass
     return update_ext_dict
 
 from vy.global_config import MINI
@@ -74,6 +74,7 @@ class CSyntaxFile(TextFile):
 @register_extension('.f90')
 class FortranFile(TextFile):
     _lsp_server = 'wtf'
+    
 @register_extension('.kt')
 class KotlinFile(TextFile):
     _lsp_server = 'kotlin-language-server'
@@ -87,7 +88,7 @@ def Open_path(location):
     settings will be applied to it.
     ---
     This function allways returns a new object, use it from any python
-    repl and save the result in a local variable
+    repl and save the result in a local variable.
 
     While editing or writing a Vy action Editor.edit() and Editor.cache
     should be prefered as they remember previously visited buffers.
