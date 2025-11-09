@@ -87,6 +87,7 @@ class BaseFile:
     set_autoindent = False
     set_expandtabs = False
     set_number = True
+
     _lsp_server = None
     _lsp_lang_id = None
 
@@ -139,8 +140,8 @@ class BaseFile:
            
     
     def auto_complete(self):
-        with self._lock:
-            word = self._string[self.find_previous_delim():self._cursor+1].strip()
+#        with self._lock:
+            word = self.string[self.find_previous_delim():self.cursor+1].strip()
             prefix_len = len(word)
             if prefix_len:
                 rv = [item for item in self.word_set if item.startswith(word)]
@@ -918,6 +919,10 @@ class BaseFile:
         assert _number_of_lin == len(_splited_lines) == len(self.lines_offsets)
         assert self._cursor == self.lines_offsets[self.current_line_idx] + self.cursor_lin_col[1] - 1
 #        assert self.lines_offsets == self.generate_properties()
+
+    def lexer(self, code):
+        for line in code.splitlines(True):
+            yield 0, "", line
 
 
     

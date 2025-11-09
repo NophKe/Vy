@@ -25,16 +25,12 @@ from select import select
 from sys import __stdin__ as stdin
 from termios import tcgetattr, tcsetattr
 
-from queue import Queue
-INPUT_Q = Queue()
-
 #### All Flags above could have been imported
 ##   from the termios module, but here is an oportunity to document
 ##   what those actualy do on a modern linux machine... (if they
 ##   really do anything... )
 
 ### tcsetattr() and tcsetattr() scheduling policy
-## Changes must take effect
 TCSANOW = 0    # - immediately
 TCSADRAIN = 1  # - after transmitting all queued output
 TCSAFLUSH = 2  # - after TCSADRAIN and discarding all queued input.

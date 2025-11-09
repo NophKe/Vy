@@ -1,69 +1,4 @@
-import re
-from re import split as re_split
-from token import EXACT_TOKEN_TYPES
-from keyword import iskeyword, issoftkeyword
-import builtins
-
-VULGAR = ('TODO', 'FIXME', 'FUCK')
-
-tokenize = ( '('
-           + r'\b|'
-           + r'\d+|'
-           + r"'[^']*'|"
-           + r'"[^"]*"|'
-           + r'__[^_]*__|'
-           + '|'.join(map(re.escape, EXACT_TOKEN_TYPES))
-           + '|'.join(VULGAR)
-           + ')'
-           )
-
 from vy.global_config import DONT_USE_PYGMENTS_LIB
-
-def guess_lexer_base(path_str, code_str):
-    if path_str.lower().endswith('.py'):
-        return py_lexer
-    if path_str.lower().endswith('.c'):
-        return py_lexer
-    return txt_lexer
-
-def txt_lexer(string):
-    for line in string.splitlines(True):
-        yield 0, '', line
-
-def py_lexer(string):
-    for line in string.splitlines(True):
-        if line.strip().startswith('#') and line.endswith('\n'):
-            yield 0, 'Comment', line
-            continue
-        for it in re_split(tokenize, line):
-            if not it:
-                continue
-            elif not it.strip():
-                for sub_space in re.split('(\t+|\\s+\n)', it):
-                    if '\t' in sub_space:
-                        yield 0, 'Important', sub_space
-                    elif len(sub_space) != 1 and sub_space.endswith('\n'):
-                        yield 0, 'Empty', sub_space
-                    else:
-                        yield 0, '', sub_space
-            elif it.isdigit():
-                yield 0, 'Number', it
-            elif iskeyword(it) or issoftkeyword(it):
-                yield 0, 'Keyword', it
-            elif it in EXACT_TOKEN_TYPES:
-                yield 0, 'Operator', it
-            elif it in dir(builtins):
-                yield 0, 'Name.Builtin', it
-            elif it[0] == it[-1] and it[0] in '\'"':
-                yield 0, 'String', it
-            elif it[0] == it[-1] and it[0] in '_':
-                yield 0, 'Important', it
-            elif it == 'self':
-                yield 0, 'Operator', it
-            elif it in VULGAR:
-                yield 0, 'Important', it
-            else:
-                yield 0, '', it
 
 try:
     if DONT_USE_PYGMENTS_LIB:
@@ -72,7 +7,7 @@ try:
     from pygments.util import ClassNotFound
     from pygments.token import (Keyword, Name, Comment,
                                 String, Error, Number, Operator,
-                                Generic, Token, Whitespace, Text, )
+                                Generic, Token, Whitespace, Text)
 
     colorscheme = {
       '':                 '',
@@ -91,42 +26,42 @@ try:
       Generic.Subheading: '*magenta*',    Generic.Prompt:     '**',
       Generic.Error:      'brightred',    Error:              '*brightred*',
     }
+    
+    def guess_lexer(path, code_str):
+        path_str = '' if path is None else str(path)
+        try:
+            return guess_lexer_for_filename(path_str, code_str).get_tokens_unprocessed
+        except ClassNotFound:
+            try:
+                return guess_lexer_for_filename('', code_str).get_tokens_unprocessed
+            except ClassNotFound:
+                try:
+                    return guess_lexer_for_filename(path_str, '').get_tokens_unprocessed
+                except ClassNotFound:
+                    pass
+        return None
+        
 except ImportError:
     colorscheme = {
       '':         '',
-      'Name.Builtin':       'brightblue',
-      'Name.Function':      'green',
-      'Keyword':  'cyan',
-      'Comment':  '/gray/',
-      'Operator': 'brightgreen',
-      'Statement': 'cyan',
-      'Loop':      '*green*',
-      'Title':     '*yellow*',
-      'Subtitle':   '*magenta*',
-      'String':     'yellow',
-      'Number':     '*blue*',
-      'Important':  '/*_brightred_*/',
-      'Empty':      '/_gray_/',
+      'Token':         '',
+      'Token.Name.Builtin':       'brightblue',
+      'Token.Name.Function':      'green',
+      'Token.Keyword':  'cyan',
+      'Token.Comment':  '/gray/',
+      'Token.Operator': 'brightgreen',
+      'Token.Statement': 'cyan',
+      'Token.Loop':      '*green*',
+      'Token.Title':     '*yellow*',
+      'Token.Subtitle':   '*magenta*',
+      'Token.Literal.String':     'yellow',
+      'Token.Literal.Number':     '*blue*',
+      'Token.Important':  '/*_brightred_*/',
+      'Token.Empty':      '/_gray_/',
     }
-    DONT_USE_PYGMENTS_LIB = True
-
-def guess_lexer(path, code_str):
-    path_str = '' if path is None else str(path)
-    if DONT_USE_PYGMENTS_LIB:
-        return guess_lexer_base(path_str, code_str)
-
-    try:
-        return guess_lexer_for_filename(path_str, code_str).get_tokens_unprocessed
-    except ClassNotFound:
-        pass
-    try:
-        return guess_lexer_for_filename('', code_str).get_tokens_unprocessed
-    except ClassNotFound:
-        pass
-    try:
-        return guess_lexer_for_filename(path_str, '').get_tokens_unprocessed
-    except ClassNotFound:
-        return guess_lexer_base(path_str, code_str)
+    
+    def guess_lexer(*args):
+        return None    
 
 
 codes = {

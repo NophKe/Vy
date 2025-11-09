@@ -90,9 +90,173 @@ def page_up(self):
         else:
             self.selected = len(self.completion)
     
-@add_to_dict(k.C_W)
-def kill_word_backward(self):
-    raise NotImplementedError
+@add_to_dict(k.C_U)
+def kill_line_backward(self):
+    """Ctrl-U: delete from beginning to cursor."""
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    self.buffer.string = s[cur:]
+    self.buffer.cursor = 0
+    self.state = ''
+
+@add_to_dict(k.M_d)
+def kill_word_forward(self):
+    """Meta-d: delete next word."""
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    import re
+    m = re.match(r'\w+\W*', s[cur:])
+    if m:
+        end = cur + m.end()
+        self.buffer.string = s[:cur] + s[end:]
+    self.state = ''
+
+@add_to_dict(k.M_backspace, k.C_W)
+def erase_word_backward(self):
+    """Meta-backspace or Ctrl-W: delete previous word."""
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    import re
+    left = s[:cur]
+    new_left = re.sub(r'\w+\W*$', '', left)
+    self.buffer.string = new_left + s[cur:]
+    self.buffer.cursor = len(new_left)
+    self.state = ''
+
+@add_to_dict(k.C_T)
+def transpose_chars(self):
+    """Ctrl-T: swap character before and under cursor."""
+    s = list(self.buffer.string)
+    c = self.buffer.cursor
+    if len(s) > 1:
+        if c == 0: return
+        if c == len(s):
+            c -= 1
+        s[c-1], s[c] = s[c], s[c-1]
+        self.buffer.string = ''.join(s)
+        self.buffer.cursor = min(c+1, len(self.buffer.string))
+    self.state = ''
+
+@add_to_dict(k.M_f)
+def move_word_forward(self):
+    """Meta-f: move cursor forward by one word."""
+    import re
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    m = re.match(r'\W*\w+\W*', s[cur:])
+    if m:
+        self.buffer.cursor = min(len(s), cur + m.end())
+
+@add_to_dict(k.M_b)
+def move_word_backward(self):
+    """Meta-b: move cursor backward by one word."""
+    import re
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    left = s[:cur]
+    m = re.search(r'\W*\w+\W*$', left)
+    if m:
+        self.buffer.cursor = cur - len(m.group(0))
+
+@add_to_dict(k.C_A)
+def move_beginning_of_line(self):
+    """Ctrl-A: go to beginning."""
+    self.buffer.cursor = 0
+
+@add_to_dict(k.C_E)
+def move_end_of_line(self):
+    """Ctrl-E: go to end."""
+    self.buffer.cursor = len(self.buffer.string)
+
+@add_to_dict(k.C_K)
+def kill_to_end_of_line(self):
+    """Ctrl-K: delete to end."""
+    s = self.buffer.string
+    self.buffer.string = s[:self.buffer.cursor]
+    self.state = ''
+
+@add_to_dict(k.C_Y)
+def yank_last_kill(self):
+    """Ctrl-Y: yank last killed text (requires kill buffer)."""
+    if hasattr(self, 'kill_buffer') and self.kill_buffer:
+        self.buffer.insert(self.kill_buffer)
+    self.state = ''
+
+@add_to_dict(k.M_c)
+def capitalize_word(self):
+    """Meta-c: capitalize word under cursor."""
+    import re
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    m = re.search(r'\w+', s[cur:])
+    if m:
+        start, end = cur + m.start(), cur + m.end()
+        self.buffer.string = s[:start] + s[start:end].capitalize() + s[end:]
+        self.buffer.cursor = end
+
+@add_to_dict(k.M_l)
+def lowercase_word(self):
+    """Meta-l: lowercase word under cursor."""
+    import re
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    m = re.search(r'\w+', s[cur:])
+    if m:
+        start, end = cur + m.start(), cur + m.end()
+        self.buffer.string = s[:start] + s[start:end].lower() + s[end:]
+        self.buffer.cursor = end
+
+@add_to_dict(k.M_u)
+def uppercase_word(self):
+    """Meta-u: uppercase word under cursor."""
+    s = self.buffer.string
+    n = len(s)
+    i = self.buffer.cursor
+
+    # Avance jusqu'au début du prochain "mot" (lettre/chiffre/underscore)
+    while i < n and not (s[i].isalnum() or s[i] == '_'):
+        i += 1
+    if i >= n:
+        return
+
+    # Va jusqu'à la fin du mot
+    j = i
+    while j < n and (s[j].isalnum() or s[j] == '_'):
+        j += 1
+
+    # Remplace par la version uppercased et place le curseur en fin de mot
+    self.buffer.string = s[:i] + s[i:j].upper() + s[j:]
+    self.buffer.cursor = j
+@add_to_dict(k.C_L)
+def clear_screen(self):
+    """Ctrl-L: clear screen (just redisplay prompt)."""
+    self.editor.clear_screen()
+    self.editor.redisplay()
+
+@add_to_dict(k.C_G)
+def abort_action(self):
+    """Ctrl-G: abort current editing command."""
+    self.state = ''
+    self.editor.ring_bell()
+
+@add_to_dict(k.A_T)
+def transpose_words(self):
+    """Meta-t: transpose previous two words."""
+    import re
+    s = self.buffer.string
+    cur = self.buffer.cursor
+    words = list(re.finditer(r'\w+', s))
+    if len(words) < 2:
+        return
+    # find last two before cursor
+    before = [w for w in words if w.end() <= cur]
+    if len(before) < 2:
+        return
+    w1, w2 = before[-2], before[-1]
+    new_s = s[:w1.start()] + s[w2.start():w2.end()] + s[w1.end():w2.start()] + s[w1.start():w1.end()] + s[w2.end():]
+    self.buffer.string = new_s
+    self.state = ''
+
     
 class Completer:
     def __init__(self, file, prompt, editor):
@@ -106,7 +270,6 @@ class Completer:
         self.editor = editor
         self.screen = editor.screen
         self.buffer = DummyLine()
-#        self._last_comp = self.state, self.buffer.string, self.buffer.cursor
         self.buffered = []
         self.selected = -1
         atexit.register(lambda: self.histfile.write_text('\n'.join(self.history)))
@@ -184,12 +347,10 @@ class Completer:
             self.state = ''
         else:
             self.completion, self.prefix_len = getattr(self, 'get_' + self.state)()
-#            breakpoint()
             if len(self.completion) == 1:
                 self.select_item()
             elif self.completion and self.completion != ['']:
                 index = 0
-#                char = max(self.completion, key=len)[0][index]
                 char = self.completion[0][index]
                 cond = all(item.startswith(char) for item in self.completion)
                 if cond:
@@ -200,7 +361,6 @@ class Completer:
                         self.buffer.cursor += 1
                         index += 1
                         try:
-#                            char = max(self.completion, key=len)[0][index]
                             char = self.completion[0][index]
                         except IndexError:
                             no_break = False

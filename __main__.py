@@ -29,7 +29,7 @@ if not (stdin.isatty() and stdout.isatty()):
 
 parser = ArgumentParser(prog='Vy',
                         description='LEGACY-FREE VI-LIKE EDITOR',
-                        epilog='\n----\n',
+                        allow_abbrev=True,
                         )
 
 parser.add_argument('--debug', default=False,
@@ -68,7 +68,7 @@ cmdline = parser.parse_args()
 from vy import global_config
 
 if cmdline.mini or cmdline.no_user_config:
-    global_config.DONT_USE_USER_CONFIG = cmdline.no_user_config
+    global_config.DONT_USE_USER_CONFIG = False
 
 if not global_config.DONT_USE_USER_CONFIG:
     global_config._source_config()
@@ -81,7 +81,6 @@ else:
     global_config.DONT_USE_JEDI_LIB = cmdline.no_jedi
     
 global_config.DEBUG = cmdline.debug
-global_config.MINI = cmdline.mini
 
 
 ########    SIGNAL HANDLING    #######################################
@@ -113,20 +112,21 @@ sys.breakpointhook = enter_debugger
 def raise_unraisable(unraisable):
     import os
     os.system('reset')
+
     try:
         global Editor
         Editor = Editor
     except NameError:
-        print('fatal error before Editor got inititalized !')
-    else:
-        Editor.screen.original_screen()
-        Editor.screen.show_cursor()
-        try:
-            Editor.stop_async_io()
-        except BaseException as exc:
-            print('the editor was either not in async_io mode or switching')     
-            print('back to synchronous mode failed')
-            print(exc)
+        exit('VY FATAL ERROR: A thread crashed before the editor completed its initialization.')
+
+    try:
+        Editor.stop_async_io()
+    except BaseException as exc:
+        os.system('reset')
+        print('the editor was either not in async_io mode or switching')     
+        print('back to synchronous mode failed')
+        print(exc)
+        exit(1)
 
     from traceback import print_tb
     print()
@@ -137,20 +137,9 @@ def raise_unraisable(unraisable):
            f'  >  {unraisable.exc_value}\n')
     print_tb(unraisable.exc_traceback)
     type_, value_, trace_ = sys.exc_info()
-    try:
-        input('Press [CTRL+C] to close immediatly\n'
-              'or    [CTRL+D] to start debugger\n\r\t')
-    except EOFError:
-        try:
-            post_mortem(trace_)
-            raise_signal(SIGKILL)
-        except:
-            raise_signal(SIGKILL)
-            pass
-    finally:
-        print('cannot recover from async threads failures')
-        raise_signal(SIGKILL)
+    print('cannot recover from async threads failures')
     raise_signal(SIGKILL)
+    
 threading.excepthook = raise_unraisable
 
 

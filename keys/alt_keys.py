@@ -24,3 +24,7 @@ A_w = M_w = '\xf7'
 A_x = M_x = '\xf8'
 A_y = M_y = '\xf9'
 A_z = M_z = '\xfa'
+
+A_T = M_T = '\xd4'
+
+M_backspace = '\x88'

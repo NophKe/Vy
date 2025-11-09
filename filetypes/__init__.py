@@ -14,54 +14,31 @@ settings.
 """
 from pathlib import Path
 from os import access, W_OK
+import pkgutil
+import importlib
+from vy.filetypes.textfile import TextFile
 
+known_extensions = {}
 
-from .textfile import TextFile
-from .folder import Folder
-
-def register_extension(*args):
+def _register_extension(*args):
     def update_ext_dict(klass):
         for arg in args:
             known_extensions[arg] = klass
         return klass
     return update_ext_dict
 
-from vy.global_config import MINI
-if not MINI:
-    from .pyfile import PyFile, SimplePyFile
-    known_extensions = {'.pyx': SimplePyFile,
-                    '.pxd': SimplePyFile,
-                    '.py' : PyFile,
-                    '.txt': TextFile,
-                   }
-else:
-    known_extensions = {}
-    @register_extension('.py')    
-    class SimplePyFile(TextFile):
-        set_wrap = False
-        set_autoindent = True
-        set_expandtabs = True
-        set_number = True
-        set_comment_string = ('#', '')
+# Automatically import all submodules when package is imported
+for _, module_name, _ in pkgutil.walk_packages(__path__, prefix=__name__ + "."):
+    importlib.import_module(module_name)
 
-@register_extension('Makefile')
+@_register_extension('Makefile')
 class MakeFile(TextFile):
     set_wrap = True
     set_expandtabs = False
     set_number = True
     set_comment_string = ('#', '')
 
-@register_extension('.html', '.htm', '.xml')
-class HtmlFile(TextFile):
-    set_wrap = True
-    set_autoindent = True
-    set_expandtabs = True
-    set_number = True
-    set_comment_string = ('<!--', '-->')
-
-#@register_extension('.c', '.cpp', '.h', '.hpp', '.js', '.css')
-
-@register_extension('.c', '.cpp', '.h', '.hpp')
+@_register_extension('.cpp', '.h', '.hpp')
 class CSyntaxFile(TextFile):
     set_wrap = True
     set_autoindent = True
@@ -71,11 +48,11 @@ class CSyntaxFile(TextFile):
     _lsp_server = ['ccls']
     _lsp_lang_id = 'c'
 
-@register_extension('.f90')
+@_register_extension('.f90')
 class FortranFile(TextFile):
     _lsp_server = 'wtf'
     
-@register_extension('.kt')
+@_register_extension('.kt')
 class KotlinFile(TextFile):
     _lsp_server = 'kotlin-language-server'
     _lsp_lang_id = ''

@@ -1,7 +1,8 @@
-from vy.global_config import DEBUG
 from threading import Thread
-from vy.filetypes.basefile import BaseFile
 from time import sleep
+
+from vy.filetypes.basefile import BaseFile
+from vy.filetypes.lexer import guess_lexer, get_prefix 
 
 DELIMS = '+=#/?*<> ,;:/!%.{}()[]():\n\t\"\''
 
@@ -28,13 +29,13 @@ class TextFile(BaseFile):
     def __init__(self, *args, **kwargs):
         BaseFile.__init__(self, *args, **kwargs)
         self._lexed_cache = {}
-        self._token_list = []
         self._lexed_lines = []
-        self._th = Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True).start()
+        self._t = Thread(target=self._lex_away, args=(), name=f'{repr(self)}._lex_away()', daemon=True)
+        self._t.start()
 
     def _lex_away(self):
-        from vy.filetypes.lexer import guess_lexer, get_prefix
-        lexer = guess_lexer(self.path, self.string)
+        lexer = guess_lexer(self.path, self.string) or self.lexer
+                       
         local_dict = self._lexed_cache
         local_lexed = self._lexed_lines
         cancel_handler = self._async_tasks
@@ -94,7 +95,6 @@ class TextFile(BaseFile):
                                 self.word_set.remove(word)
             cancel_handler.notify_stopped()
             self._lexed_lines.clear()
-            self._token_list.clear()
 
     def get_raw_screen(self, min_lin, max_lin):
         # This method does not take the internal lock allowing
@@ -151,5 +151,4 @@ class TextFile(BaseFile):
                     return self._lsp_server.text_document_completion(f'file://{self.path}', self.string, lin, col - 1,)
                 except TimeoutError:
                     pass
-
             return super().auto_complete()
